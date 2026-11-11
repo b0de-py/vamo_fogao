@@ -18,7 +18,7 @@ O vamo_fogao junta num lugar só as tarefas, a agenda e um pedaço da história 
 
 ## Em que pé está
 
-Fase 1, o núcleo: as tarefas já moram num banco SQLite e dá pra usar pela linha de comando. A TUI chega na fase 2. O [ROADMAP](ROADMAP.md) mostra todas as fases.
+Fase 2, a TUI: as tarefas moram num banco SQLite, a linha de comando cuida do rápido e `vamo tui` abre as telas do dia, com o fogo alvinegro no rodapé. No Hyprland, um atalho mostra e esconde a TUI ([como configurar](book/src/a-tui.md#no-hyprland-a-janela-que-aparece-e-some)). O [ROADMAP](ROADMAP.md) mostra todas as fases.
 
 ```console
 $ vamo add Trocar o filtro da água --area casa
@@ -32,7 +32,7 @@ $ vamo show 1
 
 O banco fica em `~/.local/share/vamo_fogao/vamo.db`, ou na pasta que o `XDG_DATA_HOME` apontar.
 
-O [acervo](acervo/), com os fatos da história do Botafogo que vão virar a curiosidade do dia, já tem o formato, as primeiras sementes e a régua que a CI confere: fato verificado só com duas fontes independentes.
+O [acervo](acervo/) guarda os fatos da história do Botafogo que viram a curiosidade do dia (`vamo curiosidade`), com a régua que a CI confere: fato verificado só com duas fontes independentes.
 
 ## Como compilar
 
