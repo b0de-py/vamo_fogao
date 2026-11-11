@@ -16,8 +16,8 @@ use vamo_store::Store;
 use crate::acervo;
 use crate::cli::{AcervoCommand, Command};
 use crate::import::{self, Plan};
-use crate::messages::Voice;
 use crate::paths;
+use vamo_tui::Voice;
 
 /// Roda um comando e devolve o que mostrar na saída.
 pub(crate) fn run(command: Command, voice: Voice) -> Result<String> {
@@ -43,7 +43,7 @@ pub(crate) fn run(command: Command, voice: Voice) -> Result<String> {
             let mut session = Session::open(voice)?;
             let acervo::Bundled { facts, banter } = acervo::bundled();
             let setup = vamo_tui::Setup {
-                voice: voice.into(),
+                voice,
                 acervo: vamo_tui::Acervo { facts, banter },
                 time_zone: TimeZone::system(),
             };
@@ -107,7 +107,8 @@ impl Session {
         }
         self.record(id, changes)?;
 
-        Ok(self.voice.added(&self.task(id)?))
+        let task = self.task(id)?;
+        Ok(self.voice.added(task.id(), task.title()))
     }
 
     /// `vamo list`: as tarefas em jogo, ou as do filtro pedido.
@@ -134,7 +135,8 @@ impl Session {
         // O gol conta no dia em que saiu.
         let changes = self.projection.finish(id, jiff::Zoned::now().date())?;
         self.record(id, changes)?;
-        Ok(self.voice.done(&self.task(id)?))
+        let task = self.task(id)?;
+        Ok(self.voice.goal(task.id(), task.title()))
     }
 
     /// `vamo show`: a ficha da tarefa e o histórico dela.

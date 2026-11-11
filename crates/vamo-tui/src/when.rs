@@ -2,13 +2,15 @@
 
 use jiff::civil::Date;
 
+use crate::Voice;
+
 /// Lê o dia digitado: `hoje`, `amanhã`, `dd/mm` (no ano de hoje),
 /// `dd/mm/aaaa` ou `aaaa-mm-dd`.
 ///
 /// # Errors
 ///
 /// A mensagem pra mostrar no rodapé, com os formatos que valem.
-pub(crate) fn parse_day(text: &str, today: Date) -> Result<Date, String> {
+pub(crate) fn parse_day(text: &str, today: Date, voice: Voice) -> Result<Date, String> {
     let text = text.trim().to_lowercase();
     let day = match text.as_str() {
         "hoje" => Some(today),
@@ -19,9 +21,7 @@ pub(crate) fn parse_day(text: &str, today: Date) -> Result<Date, String> {
             _ => text.parse().ok(),
         },
     };
-    day.ok_or_else(|| {
-        format!("`{text}` não é um dia: vale hoje, amanhã, 25/12, 25/12/2026 ou 2026-12-25")
-    })
+    day.ok_or_else(|| voice.bad_day(&text))
 }
 
 /// A data, se ela existir no calendário.
@@ -47,14 +47,14 @@ mod tests {
             (" 5/1/2027 ", d(2027, 1, 5)),
             ("2026-12-25", d(2026, 12, 25)),
         ] {
-            assert_eq!(parse_day(text, TODAY), Ok(expected), "{text}");
+            assert_eq!(parse_day(text, TODAY, Voice::Game), Ok(expected), "{text}");
         }
     }
 
     #[test]
     fn days_that_do_not_exist_are_refused() {
         for text in ["", "ontem?", "30/02", "2026-13-01", "1/2/3/4"] {
-            assert!(parse_day(text, TODAY).is_err(), "{text}");
+            assert!(parse_day(text, TODAY, Voice::Game).is_err(), "{text}");
         }
     }
 }

@@ -1,9 +1,32 @@
-//! Os textos da TUI, na linguagem de jogo ou na neutra.
+//! O dicionário: todo texto de interface do `vamo`, na linguagem de jogo ou
+//! na neutra.
+//!
+//! A TUI e a CLI escrevem pela mesma [`Voice`], então trocar de linguagem é
+//! trocar a `Voice`, sem caçar string pelo código.
 
+use std::fmt;
+use std::str::FromStr;
+
+use jiff::civil::Weekday;
+use vamo_acervo::{Banter, Curiosity, Tag};
 use vamo_core::{Change, NotebookTitle, TaskId};
 
 use crate::app::Tab;
+use crate::museum::Shelf;
 use crate::today::Group;
+
+/// Um campo de tarefa, pros rótulos da Ficha, do Banco e da linha de
+/// digitar.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Field {
+    Id,
+    Title,
+    Area,
+    Fit,
+    Status,
+    Day,
+    Notes,
+}
 
 /// A linguagem da interface.
 ///
@@ -16,6 +39,52 @@ pub enum Voice {
     Game,
     /// O modo neutro.
     Neutral,
+}
+
+impl Voice {
+    /// As duas linguagens, na ordem da ajuda.
+    pub const ALL: [Self; 2] = [Self::Game, Self::Neutral];
+
+    /// O nome da linguagem na linha de comando e na config.
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Game => "jogo",
+            Self::Neutral => "neutra",
+        }
+    }
+}
+
+impl fmt::Display for Voice {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.name())
+    }
+}
+
+/// O nome que não é de nenhuma linguagem.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct UnknownVoice(pub String);
+
+impl fmt::Display for UnknownVoice {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "`{}` não é uma linguagem: as linguagens são jogo e neutra",
+            self.0
+        )
+    }
+}
+
+impl std::error::Error for UnknownVoice {}
+
+impl FromStr for Voice {
+    type Err = UnknownVoice;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::ALL
+            .into_iter()
+            .find(|voice| voice.name() == s)
+            .ok_or_else(|| UnknownVoice(s.to_owned()))
+    }
 }
 
 #[allow(
@@ -81,11 +150,11 @@ impl Voice {
         }
     }
 
-    /// O aviso do gol.
-    pub(crate) fn goal(self, title: &str) -> String {
+    /// O aviso do gol: depois do `vamo done` e no rodapé da TUI.
+    pub fn goal(self, id: TaskId, title: &NotebookTitle) -> String {
         match self {
-            Self::Game => format!("GOOOL! {title}"),
-            Self::Neutral => format!("Concluída: {title}"),
+            Self::Game => format!("GOOOL! {id} {title}"),
+            Self::Neutral => format!("Concluída: {id} {title}"),
         }
     }
 
@@ -144,16 +213,16 @@ impl Voice {
         }
     }
 
-    /// Depois de criar uma tarefa.
-    pub(crate) fn added(self, id: TaskId, title: &NotebookTitle) -> String {
+    /// Depois de criar uma tarefa, no `vamo add` e na TUI.
+    pub fn added(self, id: TaskId, title: &NotebookTitle) -> String {
         match self {
             Self::Game => format!("{id} entrou no banco: {title}"),
             Self::Neutral => format!("Tarefa criada: {id} {title}"),
         }
     }
 
-    /// O título do histórico de uma tarefa.
-    pub(crate) fn history(self) -> &'static str {
+    /// O título do histórico de uma tarefa, no `vamo show` e na Ficha.
+    pub fn history(self) -> &'static str {
         match self {
             Self::Game => "Súmula",
             Self::Neutral => "Histórico",
@@ -161,7 +230,7 @@ impl Voice {
     }
 
     /// O que aconteceu num evento, numa linha do histórico.
-    pub(crate) fn change(self, change: &Change) -> String {
+    pub fn change(self, change: &Change) -> String {
         match change {
             Change::Created {
                 title,
@@ -196,6 +265,154 @@ impl Voice {
             Change::Notes(notes) => {
                 format!("notas: {}", notes.lines().collect::<Vec<_>>().join(" · "))
             }
+        }
+    }
+
+    /// Quando a lista do `vamo list` não tem nenhuma tarefa.
+    pub fn nothing_to_list(self) -> &'static str {
+        match self {
+            Self::Game => "Ninguém no banco. Pra contratar: vamo add <título>",
+            Self::Neutral => "Nenhuma tarefa. Pra criar uma: vamo add <título>",
+        }
+    }
+
+    /// Depois de `vamo import`, com quantas tarefas entraram.
+    pub fn imported(self, count: usize) -> String {
+        match (self, count) {
+            (Self::Game, 0) => "Nenhum reforço entrou no banco.".to_owned(),
+            (Self::Game, 1) => "1 reforço entrou no banco.".to_owned(),
+            (Self::Game, n) => format!("{n} reforços entraram no banco."),
+            (Self::Neutral, 0) => "Nenhuma tarefa importada.".to_owned(),
+            (Self::Neutral, 1) => "1 tarefa importada.".to_owned(),
+            (Self::Neutral, n) => format!("{n} tarefas importadas."),
+        }
+    }
+
+    /// Depois de `vamo acervo validar`, quando o acervo inteiro passa.
+    pub fn acervo_checked(self, verified: usize, to_check: usize, banter: usize) -> String {
+        let facts = match verified {
+            1 => "1 fato verificado".to_owned(),
+            n => format!("{n} fatos verificados"),
+        };
+        match self {
+            Self::Game => format!(
+                "O VAR conferiu o acervo: {facts}, {to_check} a conferir e {banter} da resenha."
+            ),
+            Self::Neutral => {
+                format!("Acervo validado: {facts}, {to_check} a conferir e {banter} de piada.")
+            }
+        }
+    }
+
+    /// A curiosidade do dia no `vamo curiosidade`, com as fontes embaixo.
+    pub fn curiosity(self, curiosity: Curiosity<'_>) -> String {
+        let fact = curiosity.fact();
+        let heading = match (curiosity, fact.date()) {
+            (Curiosity::OnThisDay(_), Some(date)) => self.on_this_day(date.year()),
+            _ => self.curiosity_title().to_owned(),
+        };
+        let sources: Vec<&str> = fact
+            .sources()
+            .iter()
+            .map(vamo_acervo::Source::name)
+            .collect();
+        format!(
+            "{heading}\n\n{}\n\n{}{}",
+            fact.text(),
+            self.sources(),
+            sources.join(" · ")
+        )
+    }
+
+    /// A resenha do dia no `vamo curiosidade --resenha`, com o selo.
+    pub fn banter(self, banter: &Banter) -> String {
+        format!("{}\n\n{}", self.banter_seal(), banter.text())
+    }
+
+    /// O que vem antes da mensagem de um erro.
+    pub fn error(self) -> &'static str {
+        match self {
+            Self::Game => "Deu ruim:",
+            Self::Neutral => "Erro:",
+        }
+    }
+
+    /// O rótulo de um campo de tarefa.
+    pub(crate) fn field(self, field: Field) -> &'static str {
+        match field {
+            Field::Id => "ID",
+            Field::Title => "título",
+            Field::Area => "área",
+            Field::Fit => "encaixe",
+            Field::Status => "status",
+            Field::Day => "dia",
+            Field::Notes => "notas",
+        }
+    }
+
+    /// O rótulo do filtro do Banco, com o filtro.
+    pub(crate) fn filter(self, filter: &str) -> String {
+        format!("filtro: {filter}")
+    }
+
+    /// O começo da linha de digitar o filtro.
+    pub(crate) fn prompt_filter(self) -> &'static str {
+        "filtro (área, status, encaixe ou palavra do título): "
+    }
+
+    /// O começo da linha de digitar o dia.
+    pub(crate) fn prompt_day(self) -> &'static str {
+        "dia (hoje, amanhã, 25/12): "
+    }
+
+    /// Quando o dia digitado não é um dia.
+    pub(crate) fn bad_day(self, text: &str) -> String {
+        format!("`{text}` não é um dia: vale hoje, amanhã, 25/12, 25/12/2026 ou 2026-12-25")
+    }
+
+    /// Quando o número digitado não é de nenhuma opção.
+    pub(crate) fn bad_option(self, text: &str) -> String {
+        format!("`{text}` não é uma das opções: digite o número do status")
+    }
+
+    /// O dia da semana.
+    pub(crate) fn weekday(self, day: Weekday) -> &'static str {
+        match day {
+            Weekday::Monday => "segunda",
+            Weekday::Tuesday => "terça",
+            Weekday::Wednesday => "quarta",
+            Weekday::Thursday => "quinta",
+            Weekday::Friday => "sexta",
+            Weekday::Saturday => "sábado",
+            Weekday::Sunday => "domingo",
+        }
+    }
+
+    /// O tipo de um tema do acervo.
+    pub(crate) fn tag_kind(self, tag: &Tag) -> &'static str {
+        match tag {
+            Tag::Era(_) => "época",
+            Tag::Idol(_) => "ídolo",
+            Tag::Title(_) => "título",
+            Tag::Opponent(_) => "adversário",
+            Tag::Sport(_) => "esporte",
+        }
+    }
+
+    /// O grupo dos fatos sem tema.
+    pub(crate) fn no_theme(self) -> &'static str {
+        "sem tema"
+    }
+
+    /// Como o Museu está arrumado, com as teclas pra trocar.
+    pub(crate) fn shelf(self, arrangement: Shelf) -> &'static str {
+        match (self, arrangement) {
+            (Self::Game, Shelf::ByDate) => "por data (o: por tema · z: resenha)",
+            (Self::Game, Shelf::ByTheme) => "por tema (o: por data · z: resenha)",
+            (Self::Neutral, Shelf::ByDate) => "por data (o: por tema · z: piadas)",
+            (Self::Neutral, Shelf::ByTheme) => "por tema (o: por data · z: piadas)",
+            (Self::Game, Shelf::Banter) => "resenha (z: volta pros fatos)",
+            (Self::Neutral, Shelf::Banter) => "piadas (z: volta pros fatos)",
         }
     }
 
@@ -239,7 +456,7 @@ impl Voice {
     }
 
     /// Quando o acervo não tem fato verificado.
-    pub(crate) fn no_curiosity(self) -> &'static str {
+    pub fn no_curiosity(self) -> &'static str {
         match self {
             Self::Game => "O baú está vazio: nenhum fato verificado ainda.",
             Self::Neutral => "Nenhum fato verificado ainda.",
@@ -247,7 +464,7 @@ impl Voice {
     }
 
     /// Quando a resenha está vazia.
-    pub(crate) fn no_banter(self) -> &'static str {
+    pub fn no_banter(self) -> &'static str {
         match self {
             Self::Game => "A resenha está vazia.",
             Self::Neutral => "Nenhuma piada no acervo.",
@@ -262,31 +479,60 @@ impl Voice {
         }
     }
 
+    /// Escolhe entre o texto de jogo e o neutro.
+    fn pick(self, game: &'static str, neutral: &'static str) -> &'static str {
+        match self {
+            Self::Game => game,
+            Self::Neutral => neutral,
+        }
+    }
+
     /// As linhas da ajuda: as teclas da tela aberta e as de sempre.
     pub(crate) fn help(self, tab: Tab, card: bool) -> Vec<(&'static str, &'static str)> {
-        let quit = match self {
-            Self::Game => "encerra a partida",
-            Self::Neutral => "sai",
-        };
+        let back_to_bench = self.pick(
+            "tira do dia e devolve pro banco",
+            "tira do dia e devolve pra lista",
+        );
         let task_keys = [
-            ("espaço", "marca o gol (ou o VAR anula)"),
-            ("e", "escala pra hoje"),
-            ("b", "tira do dia e devolve pro banco"),
+            (
+                "espaço",
+                self.pick("marca o gol (ou o VAR anula)", "conclui (ou desfaz)"),
+            ),
+            ("e", self.pick("escala pra hoje", "marca pra hoje")),
+            ("b", back_to_bench),
             ("x", "descarta"),
         ];
         let mut rows: Vec<(&'static str, &'static str)> = match (tab, card) {
             (Tab::Today, _) => vec![
                 ("j, k, setas", "sobe e desce na lista"),
-                ("espaço, enter", "marca o gol (ou anula) e marca a fixa"),
+                (
+                    "espaço, enter",
+                    self.pick(
+                        "marca o gol (ou anula) e marca a fixa",
+                        "conclui (ou desfaz) e marca a fixa",
+                    ),
+                ),
                 ("a", "adia a tarefa pra amanhã"),
-                ("b", "tira do dia e devolve pro banco"),
-                ("r", "troca a curiosidade pela resenha, e volta"),
+                ("b", back_to_bench),
+                (
+                    "r",
+                    self.pick(
+                        "troca a curiosidade pela resenha, e volta",
+                        "troca a curiosidade pela piada, e volta",
+                    ),
+                ),
             ],
             (Tab::Notebook, _) => vec![],
             (Tab::Museum, _) => vec![
                 ("j, k, setas", "sobe e desce na lista"),
                 ("o", "ordena por data ou por tema"),
-                ("z", "mostra a resenha, e volta pros fatos"),
+                (
+                    "z",
+                    self.pick(
+                        "mostra a resenha, e volta pros fatos",
+                        "mostra as piadas, e volta pros fatos",
+                    ),
+                ),
             ],
             (Tab::Bench, false) => {
                 let mut rows = vec![
@@ -307,7 +553,7 @@ impl Voice {
                     ("d", "agenda pra um dia"),
                 ];
                 rows.extend(task_keys);
-                rows.push(("esc", "volta pro banco"));
+                rows.push(("esc", self.pick("volta pro banco", "volta pra lista")));
                 rows
             }
         };
@@ -315,8 +561,72 @@ impl Voice {
             ("1 a 4", "vai direto pra tela"),
             ("tab, shift+tab", "próxima tela, tela anterior"),
             ("?", "abre e fecha esta ajuda"),
-            ("q, ctrl+c", quit),
+            ("q, ctrl+c", self.pick("encerra a partida", "sai")),
         ]);
         rows
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use insta::assert_snapshot;
+    use ratatui::crossterm::event::KeyCode;
+
+    use super::*;
+    use crate::app::tests::{draw, key, new_app};
+    use crate::today::tests::example_day;
+
+    #[test]
+    fn the_name_goes_and_comes_back() {
+        for voice in Voice::ALL {
+            assert_eq!(voice.name().parse(), Ok(voice));
+        }
+        assert_eq!(
+            "torcida".parse::<Voice>(),
+            Err(UnknownVoice("torcida".to_owned()))
+        );
+    }
+
+    /// Cada tela do app, desenhada na linguagem dada, uma embaixo da outra.
+    /// Cada passo é a tecla que leva à tela e o nome dela.
+    fn every_screen(voice: Voice) -> String {
+        let steps = [
+            (None, "Hoje"),
+            (Some('r'), "Hoje com a piada"),
+            (Some('2'), "Caderno"),
+            (Some('3'), "Tarefas"),
+            (Some('\n'), "Ficha"),
+            (Some('4'), "Museu"),
+            (Some('o'), "Museu por tema"),
+            (Some('?'), "Ajuda"),
+        ];
+        let mut ledger = example_day();
+        let mut app = new_app(voice);
+        let mut screens = Vec::new();
+        for (step, name) in steps {
+            match step {
+                Some('\n') => app.on_key(key(KeyCode::Enter), &mut ledger),
+                Some(c) => app.on_key(key(KeyCode::Char(c)), &mut ledger),
+                None => {}
+            }
+            screens.push(format!("── {name}\n{}", draw(&app, &ledger, 100, 14)));
+        }
+        screens.join("\n")
+    }
+
+    #[test]
+    fn every_screen_in_the_neutral_voice() {
+        let screens = every_screen(Voice::Neutral);
+        // Nenhuma palavra do futebol escapa do modo neutro.
+        for word in [
+            "GOOOL", "GOL", "banco", "Banco", "escala", "Escala", "súmula", "Súmula", "placar",
+            "Glorioso", "resenha", "Resenha", "VAR", "contrat",
+        ] {
+            assert!(
+                !screens.contains(word),
+                "`{word}` no modo neutro:\n{screens}"
+            );
+        }
+        assert_snapshot!(screens);
     }
 }

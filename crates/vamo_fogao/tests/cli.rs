@@ -28,6 +28,7 @@ impl Vamo {
             .current_dir(self.home.path())
             .env("HOME", self.home.path())
             .env("XDG_DATA_HOME", self.home.path().join("dados"))
+            .env("XDG_CONFIG_HOME", self.home.path().join("config"))
             .env("VAMO_MAQUINA", "notebook")
             .env("TZ", "America/Sao_Paulo")
             .env_remove("VAMO_LINGUAGEM")
@@ -57,6 +58,13 @@ impl Vamo {
         assert_eq!(out.status.code(), Some(code), "`vamo {}`", args.join(" "));
         assert_eq!(text(&out.stdout), "");
         text(&out.stderr)
+    }
+
+    /// Escreve o arquivo de config com o texto dado.
+    fn configure(&self, text: &str) {
+        let folder = self.home.path().join("config/vamo_fogao");
+        std::fs::create_dir_all(&folder).expect("a pasta da config deveria ser criada");
+        std::fs::write(folder.join("config.toml"), text).expect("a config deveria ser gravada");
     }
 
     fn database(&self) -> std::path::PathBuf {
@@ -376,6 +384,32 @@ mod neutral_voice {
     }
 
     #[test]
+    fn the_config_file_chooses_the_voice() {
+        let vamo = Vamo::new();
+        vamo.configure("linguagem = \"neutra\"\n");
+
+        assert_eq!(
+            vamo.ok(&["list"]),
+            "Nenhuma tarefa. Pra criar uma: vamo add <título>\n"
+        );
+        // A linha de comando ganha da config.
+        assert_eq!(
+            vamo.ok(&["list", "--linguagem", "jogo"]),
+            "Ninguém no banco. Pra contratar: vamo add <título>\n"
+        );
+    }
+
+    #[test]
+    fn a_broken_config_says_where_it_is() {
+        let vamo = Vamo::new();
+        vamo.configure("linguagem = \"torcida\"\n");
+
+        let error = vamo.fails(&["list"], 1);
+        assert!(error.contains("config.toml tem erro"), "{error}");
+        assert!(error.contains("`torcida` não é uma linguagem"), "{error}");
+    }
+
+    #[test]
     fn errors_change_too() {
         assert!(
             Vamo::new()
@@ -528,7 +562,7 @@ url = "https://pt.wikipedia.org/wiki/Botafogo_de_Futebol_e_Regatas"
         );
         assert_eq!(
             vamo.ok(&["--linguagem", "neutra", "acervo", "validar"]),
-            "Acervo validado: 2 fatos verificados, 1 a conferir e 1 da resenha.\n"
+            "Acervo validado: 2 fatos verificados, 1 a conferir e 1 de piada.\n"
         );
     }
 

@@ -12,6 +12,7 @@ use vamo_core::{Change, Event, Fit, Status, Task};
 use crate::app::{Action, record};
 use crate::bench::task_key;
 use crate::prompt::{Prompt, Purpose};
+use crate::voice::Field;
 use crate::{Ledger, Voice, theme};
 
 /// Reage a uma tecla na Ficha da tarefa.
@@ -74,11 +75,11 @@ pub(crate) fn render(
             Span::styled(task.title().to_string(), theme::heading()),
         ]),
         Line::default(),
-        field("área", task.area().to_string()),
-        field("encaixe", task.fit().to_string()),
-        field("status", task.status().to_string()),
+        field(voice.field(Field::Area), task.area().to_string()),
+        field(voice.field(Field::Fit), task.fit().to_string()),
+        field(voice.field(Field::Status), task.status().to_string()),
         field(
-            "dia",
+            voice.field(Field::Day),
             task.day().map_or_else(
                 || "-".to_owned(),
                 |day| day.strftime("%d/%m/%Y").to_string(),
@@ -87,7 +88,7 @@ pub(crate) fn render(
     ];
     let mut notes = task.notes().lines();
     if let Some(first) = notes.next() {
-        lines.push(field("notas", first.to_owned()));
+        lines.push(field(voice.field(Field::Notes), first.to_owned()));
         lines.extend(notes.map(|line| field("", line.to_owned())));
     }
 

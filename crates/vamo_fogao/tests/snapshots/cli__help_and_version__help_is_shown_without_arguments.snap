@@ -21,8 +21,13 @@ Opções:
   -h, --help                   Mostra esta ajuda
   -V, --version                Mostra a versão
 
+Config:
+  ~/.config/vamo_fogao/config.toml, com linguagem = "neutra" pra trocar o
+  padrão. A --linguagem e a VAMO_LINGUAGEM ganham da config.
+
 Variáveis de ambiente:
-  VAMO_LINGUAGEM  jogo ou neutra, o mesmo que --linguagem
-  VAMO_MAQUINA    o nome desta máquina nos eventos (sem ela, vale o hostname)
-  VAMO_LOG        o nível dos logs na saída de erro, como debug (padrão: warn)
-  XDG_DATA_HOME   onde fica a pasta do banco (padrão: ~/.local/share)
+  VAMO_LINGUAGEM   jogo ou neutra, o mesmo que --linguagem
+  VAMO_MAQUINA     o nome desta máquina nos eventos (sem ela, vale o hostname)
+  VAMO_LOG         o nível dos logs na saída de erro, como debug (padrão: warn)
+  XDG_CONFIG_HOME  onde fica a pasta da config (padrão: ~/.config)
+  XDG_DATA_HOME    onde fica a pasta do banco (padrão: ~/.local/share)

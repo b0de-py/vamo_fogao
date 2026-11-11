@@ -10,6 +10,7 @@ use vamo_core::{Fit, Projection, Status, Task};
 
 use crate::app::{Action, Feedback, record};
 use crate::prompt::{Prompt, Purpose};
+use crate::voice::Field;
 use crate::{Ledger, Voice, theme};
 
 /// O cursor e o filtro do Banco.
@@ -79,7 +80,7 @@ impl Bench {
         let filter = if self.filter.is_empty() {
             Span::styled(voice.bench_in_play(), theme::muted())
         } else {
-            Span::styled(format!("filtro: {}", self.filter), theme::selected())
+            Span::styled(voice.filter(&self.filter), theme::selected())
         };
         frame.render_widget(
             Paragraph::new(Line::from(vec![
@@ -107,8 +108,18 @@ impl Bench {
             .skip(first)
             .take(height)
             .map(|(index, task)| row(task, index == cursor));
-        let header =
-            Row::new(["ID", "status", "encaixe", "área", "dia", "título"]).style(theme::muted());
+        let header = Row::new(
+            [
+                Field::Id,
+                Field::Status,
+                Field::Fit,
+                Field::Area,
+                Field::Day,
+                Field::Title,
+            ]
+            .map(|field| voice.field(field)),
+        )
+        .style(theme::muted());
         let widths = [
             Constraint::Length(5),
             Constraint::Length(13),
@@ -144,7 +155,7 @@ pub(crate) fn task_key<L: Ledger>(
             .map(|change| vec![change]),
         KeyCode::Char(' ') => {
             let feedback = match record(ledger, id, projection.finish(id, today)) {
-                Feedback::Done => Feedback::Goal,
+                Feedback::Done => Feedback::Goal(id),
                 other => other,
             };
             return Some(Action::Feedback(feedback));

@@ -5,6 +5,7 @@ use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use vamo_core::{Status, TaskId};
 
 use crate::Voice;
+use crate::voice::Field;
 
 /// Pra que a linha de digitar foi aberta.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -74,17 +75,17 @@ impl Prompt {
     pub(crate) fn label(&self, voice: Voice) -> String {
         match &self.purpose {
             Purpose::NewTask => voice.prompt_new_task().to_owned(),
-            Purpose::Filter => "filtro (área, status, encaixe ou palavra do título): ".to_owned(),
-            Purpose::Title(_) => "título: ".to_owned(),
-            Purpose::Area(_) => "área: ".to_owned(),
-            Purpose::Notes(_) => "notas: ".to_owned(),
-            Purpose::Day(_) => "dia (hoje, amanhã, 25/12): ".to_owned(),
+            Purpose::Filter => voice.prompt_filter().to_owned(),
+            Purpose::Title(_) => format!("{}: ", voice.field(Field::Title)),
+            Purpose::Area(_) => format!("{}: ", voice.field(Field::Area)),
+            Purpose::Notes(_) => format!("{}: ", voice.field(Field::Notes)),
+            Purpose::Day(_) => voice.prompt_day().to_owned(),
             Purpose::Status(_, options) => {
                 let options: Vec<String> = (1..)
                     .zip(options)
                     .map(|(n, status)| format!("{n} {status}"))
                     .collect();
-                format!("status ({}): ", options.join(", "))
+                format!("{} ({}): ", voice.field(Field::Status), options.join(", "))
             }
         }
     }

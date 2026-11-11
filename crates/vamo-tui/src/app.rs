@@ -15,7 +15,7 @@ use jiff::civil::Date;
 
 use jiff::tz::TimeZone;
 use ratatui::style::Style;
-use vamo_core::{Change, Fit, NotebookTitle, Status, TaskId};
+use vamo_core::{Change, Fit, NotebookTitle, Projection, Status, TaskId};
 
 use crate::bench::Bench;
 use crate::curiosity::Acervo;
@@ -31,7 +31,7 @@ pub(crate) enum Feedback {
     /// A mudança foi gravada.
     Done,
     /// A mudança foi gravada e foi gol: a tarefa ficou concluída.
-    Goal,
+    Goal(TaskId),
     /// A mudança foi gravada, com um recado pro rodapé.
     Note(String),
     /// Não deu: a regra não deixou ou a gravação falhou. A mensagem vai pro
@@ -181,7 +181,7 @@ impl App {
                 Step::Submit => {
                     if let Some(prompt) = self.prompt.take() {
                         let feedback = self.submit(prompt, ledger);
-                        self.show(Some(feedback));
+                        self.show(Some(feedback), ledger.projection());
                     }
                 }
             }
@@ -211,12 +211,12 @@ impl App {
                     (Tab::Bench, None) => self.bench.on_key(key, ledger, self.today),
                     (Tab::Today, _) => self.today_screen.on_key(key, ledger, self.today),
                     (Tab::Museum, _) => {
-                        self.museum.on_key(key, &self.acervo);
+                        self.museum.on_key(key, &self.acervo, self.voice);
                         None
                     }
                     (Tab::Notebook, _) => None,
                 };
-                self.act(action);
+                self.act(action, ledger.projection());
             }
         }
     }
@@ -228,10 +228,10 @@ impl App {
     }
 
     /// Faz o que a tela pediu.
-    fn act(&mut self, action: Option<Action>) {
+    fn act(&mut self, action: Option<Action>, projection: &Projection) {
         match action {
             None => {}
-            Some(Action::Feedback(feedback)) => self.show(Some(feedback)),
+            Some(Action::Feedback(feedback)) => self.show(Some(feedback), projection),
             Some(Action::Open(id)) => self.card = Some(id),
             Some(Action::Close) => self.card = None,
             Some(Action::Ask(prompt)) => self.prompt = Some(prompt),
@@ -280,7 +280,7 @@ impl App {
                 record(ledger, id, change)
             }
             Purpose::Notes(id) => record(ledger, id, Ok(vec![Change::Notes(text.to_owned())])),
-            Purpose::Day(id) => match parse_day(text, self.today) {
+            Purpose::Day(id) => match parse_day(text, self.today, self.voice) {
                 Ok(day) => {
                     let changes = projection.schedule(id, day);
                     record(ledger, id, changes)
@@ -300,20 +300,18 @@ impl App {
                             .map(|change| vec![change]);
                         record(ledger, id, change)
                     }
-                    None => Feedback::Refused(format!(
-                        "`{text}` não é uma das opções: digite o número do status"
-                    )),
+                    None => Feedback::Refused(self.voice.bad_option(text)),
                 }
             }
         }
     }
 
     /// Mostra no rodapé o que aconteceu.
-    fn show(&mut self, feedback: Option<Feedback>) {
+    fn show(&mut self, feedback: Option<Feedback>, projection: &Projection) {
         self.message = match feedback {
             None | Some(Feedback::Done) => None,
-            Some(Feedback::Goal) => Some(Message {
-                text: self.voice.goal("a tarefa está no placar"),
+            Some(Feedback::Goal(id)) => projection.task(id).map(|task| Message {
+                text: self.voice.goal(id, task.title()),
                 style: theme::success(),
             }),
             Some(Feedback::Note(text)) => Some(Message {

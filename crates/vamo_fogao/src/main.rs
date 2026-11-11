@@ -7,8 +7,8 @@
 mod acervo;
 mod cli;
 mod commands;
+mod config;
 mod import;
-mod messages;
 mod paths;
 
 use std::io::IsTerminal;
@@ -60,7 +60,18 @@ fn main() -> ExitCode {
         return ExitCode::SUCCESS;
     };
 
-    match commands::run(command, cli.voice) {
+    // A linguagem: a da linha de comando (ou do ambiente) ganha da config,
+    // e sem nenhuma das duas vale a de jogo.
+    let config = match config::load() {
+        Ok(config) => config,
+        Err(report) => {
+            eprintln!("{} {report:?}", cli.voice.unwrap_or_default().error());
+            return ExitCode::FAILURE;
+        }
+    };
+    let voice = cli.voice.or(config.voice).unwrap_or_default();
+
+    match commands::run(command, voice) {
         Ok(output) => {
             // A TUI não deixa nada pra imprimir depois que fecha.
             if !output.is_empty() {
@@ -69,7 +80,7 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         Err(report) => {
-            eprintln!("{} {report:?}", cli.voice.error());
+            eprintln!("{} {report:?}", voice.error());
             ExitCode::FAILURE
         }
     }

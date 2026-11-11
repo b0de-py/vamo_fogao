@@ -6,11 +6,12 @@
 
 use std::path::PathBuf;
 
+use clap::builder::{PossibleValuesParser, TypedValueParser};
 use clap::error::{ContextKind, ErrorKind};
 use clap::{ArgAction, Parser, Subcommand};
 use vamo_core::{Area, Fit, Status, TaskId};
 
-use crate::messages::Voice;
+use vamo_tui::Voice;
 
 /// O molde da ajuda, com os títulos em português.
 const HELP_TEMPLATE: &str = "\
@@ -32,11 +33,16 @@ Uso: {usage}
 
 /// O que aparece no fim de `vamo --help`.
 const AFTER_HELP: &str = "\
+Config:
+  ~/.config/vamo_fogao/config.toml, com linguagem = \"neutra\" pra trocar o
+  padrão. A --linguagem e a VAMO_LINGUAGEM ganham da config.
+
 Variáveis de ambiente:
-  VAMO_LINGUAGEM  jogo ou neutra, o mesmo que --linguagem
-  VAMO_MAQUINA    o nome desta máquina nos eventos (sem ela, vale o hostname)
-  VAMO_LOG        o nível dos logs na saída de erro, como debug (padrão: warn)
-  XDG_DATA_HOME   onde fica a pasta do banco (padrão: ~/.local/share)";
+  VAMO_LINGUAGEM   jogo ou neutra, o mesmo que --linguagem
+  VAMO_MAQUINA     o nome desta máquina nos eventos (sem ela, vale o hostname)
+  VAMO_LOG         o nível dos logs na saída de erro, como debug (padrão: warn)
+  XDG_CONFIG_HOME  onde fica a pasta da config (padrão: ~/.config)
+  XDG_DATA_HOME    onde fica a pasta do banco (padrão: ~/.local/share)";
 
 /// vamo, o app de tarefas do vamo_fogao
 #[derive(Debug, Parser)]
@@ -64,12 +70,11 @@ pub(crate) struct Cli {
         global = true,
         env = "VAMO_LINGUAGEM",
         value_name = "LINGUAGEM",
-        default_value = "jogo",
-        hide_default_value = true,
+        value_parser = voice_parser(),
         hide_possible_values = true,
         hide_env = true
     )]
-    pub(crate) voice: Voice,
+    pub(crate) voice: Option<Voice>,
 
     /// Mostra esta ajuda
     #[arg(short = 'h', long = "help", global = true, action = ArgAction::Help)]
@@ -257,6 +262,15 @@ pub(crate) enum AcervoCommand {
         )]
         folder: PathBuf,
     },
+}
+
+/// Lê a linguagem pelo nome. A lista de nomes fica com o clap, pra o erro
+/// de uso dizer quais são os aceitos.
+fn voice_parser() -> impl TypedValueParser<Value = Voice> {
+    PossibleValuesParser::new(Voice::ALL.map(Voice::name)).map(|name| {
+        name.parse()
+            .expect("o clap só deixa passar os nomes que vieram de Voice::ALL")
+    })
 }
 
 /// Lê uma data no formato `AAAA-MM-DD`.

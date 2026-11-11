@@ -11,7 +11,7 @@ use color_eyre::eyre::{Result, WrapErr, bail, eyre};
 use jiff::civil::Date;
 use vamo_acervo::{Banter, Day, Error, Fact, banter_of_the_day, curiosity_of_the_day};
 
-use crate::messages::Voice;
+use vamo_tui::Voice;
 
 /// Os arquivos do acervo, embutidos na compilação pelo `build.rs`.
 mod embedded {

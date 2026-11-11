@@ -12,11 +12,13 @@ A fase 2 traz a interface de terminal. Ela precisa ler as tarefas, gravar mudan�
 - A TUI usa o [ratatui](https://ratatui.rs) com o crossterm. Cada quadro é desenhado do zero a partir de um estado (o `App`), e as teclas só mudam o estado.
 - A TUI declara a própria porta, a trait `Ledger`: o estado das tarefas, o log e um jeito de gravar mudanças. O binário implementa a `Ledger` com a mesma sessão da CLI (banco, relógio e nome da máquina), e os testes da TUI usam um log em memória.
 - As telas são testadas com o `TestBackend` do ratatui e snapshots do insta.
+- O dicionário da interface, a `Voice` com a linguagem de jogo e a neutra, mora no `vamo-tui` e é público. A CLI usa o mesmo dicionário, então `vamo done` e o espaço na tela Hoje dizem o mesmo GOOOL. A escolha da linguagem (flag, variável ou config) é do binário.
 
 ## Alternativas consideradas
 
 - **`vamo-tui` dependendo do `vamo-store`:** mais curto, mas quebra a regra de adaptador não chamar adaptador, e os testes da TUI passariam a precisar de banco.
 - **Usar a `EventStore` do core direto na TUI:** a TUI teria que gerar ID de evento, ler o relógio e o nome da máquina, repetindo o que a sessão do binário já faz.
+- **O dicionário no binário, como na fase 1:** a TUI teria uma segunda cópia dos textos, e as duas iam divergir. No `vamo-core` também não: texto de interface não é regra de negócio.
 - **cursive ou tui com widgets retidos:** o modelo de estado e desenho do ratatui é o que deixa o teste de snapshot simples e é o padrão do ecossistema hoje.
 
 ## Consequências

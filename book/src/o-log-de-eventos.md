@@ -81,6 +81,6 @@ Pra ver as peças juntas, siga um `vamo done 41` pelo código:
 2. **`commands.rs`, `Session::open`:** abre o banco, lê o log inteiro e monta a projeção.
 3. **`Projection::status_change`:** pergunta ao core se a tarefa existe e se a transição pra concluída vale. A regra é do core; a resposta é a `Change` a gravar ou o erro.
 4. **`Session::record`:** carimba o evento (UUID v7, o instante de agora e o nome da máquina), grava no banco e aplica na projeção.
-5. **`messages.rs`:** a `Voice` escreve "GOOOL! T-041 ..." (ou "Concluída: T-041 ..." no modo neutro), e o `main` imprime.
+5. **`vamo_tui::Voice`:** o dicionário escreve "GOOOL! T-041 ..." (ou "Concluída: T-041 ..." no modo neutro), e o `main` imprime.
 
 O relógio, o nome da máquina e o banco aparecem só nos passos 2 e 4, que são do binário. O passo 3, onde mora a regra, é código puro.

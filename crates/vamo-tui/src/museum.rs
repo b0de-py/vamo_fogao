@@ -13,7 +13,7 @@ use crate::{Voice, theme};
 
 /// Como o Museu está arrumado.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-enum Shelf {
+pub(crate) enum Shelf {
     /// Os fatos em ordem de data.
     #[default]
     ByDate,
@@ -39,9 +39,9 @@ enum Entry<'a> {
 
 impl Museum {
     /// Reage a uma tecla da tela.
-    pub(crate) fn on_key(&mut self, key: KeyEvent, acervo: &Acervo) {
+    pub(crate) fn on_key(&mut self, key: KeyEvent, acervo: &Acervo, voice: Voice) {
         let items = self
-            .entries(acervo)
+            .entries(acervo, voice)
             .iter()
             .filter(|e| !matches!(e, Entry::Heading(_)))
             .count();
@@ -71,7 +71,7 @@ impl Museum {
 
     /// As linhas da lista, na ordem da prateleira. Fato a conferir nunca
     /// entra.
-    fn entries<'a>(&self, acervo: &'a Acervo) -> Vec<Entry<'a>> {
+    fn entries<'a>(&self, acervo: &'a Acervo, voice: Voice) -> Vec<Entry<'a>> {
         let mut facts: Vec<&Fact> = acervo
             .facts
             .iter()
@@ -89,7 +89,7 @@ impl Museum {
                 tags.dedup();
                 let mut entries = Vec::new();
                 for tag in tags {
-                    entries.push(Entry::Heading(tag_label(tag)));
+                    entries.push(Entry::Heading(tag_label(tag, voice)));
                     entries.extend(
                         facts
                             .iter()
@@ -100,7 +100,7 @@ impl Museum {
                 let loose: Vec<&&Fact> =
                     facts.iter().filter(|fact| fact.tags().is_empty()).collect();
                 if !loose.is_empty() {
-                    entries.push(Entry::Heading("sem tema".to_owned()));
+                    entries.push(Entry::Heading(voice.no_theme().to_owned()));
                     entries.extend(loose.into_iter().map(|fact| Entry::Fact(fact)));
                 }
                 entries
@@ -124,11 +124,7 @@ impl Museum {
     ) {
         let [top, rest] =
             Layout::vertical([Constraint::Length(2), Constraint::Fill(1)]).areas(area);
-        let arrangement = match self.shelf {
-            Shelf::ByDate => "por data (o: por tema · z: resenha)",
-            Shelf::ByTheme => "por tema (o: por data · z: resenha)",
-            Shelf::Banter => "resenha (z: volta pros fatos)",
-        };
+        let arrangement = voice.shelf(self.shelf);
         frame.render_widget(
             Paragraph::new(Line::from(vec![
                 Span::styled(voice.museum_title(), theme::heading()),
@@ -137,7 +133,7 @@ impl Museum {
             top,
         );
 
-        let entries = self.entries(acervo);
+        let entries = self.entries(acervo, voice);
         let items = entries
             .iter()
             .filter(|e| !matches!(e, Entry::Heading(_)))
@@ -264,7 +260,11 @@ fn fact_detail(fact: &Fact, this_day: bool, voice: Voice) -> Vec<Line<'static>> 
     }
     if !fact.tags().is_empty() {
         lines.push(Line::default());
-        let tags: Vec<String> = fact.tags().iter().map(tag_label).collect();
+        let tags: Vec<String> = fact
+            .tags()
+            .iter()
+            .map(|tag| tag_label(tag, voice))
+            .collect();
         lines.push(Line::styled(
             format!(" {}", tags.join(" · ")),
             theme::muted(),
@@ -274,15 +274,12 @@ fn fact_detail(fact: &Fact, this_day: bool, voice: Voice) -> Vec<Line<'static>> 
 }
 
 /// O tema em português, como `ídolo: nilton santos`.
-fn tag_label(tag: &Tag) -> String {
-    let kind = match tag {
-        Tag::Era(_) => "época",
-        Tag::Idol(_) => "ídolo",
-        Tag::Title(_) => "título",
-        Tag::Opponent(_) => "adversário",
-        Tag::Sport(_) => "esporte",
-    };
-    format!("{kind}: {}", tag.value().as_str().replace('-', " "))
+fn tag_label(tag: &Tag, voice: Voice) -> String {
+    format!(
+        "{}: {}",
+        voice.tag_kind(tag),
+        tag.value().as_str().replace('-', " ")
+    )
 }
 
 #[cfg(test)]

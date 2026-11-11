@@ -1,6 +1,6 @@
 //! A tela Hoje: o placar, a escalação do dia e a curiosidade num canto.
 
-use jiff::civil::{Date, Weekday};
+use jiff::civil::Date;
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::{Constraint, Layout, Rect};
@@ -176,7 +176,7 @@ fn toggle<L: Ledger>(ledger: &mut L, group: Group, task: &Task, today: Date) -> 
             record(ledger, id, change)
         }
         _ => match record(ledger, id, projection.finish(id, today)) {
-            Feedback::Done => Feedback::Goal,
+            Feedback::Done => Feedback::Goal(id),
             other => other,
         },
     }
@@ -215,7 +215,11 @@ fn row(group: Group, task: &Task, today: Date, cursor: bool, voice: Voice) -> Li
 fn render_scoreboard(frame: &mut Frame<'_>, area: Rect, lineup: &Lineup, voice: Voice) {
     let today = lineup.today();
     let score = lineup.score();
-    let date = format!("{}, {}", weekday(today.weekday()), today.strftime("%d/%m"));
+    let date = format!(
+        "{}, {}",
+        voice.weekday(today.weekday()),
+        today.strftime("%d/%m")
+    );
     let score_style: Style = if score.planned > 0 && score.done == score.planned {
         theme::success()
     } else {
@@ -237,19 +241,6 @@ fn render_scoreboard(frame: &mut Frame<'_>, area: Rect, lineup: &Lineup, voice: 
         .right_aligned(),
         right,
     );
-}
-
-/// O dia da semana em português.
-fn weekday(day: Weekday) -> &'static str {
-    match day {
-        Weekday::Monday => "segunda",
-        Weekday::Tuesday => "terça",
-        Weekday::Wednesday => "quarta",
-        Weekday::Thursday => "quinta",
-        Weekday::Friday => "sexta",
-        Weekday::Saturday => "sábado",
-        Weekday::Sunday => "domingo",
-    }
 }
 
 #[cfg(test)]
