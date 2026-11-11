@@ -13,8 +13,48 @@ use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 
 use jiff::civil::Date;
 
-use crate::curiosity::{self, Acervo};
+use ratatui::style::Style;
+use vamo_core::{Change, TaskId};
+
+use crate::curiosity::Acervo;
+use crate::today::Today;
 use crate::{Ledger, Setup, Voice, theme};
+
+/// O que aconteceu depois de uma ação de quem usa.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum Feedback {
+    /// A mudança foi gravada.
+    Done,
+    /// A mudança foi gravada e foi gol: a tarefa ficou concluída.
+    Goal,
+    /// Não deu: a regra não deixou ou a gravação falhou. A mensagem vai pro
+    /// rodapé, em amarelo plasma.
+    Refused(String),
+}
+
+/// Grava as mudanças que o core devolveu, ou repassa a recusa dele.
+pub(crate) fn record<L: Ledger>(
+    ledger: &mut L,
+    task: TaskId,
+    changes: Result<Vec<Change>, vamo_core::Error>,
+) -> Feedback {
+    let changes = match changes {
+        Ok(changes) if changes.is_empty() => return Feedback::Done,
+        Ok(changes) => changes,
+        Err(error) => return Feedback::Refused(error.to_string()),
+    };
+    match ledger.record(task, changes) {
+        Ok(()) => Feedback::Done,
+        Err(error) => Feedback::Refused(error.to_string()),
+    }
+}
+
+/// Uma mensagem no rodapé, até a próxima tecla.
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct Message {
+    text: String,
+    style: Style,
+}
 
 /// As abas, na ordem em que aparecem no topo.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -62,6 +102,8 @@ pub(crate) struct App {
     tab: Tab,
     /// Se o quadro da curiosidade mostra a resenha no lugar do fato.
     banter: bool,
+    today_screen: Today,
+    message: Option<Message>,
     help: bool,
     quit: bool,
 }
@@ -74,6 +116,8 @@ impl App {
             today,
             tab: Tab::Today,
             banter: false,
+            today_screen: Today::default(),
+            message: None,
             help: false,
             quit: false,
         }
@@ -90,7 +134,9 @@ impl App {
     }
 
     /// Reage a uma tecla.
-    pub(crate) fn on_key<L: Ledger>(&mut self, key: KeyEvent, _ledger: &mut L) {
+    pub(crate) fn on_key<L: Ledger>(&mut self, key: KeyEvent, ledger: &mut L) {
+        // A mensagem do rodapé vale até a próxima tecla.
+        self.message = None;
         // O ctrl+c fecha de qualquer lugar, como em todo programa de terminal.
         if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
             self.quit = true;
@@ -111,12 +157,33 @@ impl App {
                 let index = usize::from(digit as u8 - b'1');
                 self.tab = Tab::ALL[index];
             }
-            _ => {}
+            _ => {
+                let feedback = match self.tab {
+                    Tab::Today => self.today_screen.on_key(key, ledger, self.today),
+                    _ => None,
+                };
+                self.show(feedback, ledger);
+            }
         }
     }
 
+    /// Mostra no rodapé o que aconteceu.
+    fn show<L: Ledger>(&mut self, feedback: Option<Feedback>, _ledger: &L) {
+        self.message = match feedback {
+            None | Some(Feedback::Done) => None,
+            Some(Feedback::Goal) => Some(Message {
+                text: self.voice.goal("a tarefa está no placar"),
+                style: theme::success(),
+            }),
+            Some(Feedback::Refused(text)) => Some(Message {
+                text,
+                style: theme::warning(),
+            }),
+        };
+    }
+
     /// Desenha um quadro inteiro.
-    pub(crate) fn render<L: Ledger>(&self, frame: &mut Frame<'_>, _ledger: &L) {
+    pub(crate) fn render<L: Ledger>(&self, frame: &mut Frame<'_>, ledger: &L) {
         let area = frame.area();
         frame.render_widget(Block::new().style(theme::base()), area);
 
@@ -128,11 +195,12 @@ impl App {
         .areas(area);
 
         self.render_header(frame, header);
-        self.render_body(frame, body);
-        frame.render_widget(
-            Paragraph::new(Line::styled(self.voice.hints(), theme::muted())),
-            footer,
-        );
+        self.render_body(frame, body, ledger);
+        let footer_line = match &self.message {
+            Some(message) => Line::styled(message.text.clone(), message.style),
+            None => Line::styled(self.voice.hints(), theme::muted()),
+        };
+        frame.render_widget(Paragraph::new(footer_line), footer);
 
         if self.help {
             self.render_help(frame, body);
@@ -163,24 +231,22 @@ impl App {
     }
 
     /// O miolo da tela atual.
-    fn render_body(&self, frame: &mut Frame<'_>, area: Rect) {
+    fn render_body<L: Ledger>(&self, frame: &mut Frame<'_>, area: Rect, ledger: &L) {
         let area = area.inner(ratatui::layout::Margin::new(1, 1));
-        let [title, rest] =
-            Layout::vertical([Constraint::Length(2), Constraint::Fill(1)]).areas(area);
-        frame.render_widget(
-            Paragraph::new(Line::styled(self.voice.tab(self.tab), theme::heading())),
-            title,
-        );
-        if self.tab == Tab::Today {
-            let [corner] = Layout::vertical([Constraint::Max(8)]).areas(rest);
-            curiosity::render(
+        match self.tab {
+            Tab::Today => self.today_screen.render(
                 frame,
-                corner,
-                &self.acervo,
+                area,
+                ledger.projection(),
                 self.today,
+                &self.acervo,
                 self.banter,
                 self.voice,
-            );
+            ),
+            tab => frame.render_widget(
+                Paragraph::new(Line::styled(self.voice.tab(tab), theme::heading())),
+                area,
+            ),
         }
     }
 

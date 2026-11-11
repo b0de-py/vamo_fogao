@@ -1,6 +1,7 @@
 //! Os textos da TUI, na linguagem de jogo ou na neutra.
 
 use crate::app::Tab;
+use crate::today::Group;
 
 /// A linguagem da interface.
 ///
@@ -36,6 +37,53 @@ impl Voice {
         match self {
             Self::Game => "tab troca de tela · ? ajuda · q encerra a partida",
             Self::Neutral => "tab troca de tela · ? ajuda · q sai",
+        }
+    }
+
+    /// O título da tela Hoje.
+    pub(crate) fn today_title(self) -> &'static str {
+        "Hoje"
+    }
+
+    /// O placar do dia.
+    pub(crate) fn score(self, done: usize, planned: usize) -> String {
+        match self {
+            Self::Game => format!("Placar: {done} de {planned}"),
+            Self::Neutral => format!("Feitas: {done} de {planned}"),
+        }
+    }
+
+    /// O título de um grupo da escalação.
+    pub(crate) fn group(self, group: Group) -> &'static str {
+        match (self, group) {
+            (Self::Game, Group::Planned) => "Escalação",
+            (Self::Neutral, Group::Planned) => "Pra hoje",
+            (_, Group::Late) => "Atrasadas",
+            (_, Group::Fixed) => "Fixas",
+        }
+    }
+
+    /// O detalhe de uma tarefa atrasada: o dia pra que ela estava escalada.
+    pub(crate) fn was_planned_for(self, day: &str) -> String {
+        match self {
+            Self::Game => format!("escalada pra {day}"),
+            Self::Neutral => format!("era pra {day}"),
+        }
+    }
+
+    /// Quando não tem nada no dia.
+    pub(crate) fn empty_lineup(self) -> &'static str {
+        match self {
+            Self::Game => "Ninguém escalado hoje. No Banco, o e escala uma tarefa pro dia.",
+            Self::Neutral => "Nada pra hoje. Em Tarefas, o e marca uma tarefa pro dia.",
+        }
+    }
+
+    /// O aviso do gol.
+    pub(crate) fn goal(self, title: &str) -> String {
+        match self {
+            Self::Game => format!("GOOOL! {title}"),
+            Self::Neutral => format!("Concluída: {title}"),
         }
     }
 
@@ -111,6 +159,10 @@ impl Voice {
         vec![
             ("1 a 4", "vai direto pra tela"),
             ("tab, shift+tab", "próxima tela, tela anterior"),
+            ("j, k, setas", "sobe e desce na lista"),
+            ("espaço, enter", "marca o gol (ou anula) e marca a fixa"),
+            ("a", "adia a tarefa pra amanhã"),
+            ("b", "tira do dia e devolve pro banco"),
             ("r", "troca a curiosidade pela resenha, e volta"),
             ("?", "abre e fecha esta ajuda"),
             ("q, ctrl+c", quit),

@@ -63,6 +63,16 @@ pub enum Error {
         source: jiff::Error,
     },
 
+    /// O dia de uma linha do log não é um dia válido.
+    #[error("a coluna `day` da linha {seq} do log de eventos não é um dia válido")]
+    InvalidDay {
+        /// A linha (`seq`) no log.
+        seq: i64,
+        /// O erro do jiff.
+        #[source]
+        source: jiff::Error,
+    },
+
     /// Uma linha do log é de um tipo de mudança que esta versão não conhece.
     #[error(
         "a linha {seq} do log de eventos é do tipo `{kind}`, que esta versão do vamo não conhece"

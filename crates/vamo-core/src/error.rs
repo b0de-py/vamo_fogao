@@ -67,6 +67,13 @@ pub enum Error {
         id: TaskId,
     },
 
+    /// Só tarefa recorrente se marca num dia.
+    #[error("{id} não é recorrente, então não tem o que marcar no dia: é só concluir")]
+    NotRecurring {
+        /// A tarefa.
+        id: TaskId,
+    },
+
     /// A tarefa não pode passar de um status pro outro.
     #[error("não dá pra passar de {from} pra {to}")]
     InvalidTransition {

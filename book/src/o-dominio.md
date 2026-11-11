@@ -32,7 +32,8 @@ Quase todo tipo do core implementa o par `FromStr` e `Display`: um lê do texto,
 | `fit.rs` | `Fit` | O encaixe: foco, brecha ou com alguém. |
 | `status.rs` | `Status` | Em que pé a tarefa está, e pra onde ela pode ir. |
 | `title.rs` | `NotebookTitle` | O título no padrão do caderno: até cinco palavras, verbo no infinitivo na frente. |
-| `task.rs` | `Task` | A tarefa inteira, montada com as partes acima. |
+| `task.rs` | `Task` | A tarefa inteira, montada com as partes acima, com o dia da escalação e as marcações das recorrentes. |
+| `lineup.rs` | `Lineup`, `Score` | A escalação de um dia (as escaladas, o atraso e as fixas) e o placar. |
 | `error.rs` | `Error` | Tudo que pode dar errado no core, com a mensagem em português. |
 
 O `Task::new` não devolve `Result`: como cada parte já chega validada, não sobra nada pra dar errado. A validação fica na borda, quando o texto vira tipo, e o meio do código trabalha só com valores bons.
@@ -57,6 +58,18 @@ matches!(
 Cada linha é um status de partida e os destinos permitidos. Dois casos contam a história do app: `Done` só volta pra `Ready` (o VAR anulou o gol) e `Dropped` só volta pra `Idea` (a tarefa sai do arquivo e recomeça). Ficar no mesmo status não é transição, então nunca passa.
 
 `Status::transition_to` usa a mesma regra e devolve `Result`, com o erro `InvalidTransition` dizendo de onde pra onde não deu. É ele que a CLI usa no `vamo done`.
+
+## O dia e o placar
+
+A tela Hoje pergunta ao core o que é do dia, e o `Lineup::new(projeção, hoje)` responde em três grupos: as tarefas escaladas pra hoje, as escaladas pra um dia que passou e não foram feitas (o atraso, que a TUI pinta de amarelo plasma) e as recorrentes, as fixas que se marcam todo dia. O placar conta os gols e as fixas marcadas contra tudo que estava previsto pro dia.
+
+Três regras moram na `Projection`, porque são regra de negócio:
+
+- `finish`: o gol conta no dia em que saiu. Concluir uma tarefa atrasada (ou sem dia) passa ela pra hoje.
+- `schedule` e `unschedule`: escalar deixa a tarefa agendada, pro dia pedido; tirar da escalação devolve pro banco, pronta.
+- `check`: só recorrente se marca, e a marcação é de um dia só. Amanhã a fixa começa desmarcada.
+
+Como o core não lê relógio, "hoje" sempre chega por parâmetro.
 
 ## O título do caderno
 

@@ -4,6 +4,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use jiff::Timestamp;
+use jiff::civil::Date;
 use uuid::{Uuid, Variant, Version};
 
 use crate::{Area, Error, Fit, Machine, NotebookTitle, Status, TaskId};
@@ -77,6 +78,15 @@ pub enum Change {
     Status(Status),
     /// As notas mudaram. Vazio apaga as notas.
     Notes(String),
+    /// A tarefa foi escalada pra um dia, ou saiu da escalação (`None`).
+    Day(Option<Date>),
+    /// Uma tarefa recorrente foi marcada (ou desmarcada) num dia.
+    Check {
+        /// O dia da marcação.
+        day: Date,
+        /// Se ficou marcada.
+        done: bool,
+    },
 }
 
 /// O ID de um evento: um UUID v7.

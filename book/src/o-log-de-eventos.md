@@ -14,7 +14,7 @@ Em `crates/vamo-core/src/event.rs`. Um `Event` tem cinco campos:
 | `task` | `TaskId` | A tarefa que mudou. |
 | `change` | `Change` | O que mudou. |
 
-`Change` é um enum com dados: cada variante carrega o valor novo do campo que mudou (`Title`, `Area`, `Fit`, `Status`, `Notes`), e `Created` carrega os quatro campos de uma vez, porque uma tarefa nasce com todos eles.
+`Change` é um enum com dados: cada variante carrega o valor novo do campo que mudou (`Title`, `Area`, `Fit`, `Status`, `Notes` e `Day`, o dia da escalação), e `Created` carrega os quatro campos de uma vez, porque uma tarefa nasce com todos eles. `Check` marca uma recorrente num dia, e cada dia conta como um campo à parte: marcar hoje não mexe em ontem.
 
 O core só confere o UUID (`EventId::new` recusa o que não for da versão 7). Quem gera é o binário, com `Uuid::now_v7()`, porque gerar um ID desses lê o relógio e sorteia bits, e o core não lê relógio.
 
@@ -70,7 +70,7 @@ O `vamo-store` implementa a porta em `crates/vamo-store/src/lib.rs`. Os detalhes
 - **Uma tabela, `events`,** com uma linha por evento e as colunas do valor que mudou. É `STRICT`, então o SQLite recusa valor do tipo errado, e um `CHECK` só aceita os tipos de mudança conhecidos.
 - **O mesmo evento entra uma vez só.** O ID é `UNIQUE`, e a gravação usa `INSERT OR IGNORE`. Juntar o log de outro PC vira gravar tudo e deixar o banco descartar o repetido.
 - **Ou entram todos, ou nenhum.** O `append` grava numa transação.
-- **O esquema evolui por migrações** em `crates/vamo-store/migrations/`, aplicadas em ordem pelo número que o SQLite guarda no `PRAGMA user_version`. O porquê de não usar uma biblioteca de migração está na [ADR 0006](https://github.com/b0de-py/vamo_fogao/blob/main/docs/adr/0006-sqlite-com-migracoes-proprias.md).
+- **O esquema evolui por migrações** em `crates/vamo-store/migrations/`, aplicadas em ordem pelo número que o SQLite guarda no `PRAGMA user_version`. A 0002, por exemplo, refez a tabela pra aceitar `day` e `check`, copiando os eventos antigos na mesma ordem. O porquê de não usar uma biblioteca de migração está na [ADR 0006](https://github.com/b0de-py/vamo_fogao/blob/main/docs/adr/0006-sqlite-com-migracoes-proprias.md).
 - **Ler valida de novo.** Cada valor lido do banco passa pelo `FromStr` do tipo do domínio. Se alguém editar o banco na mão e escrever uma área inválida, o erro diz a coluna e o motivo, em vez de uma tarefa quebrada aparecer na tela.
 
 ## O caminho de um `vamo done`

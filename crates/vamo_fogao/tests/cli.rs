@@ -70,11 +70,14 @@ fn text(bytes: &[u8]) -> String {
 }
 
 /// Confere um snapshot trocando data e hora, que mudam a cada execução,
-/// por um marcador.
+/// por marcadores.
 macro_rules! assert_snapshot_without_time {
     ($value:expr) => {
         insta::with_settings!({
-            filters => vec![(r"\d{2}/\d{2}/\d{4} \d{2}:\d{2}", "[data e hora]")],
+            filters => vec![
+                (r"\d{2}/\d{2}/\d{4} \d{2}:\d{2}", "[data e hora]"),
+                (r"\d{2}/\d{2}/\d{4}", "[data]"),
+            ],
         }, {
             insta::assert_snapshot!($value);
         });

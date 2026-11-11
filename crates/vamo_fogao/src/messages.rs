@@ -79,6 +79,20 @@ impl Voice {
             Change::Area(area) => format!("área: {area}"),
             Change::Fit(fit) => format!("encaixe: {fit}"),
             Change::Status(status) => format!("status: {status}"),
+            Change::Day(Some(day)) => match self {
+                Self::Game => format!("escalada pra {}", day.strftime("%d/%m/%Y")),
+                Self::Neutral => format!("marcada pra {}", day.strftime("%d/%m/%Y")),
+            },
+            Change::Day(None) => match self {
+                Self::Game => "saiu da escalação".to_owned(),
+                Self::Neutral => "sem dia marcado".to_owned(),
+            },
+            Change::Check { day, done: true } => {
+                format!("feita em {}", day.strftime("%d/%m/%Y"))
+            }
+            Change::Check { day, done: false } => {
+                format!("desmarcada em {}", day.strftime("%d/%m/%Y"))
+            }
             Change::Notes(notes) if notes.is_empty() => "notas apagadas".to_owned(),
             // No histórico, cada evento ocupa uma linha só.
             Change::Notes(notes) => {

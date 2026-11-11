@@ -36,7 +36,7 @@ pub(crate) mod memory {
 
     use jiff::Timestamp;
     use uuid::Builder;
-    use vamo_core::{Change, Event, EventId, Machine, Projection, TaskId};
+    use vamo_core::{Change, Event, EventId, Fit, Machine, Projection, Status, TaskId};
 
     use super::Ledger;
 
@@ -56,6 +56,19 @@ pub(crate) mod memory {
                 projection: Projection::new(),
                 start,
             }
+        }
+
+        /// Cria uma tarefa e devolve o ID dela.
+        pub(crate) fn add(&mut self, title: &str, area: &str, fit: Fit, status: Status) -> TaskId {
+            let id = self.projection.next_id().unwrap();
+            let change = Change::Created {
+                title: title.parse().unwrap(),
+                area: area.parse().unwrap(),
+                fit,
+                status,
+            };
+            self.record(id, vec![change]).unwrap();
+            id
         }
     }
 

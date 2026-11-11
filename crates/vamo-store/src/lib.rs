@@ -101,8 +101,8 @@ impl EventStore for Store {
             // O `OR IGNORE` deixa de fora o evento cujo ID já está no banco.
             let mut insert = tx.prepare(
                 "INSERT OR IGNORE INTO events
-                     (id, at, machine, task, kind, title, area, fit, status, notes)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+                     (id, at, machine, task, kind, title, area, fit, status, notes, day, checked)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
             )?;
             for event in events {
                 let columns = Columns::from(&event.change);
@@ -117,6 +117,8 @@ impl EventStore for Store {
                     columns.fit,
                     columns.status,
                     columns.notes,
+                    columns.day,
+                    columns.checked,
                 ])?;
             }
         }
@@ -126,7 +128,7 @@ impl EventStore for Store {
 
     fn events(&self) -> Result<Vec<Event>, Error> {
         let mut select = self.conn.prepare(
-            "SELECT seq, id, at, machine, task, kind, title, area, fit, status, notes
+            "SELECT seq, id, at, machine, task, kind, title, area, fit, status, notes, day, checked
              FROM events
              ORDER BY seq",
         )?;
@@ -146,6 +148,8 @@ const AREA: &str = "area";
 const FIT: &str = "fit";
 const STATUS: &str = "status";
 const NOTES: &str = "notes";
+const DAY: &str = "day";
+const CHECK: &str = "check";
 
 /// As colunas de uma mudança. A criação preenche quatro; as outras mudanças
 /// preenchem só a delas.
@@ -156,6 +160,8 @@ struct Columns {
     fit: Option<&'static str>,
     status: Option<&'static str>,
     notes: Option<String>,
+    day: Option<String>,
+    checked: Option<bool>,
 }
 
 impl From<&Change> for Columns {
@@ -167,6 +173,8 @@ impl From<&Change> for Columns {
             fit: None,
             status: None,
             notes: None,
+            day: None,
+            checked: None,
         };
         match change {
             Change::Created {
@@ -201,6 +209,15 @@ impl From<&Change> for Columns {
                 notes: Some(notes.clone()),
                 ..empty(NOTES)
             },
+            Change::Day(day) => Columns {
+                day: day.map(|day| day.to_string()),
+                ..empty(DAY)
+            },
+            Change::Check { day, done } => Columns {
+                day: Some(day.to_string()),
+                checked: Some(*done),
+                ..empty(CHECK)
+            },
         }
     }
 }
@@ -223,6 +240,20 @@ fn read_event(row: &Row<'_>) -> Result<Event, Error> {
         STATUS => Change::Status(value(row, seq, "status")?),
         // Notas são texto livre: não tem o que conferir além de existir.
         NOTES => Change::Notes(text(row, seq, "notes")?),
+        // Sem dia, a tarefa saiu da escalação.
+        DAY => match row.get::<_, Option<String>>("day")? {
+            Some(day) => Change::Day(Some(date(&day, seq)?)),
+            None => Change::Day(None),
+        },
+        CHECK => Change::Check {
+            day: date(&text(row, seq, "day")?, seq)?,
+            done: row
+                .get::<_, Option<bool>>("checked")?
+                .ok_or(Error::MissingColumn {
+                    seq,
+                    column: "checked",
+                })?,
+        },
         _ => return Err(Error::UnknownKind { seq, kind }),
     };
     Ok(Event {
@@ -237,6 +268,12 @@ fn read_event(row: &Row<'_>) -> Result<Event, Error> {
 }
 
 /// O texto de uma coluna que não pode estar vazia (`NULL`).
+/// Lê um dia no formato `2026-11-11`.
+fn date(text: &str, seq: i64) -> Result<jiff::civil::Date, Error> {
+    text.parse()
+        .map_err(|source| Error::InvalidDay { seq, source })
+}
+
 fn text(row: &Row<'_>, seq: i64, column: &'static str) -> Result<String, Error> {
     let text: Option<String> = row.get(column)?;
     text.ok_or(Error::MissingColumn { seq, column })

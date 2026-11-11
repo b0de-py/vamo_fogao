@@ -17,11 +17,8 @@
 mod app;
 mod curiosity;
 mod ledger;
-#[allow(
-    dead_code,
-    reason = "o tema entra inteiro no esqueleto; as telas das próximas tarefas usam o resto"
-)]
 mod theme;
+mod today;
 mod voice;
 
 use std::io;

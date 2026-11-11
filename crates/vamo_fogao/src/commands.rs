@@ -130,8 +130,9 @@ impl Session {
 
     /// `vamo done`: conclui a tarefa, se a regra de status deixar.
     fn done(&mut self, id: TaskId) -> Result<String> {
-        let change = self.projection.status_change(id, Status::Done)?;
-        self.record(id, vec![change])?;
+        // O gol conta no dia em que saiu.
+        let changes = self.projection.finish(id, jiff::Zoned::now().date())?;
+        self.record(id, changes)?;
         Ok(self.voice.done(&self.task(id)?))
     }
 
