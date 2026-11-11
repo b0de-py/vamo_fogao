@@ -85,9 +85,13 @@ source = ~/.config/hypr/vamo_fogao.conf
 
 Ele faz três coisas:
 
-1. **O atalho.** `bind = SUPER ALT, F, togglespecialworkspace, vamo` mostra e esconde o workspace `special:vamo`. Confira antes com `hyprctl binds` se o atalho está livre; se não estiver, troque.
+1. **O atalho.** `bind = SUPER ALT, V, togglespecialworkspace, vamo` mostra e esconde o workspace `special:vamo`. Confira antes com `hyprctl binds` se o atalho está livre; se não estiver, troque.
 2. **A primeira abertura.** `workspace = special:vamo, on-created-empty:...` abre o terminal com a TUI quando o workspace aparece vazio. Das outras vezes ele já tem a janela, e o atalho só mostra e esconde. Se você fechar a TUI com `q`, a próxima vez abre de novo.
 3. **O tamanho.** A regra de janela deixa a TUI flutuante, centralizada, com 90% da largura e 85% da altura da tela. Pra tela cheia, comente a regra: sozinha no workspace especial, a janela ocupa a tela toda.
+
+Se a sua config do Hyprland é Lua (o `hyprland.lua`, como no Omarchy), o `.conf` não é lido. Use o [`extras/hyprland/vamo_fogao.lua`](https://github.com/b0de-py/vamo_fogao/blob/main/extras/hyprland/vamo_fogao.lua), que faz as mesmas três coisas: copie pra `~/.config/hypr/`, ponha `require("hypr.vamo_fogao")` no fim do `hyprland.lua` e confira com `hyprctl reload` e `hyprctl configerrors`. Ele usa os ajudantes do Omarchy (`o.bind`, `o.window`). No Omarchy, o SUPER ALT F já é o "Full width", por isso o atalho é o SUPER ALT V.
+
+Nos dois casos, o `vamo` precisa estar no PATH: `cargo install --path crates/vamo_fogao`.
 
 A regra acha a janela pela classe `vamo_fogao`, que o terminal recebe na linha de comando (`--class` no Alacritty e no Kitty). Quando o workspace some, a janela perde o foco, o terminal avisa a TUI e o fogo pausa.
 
