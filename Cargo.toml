@@ -22,6 +22,7 @@ publish = false
 # Versões das dependências num lugar só. Os crates pedem com
 # `nome.workspace = true` e nunca repetem a versão.
 [workspace.dependencies]
+# Os crates do workspace.
 vamo-acervo = { path = "crates/vamo-acervo" }
 vamo-agenda = { path = "crates/vamo-agenda" }
 vamo-core = { path = "crates/vamo-core" }
@@ -29,6 +30,10 @@ vamo-mcp = { path = "crates/vamo-mcp" }
 vamo-store = { path = "crates/vamo-store" }
 vamo-sync = { path = "crates/vamo-sync" }
 vamo-tui = { path = "crates/vamo-tui" }
+
+# De fora. Cada uma entra quando um crate precisa dela.
+proptest = "1.12"
+thiserror = "2.0"
 
 # As regras de qualidade que valem em todo crate (cada um herda com
 # `[lints] workspace = true`). Na CI, todo aviso vira erro.

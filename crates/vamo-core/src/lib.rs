@@ -8,3 +8,28 @@
 //!
 //! Regra de dependência: o `vamo-core` não depende de nenhum outro crate do
 //! workspace. São os outros que dependem dele.
+//!
+//! # Os tipos
+//!
+//! - [`Task`]: a tarefa, que junta os tipos abaixo.
+//! - [`TaskId`]: o número no formato `T-041`.
+//! - [`Area`]: o pedaço da vida a que a tarefa pertence.
+//! - [`Fit`]: o encaixe, o tipo de espaço que a tarefa pede.
+//! - [`Status`]: em que pé a tarefa está, com as transições permitidas.
+//!
+//! Todos validam na construção, então um valor que existe é um valor válido.
+//! Quando algo dá errado, o erro é um [`Error`].
+
+mod area;
+mod error;
+mod fit;
+mod id;
+mod status;
+mod task;
+
+pub use area::Area;
+pub use error::Error;
+pub use fit::Fit;
+pub use id::TaskId;
+pub use status::Status;
+pub use task::Task;
