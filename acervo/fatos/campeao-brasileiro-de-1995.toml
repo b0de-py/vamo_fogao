@@ -1,0 +1,13 @@
+texto = "Campeão brasileiro de 1995: 2 x 1 no Santos no Maracanã e 1 x 1 no Pacaembu, com gol de Túlio, o artilheiro do campeonato."
+data = "1995-12-17"
+status = "verificado"
+tags = ["titulo:brasileiro", "adversario:santos", "idolo:tulio"]
+notas = "O dia vem do Lance!; a Wikipédia dá só o ano."
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/lancepedia/botafogo-x-santos-na-final-do-brasileirao-1995.html"
+
+[[fontes]]
+nome = "Wikipédia em inglês: History of Botafogo FR"
+url = "https://en.wikipedia.org/wiki/History_of_Botafogo_FR"

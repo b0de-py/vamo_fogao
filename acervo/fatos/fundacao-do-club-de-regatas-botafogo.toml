@@ -1,9 +1,13 @@
-texto = "Nasce o Club de Regatas Botafogo, o lado do remo da história do clube."
+texto = "Nasce o clube de remo do Botafogo, o lado das regatas da história do clube."
 data = "1894-07-01"
-status = "a-conferir"
+status = "verificado"
 tags = ["esporte:remo"]
-notas = "Falta a segunda fonte, de preferência um jornal da época na Hemeroteca Digital ou um documento do clube."
+notas = "As fontes divergem no nome: a Wikipédia diz Club de Regatas Botafogo, sucessor do Grupo de Regatas de 1891; o Bahia Notícias diz Grupo de Regatas Botafogo. O texto fica sem o nome."
 
 [[fontes]]
 nome = "Wikipédia em inglês: History of Botafogo FR"
 url = "https://en.wikipedia.org/wiki/History_of_Botafogo_FR"
+
+[[fontes]]
+nome = "Bahia Notícias"
+url = "https://www.bahianoticias.com.br/esportes/noticia/70017-historia-do-botafogo-de-futebol-e-regatas"

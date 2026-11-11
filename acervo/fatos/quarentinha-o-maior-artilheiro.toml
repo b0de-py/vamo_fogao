@@ -1,0 +1,14 @@
+texto = "Até 2026, Quarentinha é o maior artilheiro da história do Botafogo, com mais de 300 gols."
+data = "2026"
+tipo = "recorde"
+status = "verificado"
+tags = ["idolo:quarentinha"]
+notas = "As fontes divergem no número exato: 313 gols no Lance!, 306 na Wikipédia."
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/botafogo/artilheiros-botafogo.html"
+
+[[fontes]]
+nome = "Wikipédia em inglês: Botafogo FR"
+url = "https://en.wikipedia.org/wiki/Botafogo_FR"

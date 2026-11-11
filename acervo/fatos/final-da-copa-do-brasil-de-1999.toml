@@ -1,0 +1,13 @@
+texto = "O Maracanã lota pro 0 x 0 com o Juventude na final da Copa do Brasil de 1999, e o título vai pro Juventude."
+data = "1999-06-27"
+status = "verificado"
+tags = ["adversario:juventude"]
+notas = "As fontes divergem no público: 101.581 na Wikipédia, 100 mil no Soccerway, 90.217 na RSSSF."
+
+[[fontes]]
+nome = "RSSSF"
+url = "https://rsssf.org/tablesb/brazcup99.html"
+
+[[fontes]]
+nome = "Soccerway"
+url = "https://br.soccerway.com/noticias/futebol-copa-do-brasil-flashback-o-dia-em-que-o-juventude-frustrou-os-planos-do-bota-e-conquistou-a-copa-do-brasil/GzLFfk1S"
