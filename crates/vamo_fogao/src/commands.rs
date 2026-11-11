@@ -1,0 +1,234 @@
+//! Os comandos de tarefa. Cada um abre o banco, pede a regra pro core e
+//! devolve o texto pra mostrar; quem imprime é o `main`.
+
+use color_eyre::eyre::{Result, WrapErr, eyre};
+use jiff::Timestamp;
+use jiff::tz::TimeZone;
+use uuid::Uuid;
+use vamo_core::{
+    Area, Change, Event, EventId, EventStore, Fit, Machine, NotebookTitle, Projection, Status,
+    Task, TaskId,
+};
+use vamo_store::Store;
+
+use crate::cli::Command;
+use crate::messages::Voice;
+use crate::paths;
+
+/// Roda um comando e devolve o que mostrar na saída.
+pub(crate) fn run(command: Command, voice: Voice) -> Result<String> {
+    let mut session = Session::open(voice)?;
+    match command {
+        Command::Add {
+            title,
+            area,
+            fit,
+            status,
+            notes,
+        } => session.add(&title.join(" "), area, fit, status, notes),
+        Command::List { all, area, status } => Ok(session.list(all, area.as_ref(), status)),
+        Command::Done { id } => session.done(id),
+        Command::Show { id } => session.show(id),
+    }
+}
+
+/// O banco aberto, o log lido e o estado das tarefas calculado a partir dele.
+struct Session {
+    store: Store,
+    events: Vec<Event>,
+    projection: Projection,
+    voice: Voice,
+}
+
+impl Session {
+    fn open(voice: Voice) -> Result<Self> {
+        let path = paths::database()?;
+        tracing::debug!(path = %path.display(), "abrindo o banco");
+        let store = Store::open(&path)
+            .wrap_err_with(|| format!("não deu pra abrir o banco em {}", path.display()))?;
+        let events = store.events()?;
+        let projection = events.iter().collect();
+        Ok(Self {
+            store,
+            events,
+            projection,
+            voice,
+        })
+    }
+
+    /// `vamo add`: cria a tarefa com o próximo ID livre.
+    fn add(
+        &mut self,
+        title: &str,
+        area: Area,
+        fit: Fit,
+        status: Status,
+        notes: Option<String>,
+    ) -> Result<String> {
+        let title: NotebookTitle = title.parse()?;
+        let id = self
+            .projection
+            .next_id()
+            .ok_or_else(|| eyre!("os números de tarefa acabaram"))?;
+
+        let mut changes = vec![Change::Created {
+            title,
+            area,
+            fit,
+            status,
+        }];
+        if let Some(notes) = notes {
+            changes.push(Change::Notes(notes));
+        }
+        self.record(id, changes)?;
+
+        Ok(self.voice.added(&self.task(id)?))
+    }
+
+    /// `vamo list`: as tarefas em jogo, ou as do filtro pedido.
+    fn list(&self, all: bool, area: Option<&Area>, status: Option<Status>) -> String {
+        let tasks: Vec<Task> = self
+            .projection
+            .tasks()
+            .filter(|task| match status {
+                Some(status) => task.status() == status,
+                None => all || !matches!(task.status(), Status::Done | Status::Dropped),
+            })
+            .filter(|task| area.is_none_or(|area| task.area() == area))
+            .collect();
+
+        if tasks.is_empty() {
+            self.voice.nothing_to_list().to_owned()
+        } else {
+            table(&tasks)
+        }
+    }
+
+    /// `vamo done`: conclui a tarefa, se a regra de status deixar.
+    fn done(&mut self, id: TaskId) -> Result<String> {
+        let change = self.projection.status_change(id, Status::Done)?;
+        self.record(id, vec![change])?;
+        Ok(self.voice.done(&self.task(id)?))
+    }
+
+    /// `vamo show`: a ficha da tarefa e o histórico dela.
+    fn show(&self, id: TaskId) -> Result<String> {
+        let task = self.task(id)?;
+        let mut lines = vec![
+            format!("{} {}", task.id(), task.title()),
+            String::new(),
+            format!("área     {}", task.area()),
+            format!("encaixe  {}", task.fit()),
+            format!("status   {}", task.status()),
+        ];
+        if !task.notes().is_empty() {
+            lines.push(format!("notas    {}", task.notes()));
+        }
+
+        lines.push(String::new());
+        lines.push(self.voice.history().to_owned());
+        // O log está na ordem de gravação; o histórico vai na ordem do
+        // tempo, que é a mesma regra da projeção.
+        let mut history: Vec<&Event> = self.events.iter().filter(|e| e.task == id).collect();
+        history.sort_by_key(|event| (event.at, event.id));
+        let zone = TimeZone::system();
+        for event in history {
+            let when = event.at.to_zoned(zone.clone()).strftime("%d/%m/%Y %H:%M");
+            lines.push(format!(
+                "{when}  {}  {}",
+                event.machine,
+                self.voice.change(&event.change)
+            ));
+        }
+        Ok(lines.join("\n"))
+    }
+
+    /// A tarefa com esse ID, ou o erro de tarefa que não existe.
+    fn task(&self, id: TaskId) -> Result<Task> {
+        Ok(self
+            .projection
+            .task(id)
+            .ok_or(vamo_core::Error::UnknownTask { id })?)
+    }
+
+    /// Grava as mudanças como eventos (ID novo, o instante de agora e o nome
+    /// desta máquina) e aplica na projeção.
+    fn record(&mut self, task: TaskId, changes: Vec<Change>) -> Result<()> {
+        let machine = machine()?;
+        let at = Timestamp::now();
+        let events: Vec<Event> = changes
+            .into_iter()
+            .map(|change| Event {
+                id: EventId::new(Uuid::now_v7())
+                    .expect("o Uuid::now_v7 sempre gera um UUID da versão 7"),
+                at,
+                machine: machine.clone(),
+                task,
+                change,
+            })
+            .collect();
+
+        let added = self.store.append(&events)?;
+        tracing::debug!(added, "eventos gravados");
+        for event in &events {
+            self.projection.apply(event);
+        }
+        Ok(())
+    }
+}
+
+/// As tarefas em colunas: ID, status, encaixe, área e título.
+fn table(tasks: &[Task]) -> String {
+    let rows: Vec<[String; 5]> = tasks
+        .iter()
+        .map(|task| {
+            [
+                task.id().to_string(),
+                task.status().to_string(),
+                task.fit().to_string(),
+                task.area().to_string(),
+                task.title().to_string(),
+            ]
+        })
+        .collect();
+
+    // A largura de cada coluna é a do maior valor nela, contada em
+    // caracteres (o "í" de "concluída" ocupa dois bytes, mas um espaço).
+    let mut widths = [0; 4];
+    for row in &rows {
+        for (width, cell) in widths.iter_mut().zip(row) {
+            *width = (*width).max(cell.chars().count());
+        }
+    }
+
+    let [id_width, status_width, fit_width, area_width] = widths;
+    rows.iter()
+        .map(|[id, status, fit, area, title]| {
+            format!(
+                "{id:<id_width$}  {status:<status_width$}  {fit:<fit_width$}  \
+                 {area:<area_width$}  {title}"
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
+/// O nome desta máquina pros eventos: a variável `VAMO_MAQUINA`, se tiver,
+/// ou o hostname. Um hostname que não serve como nome vira `desconhecida`.
+fn machine() -> Result<Machine> {
+    match std::env::var("VAMO_MAQUINA") {
+        Ok(name) => name
+            .parse()
+            .wrap_err("o VAMO_MAQUINA não serve como nome de máquina"),
+        Err(std::env::VarError::NotPresent) => Ok(hostname()),
+        Err(error) => Err(error).wrap_err("o VAMO_MAQUINA não é um texto válido"),
+    }
+}
+
+fn hostname() -> Machine {
+    std::fs::read_to_string("/proc/sys/kernel/hostname")
+        .or_else(|_| std::fs::read_to_string("/etc/hostname"))
+        .ok()
+        .and_then(|name| name.trim().parse().ok())
+        .unwrap_or_else(|| Machine::new("desconhecida").expect("`desconhecida` é um nome válido"))
+}

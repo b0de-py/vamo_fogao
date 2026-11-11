@@ -32,6 +32,12 @@ vamo-sync = { path = "crates/vamo-sync" }
 vamo-tui = { path = "crates/vamo-tui" }
 
 # De fora. Cada uma entra quando um crate precisa dela.
+clap = { version = "4.6", features = ["derive", "env"] }
+# Sem o `capture-spantrace`, que só serve pra quem usa os spans do tracing no
+# relatório de erro.
+color-eyre = { version = "0.6", default-features = false, features = ["track-caller"] }
+etcetera = "0.11"
+insta = { version = "1.49", features = ["filters"] }
 # O jiff vem sem os fusos: o core só precisa do instante. Quem mexe com fuso
 # liga as features que precisa.
 jiff = { version = "0.2.42", default-features = false, features = ["std"] }
@@ -42,6 +48,8 @@ proptest = "1.12"
 rusqlite = { version = "0.42", default-features = false, features = ["bundled"] }
 tempfile = "3.27"
 thiserror = "2.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", default-features = false, features = ["env-filter", "fmt", "std"] }
 uuid = "1.29"
 
 # As regras de qualidade que valem em todo crate (cada um herda com

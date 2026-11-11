@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 use jiff::Timestamp;
 
-use crate::{Area, Change, Event, EventId, Fit, NotebookTitle, Status, Task, TaskId};
+use crate::{Area, Change, Error, Event, EventId, Fit, NotebookTitle, Status, Task, TaskId};
 
 /// O estado de todas as tarefas, calculado a partir dos eventos.
 ///
@@ -23,9 +23,10 @@ use crate::{Area, Change, Event, EventId, Fit, NotebookTitle, Status, Task, Task
 /// relógio muito atrasado pode ver uma mudança sua perder pra uma mais
 /// antiga, então vale deixar o relógio certo (o NTP do sistema cuida disso).
 ///
-/// A projeção não confere regra nenhuma: ela aplica fatos. A regra (título
-/// do caderno, transição de status) é conferida antes, quando o evento é
-/// criado.
+/// O [`apply`](Projection::apply) não confere regra nenhuma: ele aplica
+/// fatos. A regra (título do caderno, transição de status) é conferida
+/// antes, quando o evento é criado, por métodos como
+/// [`status_change`](Projection::status_change).
 ///
 /// ```
 /// use jiff::Timestamp;
@@ -108,6 +109,21 @@ impl Projection {
         self.tasks
             .iter()
             .filter_map(|(&id, draft)| draft.to_task(id))
+    }
+
+    /// A mudança que passa a tarefa pro status pedido, se a regra deixar.
+    ///
+    /// É assim que um comando como "concluir" vira evento: o estado atual
+    /// confere a regra, e o que volta é a [`Change`] pra registrar no log.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::UnknownTask`] se a tarefa não existir.
+    /// - [`Error::InvalidTransition`] se a regra de [`Status`] não deixar.
+    pub fn status_change(&self, id: TaskId, next: Status) -> Result<Change, Error> {
+        let task = self.task(id).ok_or(Error::UnknownTask { id })?;
+        task.status().transition_to(next)?;
+        Ok(Change::Status(next))
     }
 
     /// O ID pra próxima tarefa: um a mais que o maior ID que já apareceu em
@@ -327,6 +343,33 @@ mod tests {
         projection.apply(&event(1, 0, 41, created("Ver o filtro")));
 
         assert_eq!(title_of(&projection, 41), "Trocar o filtro");
+    }
+
+    #[test]
+    fn a_status_change_follows_the_rule() {
+        let projection = projection(&[event(1, 0, 41, created("Trocar o filtro"))]);
+        let id = TaskId::new(41).unwrap();
+
+        assert_eq!(
+            projection.status_change(id, Status::Done),
+            Ok(Change::Status(Status::Done))
+        );
+        assert_eq!(
+            projection.status_change(id, Status::Idea),
+            Err(Error::InvalidTransition {
+                from: Status::Ready,
+                to: Status::Idea,
+            })
+        );
+    }
+
+    #[test]
+    fn a_status_change_needs_a_task_that_exists() {
+        let id = TaskId::new(7).unwrap();
+        assert_eq!(
+            Projection::new().status_change(id, Status::Done),
+            Err(Error::UnknownTask { id })
+        );
     }
 
     #[test]

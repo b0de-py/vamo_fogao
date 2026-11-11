@@ -1,6 +1,6 @@
 //! O erro do `vamo-core`.
 
-use crate::{NotebookTitle, Status};
+use crate::{NotebookTitle, Status, TaskId};
 
 /// Tudo que pode dar errado ao criar ou mudar um valor do domínio.
 ///
@@ -58,6 +58,13 @@ pub enum Error {
     UnknownStatus {
         /// O texto recebido.
         input: String,
+    },
+
+    /// Não existe tarefa com esse ID.
+    #[error("não tem nenhuma tarefa {id}")]
+    UnknownTask {
+        /// O ID procurado.
+        id: TaskId,
     },
 
     /// A tarefa não pode passar de um status pro outro.
