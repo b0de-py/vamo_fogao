@@ -1,6 +1,6 @@
 //! O erro do `vamo-core`.
 
-use crate::Status;
+use crate::{NotebookTitle, Status};
 
 /// Tudo que pode dar errado ao criar ou mudar um valor do domínio.
 ///
@@ -55,4 +55,28 @@ pub enum Error {
     /// O título da tarefa está vazio.
     #[error("o título da tarefa está vazio")]
     EmptyTitle,
+
+    /// O título não começa com um verbo no infinitivo.
+    #[error(
+        "o título começa com `{first_word}`, e no caderno a tarefa começa com verbo no \
+         infinitivo, como Ligar, Comprar ou Pôr"
+    )]
+    TitleWithoutVerb {
+        /// A primeira palavra do título.
+        first_word: String,
+    },
+
+    /// O título passa do tamanho de uma linha do caderno.
+    #[error(
+        "o título tem {words} palavras e no caderno cabem até {max}: que tal \"{suggestion}\"? \
+         O resto vai pras notas",
+        max = NotebookTitle::MAX_WORDS
+    )]
+    TitleTooLong {
+        /// Quantas palavras o título tem.
+        words: usize,
+        /// O título cortado no tamanho certo, sem terminar em artigo ou
+        /// preposição.
+        suggestion: NotebookTitle,
+    },
 }

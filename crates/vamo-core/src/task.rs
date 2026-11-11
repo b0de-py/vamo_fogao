@@ -1,11 +1,12 @@
 //! A tarefa.
 
-use crate::{Area, Error, Fit, Status, TaskId};
+use crate::{Area, Error, Fit, NotebookTitle, Status, TaskId};
 
 /// Uma tarefa: o que fazer, de que área, que espaço pede e em que pé está.
 ///
 /// Os campos são privados de propósito. Uma `Task` só nasce por
-/// [`Task::new`], que valida o título, e só muda de status por
+/// [`Task::new`], com peças que já se validaram sozinhas (o título é um
+/// [`NotebookTitle`], a área é uma [`Area`]), e só muda de status por
 /// [`Task::set_status`], que respeita as transições de [`Status`]. Assim,
 /// qualquer `Task` que exista no programa está num estado válido.
 ///
@@ -14,11 +15,11 @@ use crate::{Area, Error, Fit, Status, TaskId};
 ///
 /// let mut task = Task::new(
 ///     "T-041".parse()?,
-///     "Trocar o filtro da água",
+///     "Trocar o filtro da água".parse()?,
 ///     "casa".parse()?,
 ///     Fit::Gap,
 ///     Status::Ready,
-/// )?;
+/// );
 ///
 /// task.set_status(Status::Done)?;
 /// assert_eq!(task.status(), Status::Done);
@@ -30,7 +31,7 @@ use crate::{Area, Error, Fit, Status, TaskId};
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Task {
     id: TaskId,
-    title: String,
+    title: NotebookTitle,
     area: Area,
     fit: Fit,
     status: Status,
@@ -40,30 +41,17 @@ pub struct Task {
 impl Task {
     /// Cria uma tarefa, sem notas.
     ///
-    /// O título chega sem os espaços das pontas.
-    ///
-    /// # Errors
-    ///
-    /// [`Error::EmptyTitle`] se o título for vazio ou só tiver espaço.
-    pub fn new(
-        id: TaskId,
-        title: &str,
-        area: Area,
-        fit: Fit,
-        status: Status,
-    ) -> Result<Self, Error> {
-        let title = title.trim();
-        if title.is_empty() {
-            return Err(Error::EmptyTitle);
-        }
-        Ok(Self {
+    /// Não tem o que dar errado aqui: cada peça já chega validada pelo
+    /// próprio tipo.
+    pub fn new(id: TaskId, title: NotebookTitle, area: Area, fit: Fit, status: Status) -> Self {
+        Self {
             id,
-            title: title.to_owned(),
+            title,
             area,
             fit,
             status,
             notes: String::new(),
-        })
+        }
     }
 
     /// O ID da tarefa.
@@ -72,7 +60,7 @@ impl Task {
     }
 
     /// O título da tarefa.
-    pub fn title(&self) -> &str {
+    pub fn title(&self) -> &NotebookTitle {
         &self.title
     }
 
@@ -118,10 +106,10 @@ impl Task {
 mod tests {
     use super::*;
 
-    fn task(title: &str, status: Status) -> Result<Task, Error> {
+    fn task(status: Status) -> Task {
         Task::new(
             TaskId::new(41).unwrap(),
-            title,
+            NotebookTitle::new("Trocar o filtro da água").unwrap(),
             Area::new("casa").unwrap(),
             Fit::Gap,
             status,
@@ -130,10 +118,10 @@ mod tests {
 
     #[test]
     fn a_new_task_keeps_what_it_was_given() {
-        let task = task("Trocar o filtro da água", Status::Ready).unwrap();
+        let task = task(Status::Ready);
 
         assert_eq!(task.id().to_string(), "T-041");
-        assert_eq!(task.title(), "Trocar o filtro da água");
+        assert_eq!(task.title().as_str(), "Trocar o filtro da água");
         assert_eq!(task.area().as_str(), "casa");
         assert_eq!(task.fit(), Fit::Gap);
         assert_eq!(task.status(), Status::Ready);
@@ -141,20 +129,8 @@ mod tests {
     }
 
     #[test]
-    fn the_title_is_trimmed() {
-        let task = task("  Trocar o filtro da água \n", Status::Ready).unwrap();
-        assert_eq!(task.title(), "Trocar o filtro da água");
-    }
-
-    #[test]
-    fn an_empty_title_is_rejected() {
-        assert_eq!(task("", Status::Ready), Err(Error::EmptyTitle));
-        assert_eq!(task(" \t\n", Status::Ready), Err(Error::EmptyTitle));
-    }
-
-    #[test]
     fn a_forbidden_transition_leaves_the_task_as_it_was() {
-        let mut task = task("Trocar o filtro da água", Status::Idea).unwrap();
+        let mut task = task(Status::Idea);
         let before = task.clone();
 
         let result = task.set_status(Status::Done);
@@ -171,7 +147,7 @@ mod tests {
 
     #[test]
     fn notes_can_be_replaced() {
-        let mut task = task("Trocar o filtro da água", Status::Ready).unwrap();
+        let mut task = task(Status::Ready);
 
         task.set_notes("O modelo do refil está na caixa velha.");
         assert_eq!(task.notes(), "O modelo do refil está na caixa velha.");

@@ -13,6 +13,8 @@
 //!
 //! - [`Task`]: a tarefa, que junta os tipos abaixo.
 //! - [`TaskId`]: o número no formato `T-041`.
+//! - [`NotebookTitle`]: o título no padrão do caderno, com verbo na frente e
+//!   até cinco palavras.
 //! - [`Area`]: o pedaço da vida a que a tarefa pertence.
 //! - [`Fit`]: o encaixe, o tipo de espaço que a tarefa pede.
 //! - [`Status`]: em que pé a tarefa está, com as transições permitidas.
@@ -26,6 +28,7 @@ mod fit;
 mod id;
 mod status;
 mod task;
+mod title;
 
 pub use area::Area;
 pub use error::Error;
@@ -33,3 +36,4 @@ pub use fit::Fit;
 pub use id::TaskId;
 pub use status::Status;
 pub use task::Task;
+pub use title::NotebookTitle;
