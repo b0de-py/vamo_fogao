@@ -111,23 +111,30 @@ impl Today {
             Layout::vertical([Constraint::Length(2), Constraint::Fill(1)]).areas(area);
         render_scoreboard(frame, top, &lineup, voice);
 
-        // Com espaço, a curiosidade vai do lado; sem, embaixo.
+        // Com espaço, a curiosidade vai do lado; sem, embaixo, no que sobrar
+        // da escalação. Se sobrar pouco, a escalação fica com a tela toda:
+        // ela é o que importa, e a curiosidade continua no Museu.
+        let lines = self.lines(&lineup, voice);
+        let needed = u16::try_from(lines.len()).unwrap_or(u16::MAX);
+        let spare = rest.height.saturating_sub(needed.saturating_add(1));
         let (list, corner) = if rest.width >= 90 {
             let [list, corner] = Layout::horizontal([Constraint::Fill(1), Constraint::Length(42)])
                 .spacing(2)
                 .areas(rest);
             let [corner] = Layout::vertical([Constraint::Max(10)]).areas(corner);
             (list, corner)
-        } else {
+        } else if spare >= 5 {
             let [list, corner] =
-                Layout::vertical([Constraint::Fill(1), Constraint::Max(8)]).areas(rest);
+                Layout::vertical([Constraint::Fill(1), Constraint::Length(spare.min(8))])
+                    .areas(rest);
             (list, corner)
+        } else {
+            (rest, Rect::default())
         };
-        frame.render_widget(
-            Paragraph::new(self.lines(&lineup, voice)).wrap(Wrap { trim: false }),
-            list,
-        );
-        curiosity::render(frame, corner, acervo, today, banter, voice);
+        frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), list);
+        if !corner.is_empty() {
+            curiosity::render(frame, corner, acervo, today, banter, voice);
+        }
     }
 
     /// As linhas da escalação, com o cursor marcado.

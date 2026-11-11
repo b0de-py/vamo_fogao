@@ -35,7 +35,8 @@ Uso: {usage}
 const AFTER_HELP: &str = "\
 Config:
   ~/.config/vamo_fogao/config.toml, com linguagem = \"neutra\" pra trocar o
-  padrão. A --linguagem e a VAMO_LINGUAGEM ganham da config.
+  padrão e animacao = false pra apagar o fogo da TUI. A --linguagem e a
+  VAMO_LINGUAGEM ganham da config.
 
 Variáveis de ambiente:
   VAMO_LINGUAGEM   jogo ou neutra, o mesmo que --linguagem

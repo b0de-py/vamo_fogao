@@ -1,0 +1,22 @@
+---
+source: crates/vamo-tui/src/app.rs
+expression: screen
+---
+" vamo_fogao   1 Hoje  2 Caderno  3 Banco  4 Museu           "
+"────────────────────────────────────────────────────────────"
+"                                                            "
+" Hoje · quarta, 11/11                        Placar: 2 de 3 "
+"                                                            "
+" Escalação                                                  "
+"  [x] T-001  Trocar o filtro da água  casa                  "
+"  [ ] T-002  Revisar o capítulo dois  estudos               "
+"                                                            "
+" Atrasadas                                                  "
+"  [ ] T-003  Pagar a conta de luz  escalada pra 10/11       "
+"                                                            "
+" Fixas                                                      "
+"                                                            "
+"▀▀▀       ▀▀▀  ▀▀ ▀     ▀     ▀▀▀ ▀ ▀▀  ▀   ▀▀▀ ▀ ▀▀▀▀ ▀▀  ▀"
+"▀▀▀▀▀ ▀▀ ▀▀▀ ▀ ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀ ▀▀▀▀▀"
+"▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀"
+"tab troca de tela · ? ajuda · q encerra a partida           "

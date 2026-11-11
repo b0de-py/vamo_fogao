@@ -7,7 +7,7 @@
 
 use color_eyre::eyre::{Result, WrapErr, bail, eyre};
 use toml::de::{DeTable, DeValue};
-use vamo_tui::Voice;
+use vamo_tui::{Animation, Voice};
 
 /// O que a config escolhe. Cada campo é `None` quando o arquivo não fala
 /// dele, pra linha de comando e o ambiente poderem ter a palavra final.
@@ -15,6 +15,8 @@ use vamo_tui::Voice;
 pub(crate) struct Config {
     /// `linguagem = "jogo"` ou `"neutra"`.
     pub(crate) voice: Option<Voice>,
+    /// `animacao = false` apaga o fogo da TUI.
+    pub(crate) animation: Option<Animation>,
 }
 
 /// Lê a config do lugar padrão. Sem arquivo, devolve a config vazia.
@@ -42,7 +44,15 @@ fn parse(text: &str) -> Result<Config> {
                 };
                 config.voice = Some(name.parse()?);
             }
-            other => bail!("`{other}` não é um campo da config: o campo que existe é linguagem"),
+            "animacao" => {
+                let DeValue::Boolean(on) = value.get_ref() else {
+                    bail!("`animacao` é true ou false, sem aspas, como animacao = false");
+                };
+                config.animation = Some(if *on { Animation::On } else { Animation::Off });
+            }
+            other => bail!(
+                "`{other}` não é um campo da config: os campos que existem são linguagem e animacao"
+            ),
         }
     }
     Ok(config)
@@ -61,6 +71,18 @@ mod tests {
     fn the_voice_comes_by_name() {
         let config = parse("linguagem = \"neutra\"\n").unwrap();
         assert_eq!(config.voice, Some(Voice::Neutral));
+    }
+
+    #[test]
+    fn the_animation_can_be_turned_off() {
+        let config = parse("linguagem = \"jogo\"\nanimacao = false\n").unwrap();
+        assert_eq!(config.animation, Some(Animation::Off));
+        assert_eq!(config.voice, Some(Voice::Game));
+        assert_eq!(
+            parse("animacao = true").unwrap().animation,
+            Some(Animation::On)
+        );
+        assert!(parse("animacao = \"não\"").is_err());
     }
 
     #[test]

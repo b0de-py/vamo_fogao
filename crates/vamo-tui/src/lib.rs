@@ -18,6 +18,7 @@ mod app;
 mod bench;
 mod card;
 mod curiosity;
+mod fire;
 mod ledger;
 mod museum;
 mod notebook;
@@ -28,13 +29,25 @@ mod voice;
 mod when;
 
 use std::io;
+use std::time::{Duration, Instant};
 
 use ratatui::DefaultTerminal;
-use ratatui::crossterm::event::{self, Event, KeyEventKind};
+use ratatui::crossterm::event::{self, DisableFocusChange, EnableFocusChange, Event, KeyEventKind};
+use ratatui::crossterm::execute;
 
 pub use curiosity::Acervo;
 pub use ledger::Ledger;
 pub use voice::Voice;
+
+/// Se o fogo do rodapé anima.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Animation {
+    /// O fogo queima e o GOL! pisca. É o padrão.
+    #[default]
+    On,
+    /// Sem fogo: a TUI só acorda quando chega uma tecla.
+    Off,
+}
 
 /// O que a TUI recebe pra começar.
 #[derive(Debug, Clone)]
@@ -45,6 +58,8 @@ pub struct Setup {
     pub acervo: Acervo,
     /// O fuso dos horários da súmula. No app, o do sistema.
     pub time_zone: jiff::tz::TimeZone,
+    /// Se o fogo anima. Na config, `animacao = false` desliga.
+    pub animation: Animation,
 }
 
 /// Abre a TUI no terminal e só volta quando quem usa sai.
@@ -70,24 +85,47 @@ fn today() -> jiff::civil::Date {
     jiff::Zoned::now().date()
 }
 
-/// Desenha, espera uma tecla, reage. Até quem usa sair.
+/// O intervalo entre dois passos do fogo: uns 12 quadros por segundo, o
+/// bastante pra parecer fogo sem pesar.
+const TICK: Duration = Duration::from_millis(80);
+
+/// Desenha, espera um evento, reage. Até quem usa sair.
 fn main_loop<L: Ledger>(
     terminal: &mut DefaultTerminal,
     ledger: &mut L,
     setup: Setup,
 ) -> io::Result<()> {
+    // Pede ao terminal pra avisar quando a janela ganha e perde o foco: é
+    // assim que o fogo sabe que a janela sumiu (no Hyprland, quando o
+    // workspace especial se esconde).
+    execute!(io::stdout(), EnableFocusChange)?;
     let mut app = app::App::new(setup, today());
+    let mut last_tick = Instant::now();
     while !app.should_quit() {
         app.set_today(today());
         terminal.draw(|frame| app.render(frame, ledger))?;
-        // Sem animação, a TUI fica parada aqui até chegar um evento: não
-        // gasta CPU enquanto ninguém mexe.
-        if let Event::Key(key) = event::read()?
-            // Alguns terminais mandam também o soltar da tecla.
-            && key.kind == KeyEventKind::Press
-        {
-            app.on_key(key, ledger);
+        // Sem animação, ou com a janela escondida, a TUI fica parada no
+        // `read` até chegar um evento: não gasta CPU enquanto ninguém mexe.
+        // Com o fogo queimando, espera no máximo até o próximo passo.
+        let ready = if app.animating() {
+            event::poll(TICK.saturating_sub(last_tick.elapsed()))?
+        } else {
+            true
+        };
+        if ready {
+            match event::read()? {
+                // Alguns terminais mandam também o soltar da tecla.
+                Event::Key(key) if key.kind == KeyEventKind::Press => app.on_key(key, ledger),
+                Event::FocusLost => app.set_window(app::Window::Hidden),
+                Event::FocusGained => app.set_window(app::Window::Visible),
+                _ => {}
+            }
+        }
+        if app.animating() && last_tick.elapsed() >= TICK {
+            app.tick(ledger);
+            last_tick = Instant::now();
         }
     }
+    execute!(io::stdout(), DisableFocusChange)?;
     Ok(())
 }

@@ -83,6 +83,14 @@ pub(crate) fn success() -> Style {
     Style::new().fg(GREEN)
 }
 
+/// O grito de gol por cima do fogo: preto no branco, alvinegro.
+pub(crate) fn shout() -> Style {
+    Style::new()
+        .fg(BACKGROUND)
+        .bg(WHITE)
+        .add_modifier(Modifier::BOLD)
+}
+
 /// O acervo e a resenha.
 pub(crate) fn museum() -> Style {
     Style::new().fg(MAGENTA)

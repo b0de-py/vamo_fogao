@@ -5,6 +5,8 @@
 //! Nada de mexer na tela aos pedaços. É o que deixa testar uma tela
 //! desenhando o estado num terminal de mentira e comparando com o snapshot.
 
+use std::cell::Cell;
+
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::layout::{Constraint, Layout, Rect};
@@ -15,15 +17,16 @@ use jiff::civil::Date;
 
 use jiff::tz::TimeZone;
 use ratatui::style::Style;
-use vamo_core::{Change, Fit, NotebookTitle, Projection, Status, TaskId};
+use vamo_core::{Change, Fit, Lineup, NotebookTitle, Projection, Status, TaskId};
 
 use crate::bench::Bench;
 use crate::curiosity::Acervo;
+use crate::fire::{self, Fire};
 use crate::museum::Museum;
 use crate::prompt::{Prompt, Purpose, Step};
 use crate::today::Today;
 use crate::when::parse_day;
-use crate::{Ledger, Setup, Voice, card, notebook, theme};
+use crate::{Animation, Ledger, Setup, Voice, card, notebook, theme};
 
 /// O que aconteceu depois de uma ação de quem usa.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -132,7 +135,37 @@ pub(crate) struct App {
     message: Option<Message>,
     help: bool,
     quit: bool,
+    animation: Animation,
+    /// Se a janela está à vista. Quando some (outro workspace, outra
+    /// janela por cima), o fogo pausa.
+    window: Window,
+    fire: Fire,
+    /// O tamanho da faixa do fogo no último quadro. O desenho não muda o
+    /// estado, então guarda aqui e o próximo passo do fogo ajusta.
+    fire_area: Cell<(u16, u16)>,
+    /// Quantos passos do fogo ainda faltam no grito de gol.
+    flash: u8,
 }
+
+/// Se a janela da TUI está à vista, pelo foco que o terminal avisa.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Window {
+    /// Com foco: o fogo queima.
+    Visible,
+    /// Sem foco: o fogo pausa.
+    Hidden,
+}
+
+/// Quantas linhas do terminal o fogo ocupa.
+const FIRE_ROWS: u16 = 3;
+
+/// Quantos passos dura o grito de gol: com um passo a cada 80 ms, pouco
+/// mais de um segundo.
+const FLASH_STEPS: u8 = 16;
+
+/// A partir de quantas linhas de terminal o fogo aparece. Num terminal
+/// mais baixo, as telas precisam do espaço.
+const FIRE_MIN_HEIGHT: u16 = 16;
 
 impl App {
     pub(crate) fn new(setup: Setup, today: Date) -> Self {
@@ -151,7 +184,47 @@ impl App {
             message: None,
             help: false,
             quit: false,
+            animation: setup.animation,
+            window: Window::Visible,
+            fire: Fire::new(fire::SEED),
+            fire_area: Cell::new((0, 0)),
+            flash: 0,
         }
+    }
+
+    /// Se o fogo está queimando: com animação e a janela à vista. Quando
+    /// não está, quem roda a TUI só espera tecla e não gasta CPU.
+    pub(crate) fn animating(&self) -> bool {
+        self.animation == Animation::On && self.window == Window::Visible
+    }
+
+    /// Avisa se a janela ganhou ou perdeu o foco.
+    pub(crate) fn set_window(&mut self, window: Window) {
+        self.window = window;
+    }
+
+    /// Um passo do fogo. A altura segue o placar do dia; no grito de gol, a
+    /// brasa vai ao máximo.
+    pub(crate) fn tick<L: Ledger>(&mut self, ledger: &L) {
+        if !self.animating() {
+            return;
+        }
+        let strength = if self.flash > 0 {
+            self.flash -= 1;
+            1.0
+        } else {
+            let score = Lineup::new(ledger.projection(), self.today).score();
+            if score.planned == 0 {
+                0.0
+            } else {
+                // Contagens de tarefa do dia cabem com folga num u32.
+                f64::from(u32::try_from(score.done).unwrap_or(u32::MAX))
+                    / f64::from(u32::try_from(score.planned).unwrap_or(u32::MAX))
+            }
+        };
+        let (columns, rows) = self.fire_area.get();
+        self.fire.resize(columns, rows);
+        self.fire.step(strength);
     }
 
     /// Avisa que dia é hoje. A TUI pode ficar aberta de um dia pro outro.
@@ -310,10 +383,13 @@ impl App {
     fn show(&mut self, feedback: Option<Feedback>, projection: &Projection) {
         self.message = match feedback {
             None | Some(Feedback::Done) => None,
-            Some(Feedback::Goal(id)) => projection.task(id).map(|task| Message {
-                text: self.voice.goal(id, task.title()),
-                style: theme::success(),
-            }),
+            Some(Feedback::Goal(id)) => {
+                self.flash = FLASH_STEPS;
+                projection.task(id).map(|task| Message {
+                    text: self.voice.goal(id, task.title()),
+                    style: theme::success(),
+                })
+            }
             Some(Feedback::Note(text)) => Some(Message {
                 text,
                 style: theme::soft(),
@@ -330,12 +406,20 @@ impl App {
         let area = frame.area();
         frame.render_widget(Block::new().style(theme::base()), area);
 
-        let [header, body, footer] = Layout::vertical([
+        let fire_rows = if self.animation == Animation::On && area.height >= FIRE_MIN_HEIGHT {
+            FIRE_ROWS
+        } else {
+            0
+        };
+        let [header, body, fire_band, footer] = Layout::vertical([
             Constraint::Length(2),
             Constraint::Fill(1),
+            Constraint::Length(fire_rows),
             Constraint::Length(1),
         ])
         .areas(area);
+        self.fire_area.set((fire_band.width, fire_band.height));
+        self.render_fire(frame, fire_band);
 
         self.render_header(frame, header);
         self.render_body(frame, body, ledger);
@@ -352,6 +436,28 @@ impl App {
 
         if self.help {
             self.render_help(frame, body);
+        }
+    }
+
+    /// O fogo e, no grito de gol, o GOL! piscando por cima.
+    fn render_fire(&self, frame: &mut Frame<'_>, area: Rect) {
+        if area.height == 0 {
+            return;
+        }
+        frame.render_widget(&self.fire, area);
+        // Pisca: dois passos aceso, dois apagado.
+        if self.flash > 0 && (self.flash / 2) % 2 == 1 {
+            let shout = self.voice.goal_shout();
+            let [_, middle, _] = Layout::vertical([
+                Constraint::Fill(1),
+                Constraint::Length(1),
+                Constraint::Fill(1),
+            ])
+            .areas(area);
+            frame.render_widget(
+                Paragraph::new(Line::styled(shout, theme::shout())).centered(),
+                middle,
+            );
         }
     }
 
@@ -517,6 +623,9 @@ pub(crate) mod tests {
                 voice,
                 acervo: acervo(),
                 time_zone: TimeZone::UTC,
+                // Os snapshots das telas não mostram o fogo; os testes do
+                // fogo ligam a animação.
+                animation: Animation::Off,
             },
             today(),
         )
@@ -563,6 +672,75 @@ pub(crate) mod tests {
         let mut app = new_app(Voice::Game);
         app.on_key(key(KeyCode::BackTab), &mut ledger);
         assert_eq!(app.tab, Tab::Museum);
+    }
+
+    /// O app com o fogo ligado, no dia de exemplo.
+    fn burning() -> (App, MemoryLedger) {
+        let mut app = new_app(Voice::Game);
+        app.animation = Animation::On;
+        (app, crate::today::tests::example_day())
+    }
+
+    #[test]
+    fn the_fire_burns_in_the_footer() {
+        let (mut app, ledger) = burning();
+        // O primeiro quadro mede a faixa; os passos acendem o fogo.
+        draw(&app, &ledger, 60, 18);
+        for _ in 0..30 {
+            app.tick(&ledger);
+        }
+        let screen = draw(&app, &ledger, 60, 18);
+        assert!(screen.contains('▀'), "{screen}");
+        assert_snapshot!(screen);
+    }
+
+    #[test]
+    fn a_short_terminal_has_no_fire() {
+        let (mut app, ledger) = burning();
+        draw(&app, &ledger, 60, 12);
+        assert_eq!(app.fire_area.get(), (60, 0));
+        app.tick(&ledger);
+        assert!(!draw(&app, &ledger, 60, 12).contains('▀'));
+    }
+
+    #[test]
+    fn a_goal_shouts_over_the_fire() {
+        let (mut app, mut ledger) = burning();
+        draw(&app, &ledger, 60, 18);
+        // O cursor começa na primeira tarefa do dia que ainda não foi feita?
+        // Não importa: desce até a T-002, que está em aberto.
+        app.on_key(key(KeyCode::Char('j')), &mut ledger);
+        app.on_key(key(KeyCode::Char(' ')), &mut ledger);
+        assert_eq!(app.flash, FLASH_STEPS);
+        let mut shouted = false;
+        for _ in 0..FLASH_STEPS {
+            app.tick(&ledger);
+            shouted |= draw(&app, &ledger, 60, 18).contains("G O O O L !");
+        }
+        assert!(shouted);
+        assert_eq!(app.flash, 0);
+        assert!(!draw(&app, &ledger, 60, 18).contains("G O O O L !"));
+    }
+
+    #[test]
+    fn the_fire_stops_when_the_window_hides_or_the_animation_is_off() {
+        let (mut app, ledger) = burning();
+        draw(&app, &ledger, 60, 18);
+        app.tick(&ledger);
+        assert!(app.animating());
+
+        app.set_window(Window::Hidden);
+        assert!(!app.animating());
+        let before = app.fire.clone();
+        app.tick(&ledger);
+        assert_eq!(app.fire, before);
+
+        app.set_window(Window::Visible);
+        app.animation = Animation::Off;
+        assert!(!app.animating());
+        app.tick(&ledger);
+        assert_eq!(app.fire, before);
+        assert!(!draw(&app, &ledger, 60, 18).contains('▀'));
     }
 
     #[test]

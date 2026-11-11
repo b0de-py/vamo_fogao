@@ -17,10 +17,11 @@ use crate::acervo;
 use crate::cli::{AcervoCommand, Command};
 use crate::import::{self, Plan};
 use crate::paths;
-use vamo_tui::Voice;
+use vamo_tui::{Animation, Voice};
 
-/// Roda um comando e devolve o que mostrar na saída.
-pub(crate) fn run(command: Command, voice: Voice) -> Result<String> {
+/// Roda um comando e devolve o que mostrar na saída. A animação só vale
+/// pra TUI.
+pub(crate) fn run(command: Command, voice: Voice, animation: Animation) -> Result<String> {
     match command {
         Command::Add {
             title,
@@ -46,6 +47,7 @@ pub(crate) fn run(command: Command, voice: Voice) -> Result<String> {
                 voice,
                 acervo: vamo_tui::Acervo { facts, banter },
                 time_zone: TimeZone::system(),
+                animation,
             };
             vamo_tui::run(&mut session, setup).wrap_err("a TUI não conseguiu usar o terminal")?;
             Ok(String::new())

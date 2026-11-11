@@ -71,7 +71,9 @@ fn main() -> ExitCode {
     };
     let voice = cli.voice.or(config.voice).unwrap_or_default();
 
-    match commands::run(command, voice) {
+    let animation = config.animation.unwrap_or_default();
+
+    match commands::run(command, voice, animation) {
         Ok(output) => {
             // A TUI não deixa nada pra imprimir depois que fecha.
             if !output.is_empty() {

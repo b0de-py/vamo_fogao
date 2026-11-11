@@ -159,6 +159,11 @@ impl Voice {
     }
 
     /// O título do Banco.
+    /// O grito que pisca por cima do fogo quando uma tarefa é concluída.
+    pub(crate) fn goal_shout(self) -> &'static str {
+        self.pick(" G O O O L ! ", " C O N C L U Í D A ")
+    }
+
     pub(crate) fn bench_title(self) -> &'static str {
         match self {
             Self::Game => "Banco",
