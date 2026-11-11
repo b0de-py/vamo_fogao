@@ -7,6 +7,7 @@ Cada escolha que muda o jeito do projeto ganha um registro curto: o contexto, a 
 | [0001](0001-registrar-decisoes-em-adr.md) | Registrar as decisões em ADR | aceita |
 | [0002](0002-arquitetura-hexagonal-em-workspace.md) | Arquitetura hexagonal num workspace Cargo | aceita |
 | [0003](0003-licencas.md) | Licenças do código e do acervo | aceita |
+| [0004](0004-log-de-eventos-com-ultimo-que-escreveu-ganha.md) | Log de eventos com "o último que escreveu ganha" por campo | aceita |
 
 ## Como escrever uma
 

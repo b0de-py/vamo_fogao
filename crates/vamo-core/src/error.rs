@@ -16,6 +16,23 @@ pub enum Error {
         input: String,
     },
 
+    /// O texto não é um ID de evento (um UUID v7).
+    #[error("`{input}` não é um ID de evento: o formato é um UUID da versão 7")]
+    InvalidEventId {
+        /// O texto recebido.
+        input: String,
+    },
+
+    /// O texto não serve como nome de máquina.
+    #[error(
+        "`{input}` não serve como nome de máquina: use letras e números sem acento, `-`, `_` \
+         ou `.`, com até 64 caracteres"
+    )]
+    InvalidMachine {
+        /// O texto recebido.
+        input: String,
+    },
+
     /// O texto não serve como nome de área.
     #[error(
         "`{input}` não serve como área: use letras minúsculas, números e hífen entre as \

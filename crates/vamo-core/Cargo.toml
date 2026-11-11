@@ -9,7 +9,9 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+jiff.workspace = true
 thiserror.workspace = true
+uuid.workspace = true
 
 [dev-dependencies]
 proptest.workspace = true

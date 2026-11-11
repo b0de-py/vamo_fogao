@@ -9,7 +9,7 @@
 //! Regra de dependência: o `vamo-core` não depende de nenhum outro crate do
 //! workspace. São os outros que dependem dele.
 //!
-//! # Os tipos
+//! # As tarefas
 //!
 //! - [`Task`]: a tarefa, que junta os tipos abaixo.
 //! - [`TaskId`]: o número no formato `T-041`.
@@ -19,21 +19,39 @@
 //! - [`Fit`]: o encaixe, o tipo de espaço que a tarefa pede.
 //! - [`Status`]: em que pé a tarefa está, com as transições permitidas.
 //!
+//! # O log de eventos
+//!
+//! O estado das tarefas não é guardado direto: toda mudança vira um
+//! [`Event`], e a [`Projection`] calcula o estado a partir deles.
+//!
+//! - [`Event`]: uma mudança, com quando e onde aconteceu.
+//! - [`Change`]: o que mudou.
+//! - [`EventId`]: o ID do evento, um UUID v7.
+//! - [`Machine`]: a máquina de onde veio o evento.
+//! - [`Projection`]: o estado das tarefas, com conflito resolvido campo a
+//!   campo.
+//!
 //! Todos validam na construção, então um valor que existe é um valor válido.
 //! Quando algo dá errado, o erro é um [`Error`].
 
 mod area;
 mod error;
+mod event;
 mod fit;
 mod id;
+mod machine;
+mod projection;
 mod status;
 mod task;
 mod title;
 
 pub use area::Area;
 pub use error::Error;
+pub use event::{Change, Event, EventId};
 pub use fit::Fit;
 pub use id::TaskId;
+pub use machine::Machine;
+pub use projection::Projection;
 pub use status::Status;
 pub use task::Task;
 pub use title::NotebookTitle;

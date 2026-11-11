@@ -27,6 +27,9 @@ use crate::Error;
 pub struct TaskId(NonZeroU32);
 
 impl TaskId {
+    /// O primeiro ID, `T-001`.
+    pub const FIRST: Self = Self(NonZeroU32::MIN);
+
     /// O ID com esse número, ou `None` pro zero, que não é número de tarefa.
     pub fn new(number: u32) -> Option<Self> {
         NonZeroU32::new(number).map(Self)

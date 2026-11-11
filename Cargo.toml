@@ -32,8 +32,12 @@ vamo-sync = { path = "crates/vamo-sync" }
 vamo-tui = { path = "crates/vamo-tui" }
 
 # De fora. Cada uma entra quando um crate precisa dela.
+# O jiff vem sem os fusos: o core só precisa do instante. Quem mexe com fuso
+# liga as features que precisa.
+jiff = { version = "0.2.42", default-features = false, features = ["std"] }
 proptest = "1.12"
 thiserror = "2.0"
+uuid = "1.29"
 
 # As regras de qualidade que valem em todo crate (cada um herda com
 # `[lints] workspace = true`). Na CI, todo aviso vira erro.
