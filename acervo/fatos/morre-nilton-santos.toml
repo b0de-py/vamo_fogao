@@ -1,0 +1,13 @@
+texto = "Morre Nilton Santos, e o corpo da Enciclopédia é velado no Salão Nobre de General Severiano."
+data = "2013-11-27"
+status = "verificado"
+tags = ["idolo:nilton-santos"]
+notas = "O Jornal do Brasil, de 28 de novembro, diz que ele morreu na quarta anterior; o dia vem da Wikipédia."
+
+[[fontes]]
+nome = "Jornal do Brasil"
+url = "https://www.jb.com.br/esportes/noticias/2013/11/28/com-idolos-de-70-corpo-de-nilton-santos-e-velado-no-botafogo.html"
+
+[[fontes]]
+nome = "Wikipédia em inglês: Nílton Santos"
+url = "https://en.wikipedia.org/wiki/N%C3%ADlton_Santos"

@@ -1,0 +1,13 @@
+texto = "Até 2026, Carvalho Leite é o segundo maior artilheiro da história do Botafogo, com 261 gols."
+data = "2026"
+tipo = "recorde"
+status = "verificado"
+tags = ["idolo:carvalho-leite"]
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/botafogo/artilheiros-botafogo.html"
+
+[[fontes]]
+nome = "Wikipédia em inglês: Botafogo FR"
+url = "https://en.wikipedia.org/wiki/Botafogo_FR"

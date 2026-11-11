@@ -1,0 +1,13 @@
+texto = "Leônidas da Silva, o Diamante Negro, é campeão carioca pelo Botafogo em 1935."
+data = "1935"
+status = "verificado"
+tags = ["titulo:carioca", "idolo:leonidas"]
+notas = "As fontes divergem na ordem: a Wikipédia diz que ele veio do Flamengo, e o Lance! põe o Botafogo antes do Flamengo. O texto fica sem a origem."
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/tim4g/tim-leonidas-silva-diamante-negro.html"
+
+[[fontes]]
+nome = "Wikipédia em inglês: History of Botafogo FR"
+url = "https://en.wikipedia.org/wiki/History_of_Botafogo_FR"

@@ -1,0 +1,12 @@
+texto = "Botafogo campeão carioca de 1962 na final com o Flamengo."
+data = "1962"
+status = "verificado"
+tags = ["titulo:carioca", "adversario:flamengo"]
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/lancepedia/flamengo-x-botafogo-finais.html"
+
+[[fontes]]
+nome = "Wikipédia em inglês: History of Botafogo FR"
+url = "https://en.wikipedia.org/wiki/History_of_Botafogo_FR"

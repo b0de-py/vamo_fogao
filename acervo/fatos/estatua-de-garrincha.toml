@@ -1,0 +1,13 @@
+texto = "Garrincha ganha estátua em General Severiano, e a sede ganha um farol de 24 metros que projeta a estrela solitária."
+data = "2023-07-25"
+status = "verificado"
+tags = ["idolo:garrincha"]
+notas = "A Itatiaia dá o nome da obra, O Drible do Anjo, e conta que a filha de Garrincha estava lá."
+
+[[fontes]]
+nome = "Rádio Tupi"
+url = "https://www.tupi.fm/esportes/botafogo-apresenta-estatua-de-garrincha-e-farol-da-estrela-solitaria/"
+
+[[fontes]]
+nome = "Itatiaia"
+url = "https://www.itatiaia.com.br/esportes/futebol/futebol-nacional/futebol-carioca/botafogo/botafogo-inaugura-estatua-de-garrincha-e-filha-se-emociona-assista/"

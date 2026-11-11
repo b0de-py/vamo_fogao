@@ -1,0 +1,13 @@
+texto = "Botafogo campeão carioca de 1997 com 1 x 0 no Vasco na decisão."
+data = "1997"
+status = "verificado"
+tags = ["titulo:carioca", "adversario:vasco"]
+notas = "A Wikipédia dá o gol ao Dimba, que saiu do banco; o NetVasco não dá o autor."
+
+[[fontes]]
+nome = "NetVasco"
+url = "https://www.netvasco.com.br/n/270593/veja-como-ficou-o-historico-das-decisoes-entre-vasco-e-botafogo-apos-a-taca-rio-2021"
+
+[[fontes]]
+nome = "Wikipédia em inglês: History of Botafogo FR"
+url = "https://en.wikipedia.org/wiki/History_of_Botafogo_FR"

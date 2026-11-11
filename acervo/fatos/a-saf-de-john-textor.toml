@@ -1,0 +1,12 @@
+texto = "Os sócios aprovam a venda de 90% do futebol do Botafogo ao americano John Textor."
+data = "2022-01-14"
+status = "verificado"
+notas = "O dia vem do TNH1. A Wikipédia conta que a compra pela Eagle Holdings foi anunciada em fevereiro de 2022."
+
+[[fontes]]
+nome = "TNH1"
+url = "https://www.tnh1.com.br/noticia/nid/socios-aprovam-venda-do-futebol-do-botafogo-a-john-textor/"
+
+[[fontes]]
+nome = "Wikipédia em inglês: Botafogo FR"
+url = "https://en.wikipedia.org/wiki/Botafogo_FR"

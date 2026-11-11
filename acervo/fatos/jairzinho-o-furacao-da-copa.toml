@@ -1,0 +1,13 @@
+texto = "Jairzinho, jogador do Botafogo, faz gol em todos os jogos do Brasil na Copa de 1970 e vira o Furacão da Copa."
+data = "1970"
+status = "verificado"
+tags = ["idolo:jairzinho"]
+notas = "As fontes divergem no número de jogos: sete no Lance!, seis na Wikipédia. O texto fica sem o número."
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/lancepedia/a-historia-de-jairzinho-no-botafogo.html"
+
+[[fontes]]
+nome = "Wikipédia em inglês: Jairzinho"
+url = "https://en.wikipedia.org/wiki/Jairzinho"

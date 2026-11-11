@@ -1,0 +1,13 @@
+texto = "Amarildo, o Possesso, faz dois gols na final contra o Palmeiras, e o Botafogo é campeão do Rio-São Paulo de 1962."
+data = "1962"
+status = "verificado"
+tags = ["idolo:amarildo", "titulo:rio-sao-paulo", "adversario:palmeiras"]
+notas = "Os dois gols na final vêm do Lance!. A Wikipédia dá o título e põe Amarildo como artilheiro do torneio, com o apelido dado por Nelson Rodrigues depois da Copa de 1962."
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/lancepedia/a-historia-de-amarildo-no-botafogo.html"
+
+[[fontes]]
+nome = "Wikipédia em inglês: Amarildo Tavares da Silveira"
+url = "https://en.wikipedia.org/wiki/Amarildo_Tavares_da_Silveira"

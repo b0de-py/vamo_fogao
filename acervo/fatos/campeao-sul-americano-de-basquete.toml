@@ -1,0 +1,12 @@
+texto = "No basquete, o Botafogo vence o Corinthians por 74 x 70 no terceiro jogo da final e é campeão da Liga Sul-Americana."
+data = "2019-12-13"
+status = "verificado"
+tags = ["esporte:basquete", "adversario:corinthians"]
+
+[[fontes]]
+nome = "Rádio Tupi"
+url = "https://www.tupi.fm/?p=325468"
+
+[[fontes]]
+nome = "Wikipédia em inglês: 2019 Liga Sudamericana de Básquetbol"
+url = "https://en.wikipedia.org/wiki/2019_Liga_Sudamericana_de_B%C3%A1squetbol"

@@ -1,0 +1,13 @@
+texto = "1 x 0 no Brasil de Pelotas, em Pelotas, e o Botafogo de Enderson Moreira é campeão da Série B de 2021."
+data = "2021-11-21"
+status = "verificado"
+tags = ["adversario:brasil-de-pelotas"]
+notas = "O jogo e o dia vêm de O Liberal; a Wikipédia dá o título com Enderson Moreira e a subida com uma rodada de folga."
+
+[[fontes]]
+nome = "O Liberal"
+url = "https://www.oliberal.com/esportes/futebol/botafogo-bate-brasil-de-pelotas-e-e-campeao-da-serie-b-1.462622"
+
+[[fontes]]
+nome = "Wikipédia em inglês: History of Botafogo FR"
+url = "https://en.wikipedia.org/wiki/History_of_Botafogo_FR"

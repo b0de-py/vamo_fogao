@@ -1,0 +1,17 @@
+texto = "Com Seedorf no time, o Botafogo ganha a Taça Guanabara, a Taça Rio e o Carioca de 2013."
+data = "2013"
+status = "verificado"
+tags = ["titulo:carioca", "idolo:seedorf"]
+notas = "O Lance! põe Seedorf no clube de 2012 a 2014; o Bahia Notícias dá as três taças de 2013."
+
+[[fontes]]
+nome = "Wikipédia em inglês: History of Botafogo FR"
+url = "https://en.wikipedia.org/wiki/History_of_Botafogo_FR"
+
+[[fontes]]
+nome = "Bahia Notícias"
+url = "https://www.bahianoticias.com.br/esportes/noticia/70017-historia-do-botafogo-de-futebol-e-regatas"
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/botafogo/melhores-estrangeiros-do-botafogo.html"
