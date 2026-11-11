@@ -31,8 +31,15 @@
 //! - [`Projection`]: o estado das tarefas, com conflito resolvido campo a
 //!   campo.
 //!
-//! Todos validam na construção, então um valor que existe é um valor válido.
-//! Quando algo dá errado, o erro é um [`Error`].
+//! Todos esses tipos validam na construção, então um valor que existe é um
+//! valor válido. Quando algo dá errado, o erro é um [`Error`].
+//!
+//! # As portas
+//!
+//! O que o core precisa do mundo de fora vira trait, e um adaptador
+//! implementa.
+//!
+//! - [`EventStore`]: onde o log de eventos fica guardado.
 
 mod area;
 mod error;
@@ -40,6 +47,7 @@ mod event;
 mod fit;
 mod id;
 mod machine;
+mod port;
 mod projection;
 mod status;
 mod task;
@@ -51,6 +59,7 @@ pub use event::{Change, Event, EventId};
 pub use fit::Fit;
 pub use id::TaskId;
 pub use machine::Machine;
+pub use port::EventStore;
 pub use projection::Projection;
 pub use status::Status;
 pub use task::Task;
