@@ -77,19 +77,35 @@ animacao = false
 
 A ideia é ter o vamo à mão o tempo todo: um atalho mostra a TUI, o mesmo atalho esconde, e o processo segue vivo no meio, com a tela do jeito que ficou. O Hyprland faz isso com um workspace especial, que aparece por cima dos outros e some sem fechar nada.
 
-O arquivo pronto está em [`extras/hyprland/vamo_fogao.conf`](https://github.com/b0de-py/vamo_fogao/blob/main/extras/hyprland/vamo_fogao.conf). Copie pra `~/.config/hypr/` e ponha no fim do `hyprland.conf`:
+Antes de tudo, o `vamo` precisa estar no PATH, porque é o Hyprland que abre a TUI:
+
+```sh
+cargo install --path crates/vamo_fogao
+```
+
+Tem dois arquivos prontos em [`extras/hyprland/`](https://github.com/b0de-py/vamo_fogao/tree/main/extras/hyprland), um pra cada jeito de escrever a config do Hyprland.
+
+**Config em Lua (o Omarchy).** Copie o `vamo_fogao.lua` pra `~/.config/hypr/` e ponha no fim do `hyprland.lua`:
+
+```lua
+require("hypr.vamo_fogao")
+```
+
+Os `o.bind`, `o.launch` e `o.window` do arquivo são ajudantes do Omarchy; fora dele, os equivalentes são o `hl.bind` e o `hl.window_rule`. Esse é o arquivo testado: Hyprland 0.56.2 com o Omarchy.
+
+**Config clássica.** Copie o `vamo_fogao.conf` pra `~/.config/hypr/` e ponha no fim do `hyprland.conf`:
 
 ```text
 source = ~/.config/hypr/vamo_fogao.conf
 ```
 
-Ele faz três coisas:
+Os dois fazem as mesmas três coisas:
 
-1. **O atalho.** `bind = SUPER ALT, F, togglespecialworkspace, vamo` mostra e esconde o workspace `special:vamo`. Confira antes com `hyprctl binds` se o atalho está livre; se não estiver, troque.
-2. **A primeira abertura.** `workspace = special:vamo, on-created-empty:...` abre o terminal com a TUI quando o workspace aparece vazio. Das outras vezes ele já tem a janela, e o atalho só mostra e esconde. Se você fechar a TUI com `q`, a próxima vez abre de novo.
+1. **O atalho.** `SUPER ALT V` mostra e esconde o workspace `special:vamo`. No Omarchy, o `SUPER ALT F` já é o "Full width", por isso o V. Confira antes com `hyprctl binds` se o atalho está livre; se não estiver, troque.
+2. **A primeira abertura.** Quando o workspace aparece vazio, o Hyprland abre o terminal com a TUI. Das outras vezes ele já tem a janela, e o atalho só mostra e esconde. Se você fechar a TUI com `q`, a próxima vez abre de novo.
 3. **O tamanho.** A regra de janela deixa a TUI flutuante, centralizada, com 90% da largura e 85% da altura da tela. Pra tela cheia, comente a regra: sozinha no workspace especial, a janela ocupa a tela toda.
 
-A regra acha a janela pela classe `vamo_fogao`, que o terminal recebe na linha de comando (`--class` no Alacritty e no Kitty). Quando o workspace some, a janela perde o foco, o terminal avisa a TUI e o fogo pausa.
+A regra acha a janela pela classe `vamo_fogao`, que o terminal recebe na linha de comando: `--class` no Alacritty e no Kitty, `--app-id` no foot. Depois de mexer, `hyprctl reload` recarrega e `hyprctl configerrors` mostra se alguma linha não passou. Quando o workspace some, a janela perde o foco, o terminal avisa a TUI e o fogo pausa.
 
 ## Como o código está montado
 
