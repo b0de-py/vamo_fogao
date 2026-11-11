@@ -1,0 +1,16 @@
+---
+source: crates/vamo-tui/src/app.rs
+expression: "draw(&app, &ledger, 70, 12)"
+---
+" vamo_fogao   1 Hoje  2 Caderno  3 Banco  4 Museu                     "
+"──────────────────────────────────────────────────────────────────────"
+"                                                                      "
+" Hoje      ┌ Prancheta ──────────────────────────────────┐            "
+"           │1 a 4           vai direto pra tela          │            "
+"           │tab, shift+tab  próxima tela, tela anterior  │            "
+"           │?               abre e fecha esta ajuda      │            "
+"           │q, ctrl+c       encerra a partida            │            "
+"           └─────────────────────────────────────────────┘            "
+"                                                                      "
+"                                                                      "
+"tab troca de tela · ? ajuda · q encerra a partida                     "

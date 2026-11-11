@@ -24,6 +24,9 @@ allow = [
     # Licença permissiva dos dados do Unicode, usada pelo unicode-ident (que
     # todo crate de macro procedural puxa, via proc-macro2 e syn).
     "Unicode-3.0",
+    # Permissiva como a MIT, sem exigir nada de quem usa o binário. Vem com o
+    # foldhash, que o ratatui puxa pela tabela de hash do layout.
+    "Zlib",
 ]
 confidence-threshold = 0.9
 

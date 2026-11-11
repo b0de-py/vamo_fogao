@@ -195,6 +195,14 @@ pub(crate) enum Command {
         id: TaskId,
     },
 
+    /// Abre a interface de terminal, com as telas do dia
+    #[command(
+        override_usage = "vamo tui",
+        help_template = SUBCOMMAND_HELP_TEMPLATE,
+        next_help_heading = "Opções"
+    )]
+    Tui,
+
     /// Cuida do acervo, o museu de bolso com a história do Botafogo
     #[command(
         override_usage = "vamo acervo <COMANDO>",

@@ -26,6 +26,7 @@ uuid = { workspace = true, features = ["v7"] }
 vamo-acervo.workspace = true
 vamo-core.workspace = true
 vamo-store.workspace = true
+vamo-tui.workspace = true
 
 [dev-dependencies]
 insta.workspace = true

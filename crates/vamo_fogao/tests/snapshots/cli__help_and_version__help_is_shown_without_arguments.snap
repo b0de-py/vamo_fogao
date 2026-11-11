@@ -12,6 +12,7 @@ Comandos:
   done    Conclui uma tarefa: gol!
   import  Traz as tarefas do banco antigo, um markdown com a tabela de índice
   show    Mostra a ficha de uma tarefa, com o histórico
+  tui     Abre a interface de terminal, com as telas do dia
   acervo  Cuida do acervo, o museu de bolso com a história do Botafogo
 
 Opções:

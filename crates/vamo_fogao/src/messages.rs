@@ -17,6 +17,15 @@ pub(crate) enum Voice {
     Neutral,
 }
 
+impl From<Voice> for vamo_tui::Voice {
+    fn from(voice: Voice) -> Self {
+        match voice {
+            Voice::Game => Self::Game,
+            Voice::Neutral => Self::Neutral,
+        }
+    }
+}
+
 impl Voice {
     /// Depois de `vamo add`.
     pub(crate) fn added(self, task: &Task) -> String {

@@ -62,7 +62,10 @@ fn main() -> ExitCode {
 
     match commands::run(command, cli.voice) {
         Ok(output) => {
-            println!("{output}");
+            // A TUI não deixa nada pra imprimir depois que fecha.
+            if !output.is_empty() {
+                println!("{output}");
+            }
             ExitCode::SUCCESS
         }
         Err(report) => {

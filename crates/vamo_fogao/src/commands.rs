@@ -35,6 +35,12 @@ pub(crate) fn run(command: Command, voice: Voice) -> Result<String> {
         Command::Done { id } => Session::open(voice)?.done(id),
         Command::Show { id } => Session::open(voice)?.show(id),
         Command::Import { file, dry_run } => Session::open(voice)?.import(&file, dry_run),
+        Command::Tui => {
+            let mut session = Session::open(voice)?;
+            vamo_tui::run(&mut session, voice.into())
+                .wrap_err("a TUI não conseguiu usar o terminal")?;
+            Ok(String::new())
+        }
         // O acervo não mexe nas tarefas, então nem abre o banco.
         Command::Acervo {
             command: AcervoCommand::Validate { folder },
@@ -219,7 +225,25 @@ impl Session {
         for event in &events {
             self.projection.apply(event);
         }
+        self.events.extend(events);
         Ok(())
+    }
+}
+
+/// A TUI lê e grava as tarefas pela mesma sessão da CLI.
+impl vamo_tui::Ledger for Session {
+    type Error = color_eyre::Report;
+
+    fn projection(&self) -> &Projection {
+        &self.projection
+    }
+
+    fn events(&self) -> &[Event] {
+        &self.events
+    }
+
+    fn record(&mut self, task: TaskId, changes: Vec<Change>) -> Result<()> {
+        Session::record(self, task, changes)
     }
 }
 
