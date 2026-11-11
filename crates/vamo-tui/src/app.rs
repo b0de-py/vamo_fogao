@@ -25,6 +25,7 @@ use crate::curiosity::Acervo;
 use crate::fire::{self, Fire};
 use crate::museum::Museum;
 use crate::prompt::{Prompt, Purpose, Step};
+use crate::star::Star;
 use crate::today::Today;
 use crate::when::parse_day;
 use crate::{Animation, Ledger, Setup, Voice, card, notebook, theme};
@@ -471,20 +472,33 @@ impl App {
             self.render_help(frame, body);
         }
 
-        // O fogo entra por último, por baixo de tudo o que já foi desenhado.
+        // O fogo e a estrela entram por último, por baixo de tudo o que já
+        // foi desenhado.
         let burns = self.animated() && area.height >= FIRE_MIN_HEIGHT;
         self.fire_area
             .set((area.width, if burns { area.height } else { 0 }));
-        if burns {
-            self.fire.underlay(area, frame.buffer_mut());
+        let shouting = burns && self.flash > 0 && !(self.flash / BLINK_EVERY).is_multiple_of(2);
+        let star = self.star(area).map(|star| star.glowing(shouting));
+        if burns || star.is_some() {
+            self.fire.underlay(area, frame.buffer_mut(), star.as_ref());
+        }
+        if shouting {
             self.render_shout(frame, body);
         }
     }
 
-    /// No grito de gol, o GOL! piscando por cima do fogo, perto do rodapé.
+    /// A Estrela Solitária do canto da tela. Só na linguagem de jogo: no
+    /// modo neutro, a TUI não fala de futebol nem por desenho.
+    fn star(&self, area: Rect) -> Option<Star> {
+        match self.voice {
+            Voice::Game => Star::in_corner(area.width, area.height),
+            Voice::Neutral => None,
+        }
+    }
+
+    /// O GOL! do grito de gol, por cima do fogo, perto do rodapé.
     fn render_shout(&self, frame: &mut Frame<'_>, area: Rect) {
-        let dark = (self.flash / BLINK_EVERY).is_multiple_of(2);
-        if self.flash == 0 || dark || area.height < 3 {
+        if area.height < 3 {
             return;
         }
         let line = Rect {
@@ -808,6 +822,36 @@ pub(crate) mod tests {
             .unwrap()
             .to_owned();
         assert!(row.contains('▀'), "{row}");
+    }
+
+    /// Se a tela tem meio-bloco no canto de baixo à direita, onde mora a
+    /// estrela, e em nenhum outro lugar.
+    fn only_the_star(screen: &str) -> bool {
+        let corner = screen
+            .lines()
+            .skip(12)
+            .any(|line| line.chars().skip(50).any(|c| c == '▀'));
+        let elsewhere = screen
+            .lines()
+            .any(|line| line.chars().take(50).any(|c| c == '▀'));
+        corner && !elsewhere
+    }
+
+    #[test]
+    fn the_lone_star_shines_in_the_corner() {
+        // Sem animação não tem fogo, e a estrela fica lá do mesmo jeito.
+        let app = new_app(Voice::Game);
+        let ledger = ledger();
+        let screen = draw(&app, &ledger, 80, 30);
+        assert!(only_the_star(&screen), "{screen}");
+        // Num terminal pequeno, ela não cabe.
+        assert!(!draw(&app, &ledger, 80, 20).contains('▀'));
+    }
+
+    #[test]
+    fn the_neutral_voice_has_no_star() {
+        let app = new_app(Voice::Neutral);
+        assert!(!draw(&app, &ledger(), 80, 30).contains('▀'));
     }
 
     #[test]

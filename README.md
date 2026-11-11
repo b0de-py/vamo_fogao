@@ -13,7 +13,7 @@ O vamo_fogao junta num lugar só as tarefas, a agenda e um pedaço da história 
 - **Agenda.** Lê a agenda pelo link ICS (com OAuth do Google como opção), acha as brechas do expediente e liga evento a tarefa por uma linha no fim do evento.
 - **Linguagem de jogo.** Concluir é gol, as tarefas do dia são a escalação e o resumo do dia é a súmula. Quem preferir liga o modo neutro.
 - **Curiosidade do dia.** Uma história do Botafogo por dia, tirada de um acervo em que cada fato tem duas fontes independentes. A zoeira mora separada, na Resenha, e não se mistura com a história.
-- **Fogo alvinegro.** O fogo do Doom em preto e branco, queimando atrás da tela inteira. Ele sobe com o placar do dia, solta foguetes no gol e um clique atiça.
+- **Fogo alvinegro.** O fogo do Doom em preto e branco, queimando atrás da tela inteira. Ele sobe com o placar do dia, solta foguetes no gol e um clique atiça. No canto, a Estrela Solitária esquenta com a chama.
 - **Claude por MCP.** Um servidor MCP pro Claude ler o dia, agendar tarefas e fazer a revisão semanal gastando pouco contexto.
 
 ## Em que pé está

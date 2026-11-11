@@ -1,7 +1,8 @@
 //! A interface de terminal do `vamo_fogao`.
 //!
 //! As telas Hoje, Caderno, Banco, Ficha e Museu, o tema com as cores do
-//! r4ul.com.br (sem vermelho) e o fogo alvinegro queimando atrás de tudo.
+//! r4ul.com.br (sem vermelho), o fogo alvinegro queimando atrás de tudo e a
+//! Estrela Solitária no canto.
 //!
 //! A TUI é um adaptador: mostra o estado que o core calcula e transforma
 //! tecla em mudança. Ela não abre o banco. Quem entrega as tarefas é quem
@@ -23,6 +24,7 @@ mod ledger;
 mod museum;
 mod notebook;
 mod prompt;
+mod star;
 mod theme;
 mod today;
 mod voice;

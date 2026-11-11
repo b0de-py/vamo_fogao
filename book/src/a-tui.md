@@ -25,6 +25,14 @@ Como no site, o fogo reage a quem usa:
 - **Clicou, atiça.** Um clique acende um círculo de fogo no lugar do clique, que sobe e esfria. Com o mouse capturado pela TUI, selecionar texto no terminal pede o `shift` apertado.
 - **Sumiu, pausa.** Quando a janela perde o foco, o fogo para.
 
+### A Estrela Solitária
+
+No canto de baixo, à direita, fica uma estrela branca de cinco pontas, do tamanho de um terço da tela. Fria, ela é um cinza claro; a chama que passa por ela esquenta até o branco, e no grito de gol ela acende inteira junto com o GOOOL!. Atrás de um texto, ela fica atrás do vidro, como o fogo.
+
+A estrela não é uma imagem guardada: é uma conta (`crates/vamo-tui/src/star.rs`). Pra cada célula do fogo, a `Star::coverage` tira nove amostras e responde quanto da célula cai dentro da estrela, o que dá meios-tons na borda no lugar de degraus. Pra saber se um ponto está dentro, a conta dobra o ponto pra uma das dez fatias iguais da estrela e confere de que lado da borda ele caiu.
+
+Ela aparece em terminais de 60 colunas por 24 linhas pra cima, com ou sem animação, e só na linguagem de jogo: no modo neutro, a TUI não fala de futebol nem por desenho. É só a estrela, que é símbolo de torcedor. O escudo é marca do clube e não entra.
+
 ### A conta
 
 A simulação mora em `crates/vamo-tui/src/fire.rs` e é a mesma do site (`js/common_effects.js`):

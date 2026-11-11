@@ -30,6 +30,7 @@ use ratatui::layout::Rect;
 use ratatui::style::{Color, Modifier};
 use ratatui::text::Span;
 
+use crate::star::Star;
 use crate::theme;
 
 /// A semente do fogo do app. Qualquer número serve; fixo, o fogo começa
@@ -51,6 +52,10 @@ const OPACITY: f64 = 0.25;
 /// No site, as caixas de vidro fumê deixam passar de 10% a 35%. Com um
 /// quarto, até o texto apagado continua legível em cima da brasa.
 const GLASS: f64 = 0.25;
+
+/// O brilho da estrela fria, sem fogo passando por ela: de 0 (o fundo) a 1
+/// (branco). O fogo esquenta a estrela daí até o branco.
+const STARLIGHT: f64 = 0.45;
 
 /// O raio de um estouro, em células do fogo.
 const BLAST: usize = 7;
@@ -223,7 +228,30 @@ impl Fire {
         self.state.wrapping_mul(0x2545_F491_4F6C_DD1D)
     }
 
-    /// Põe o fogo por baixo do que já está desenhado em `area`.
+    /// O brilho de uma célula do fogo, de 0 (o fundo da tela) a 1 (branco).
+    ///
+    /// Sem estrela, é o calor visto com a opacidade do site. Dentro da
+    /// estrela, parte do brilho dela e sobe com o calor: a chama que passa
+    /// esquenta a estrela até o branco.
+    fn light(&self, star: Option<&Star>, x: usize, y: usize) -> f64 {
+        let heat = f64::from(self.heat_at(x, y)) / f64::from(HOTTEST);
+        let flame = heat * OPACITY;
+        let Some(star) = star else { return flame };
+        let covered = star.coverage(x, y);
+        if covered == 0.0 {
+            return flame;
+        }
+        let starlight = if star.is_glowing() {
+            1.0
+        } else {
+            STARLIGHT + (1.0 - STARLIGHT) * heat
+        };
+        // Na borda, a célula é parte estrela e parte fogo.
+        flame + (starlight - flame) * covered
+    }
+
+    /// Põe o fogo, e a estrela se tiver, por baixo do que já está desenhado
+    /// em `area`.
     ///
     /// Roda depois de todas as telas, e olha célula por célula:
     ///
@@ -234,16 +262,16 @@ impl Fire {
     ///   escuro, pra letra continuar legível;
     /// - célula com outro fundo (a linha do cursor, o grito de gol): fica
     ///   como está.
-    pub(crate) fn underlay(&self, area: Rect, buf: &mut Buffer) {
-        let rows = (self.height / 2).min(usize::from(area.height));
-        let columns = self.width.min(usize::from(area.width));
-        for row in 0..rows {
+    pub(crate) fn underlay(&self, area: Rect, buf: &mut Buffer, star: Option<&Star>) {
+        let columns = usize::from(area.width);
+        for row in 0..usize::from(area.height) {
             let Ok(dy) = u16::try_from(row) else { continue };
             let y = area.y + dy;
             let behind_glass = behind_glass(&inks(buf, area.x, y, columns));
             for (x, &behind_glass) in behind_glass.iter().enumerate() {
-                let (top, bottom) = (self.heat_at(x, row * 2), self.heat_at(x, row * 2 + 1));
-                if top == 0 && bottom == 0 {
+                let top = self.light(star, x, row * 2);
+                let bottom = self.light(star, x, row * 2 + 1);
+                if top == 0.0 && bottom == 0.0 {
                     continue;
                 }
                 let Ok(dx) = u16::try_from(x) else { continue };
@@ -261,12 +289,9 @@ impl Fire {
                     // meio-bloco no lugar dos espaços) e só o fundo muda. O
                     // fundo é uma cor só: a média das duas células do fogo
                     // que passam por ali.
-                    let both = f64::midpoint(f64::from(top), f64::from(bottom));
-                    cell.set_bg(shade(both, OPACITY * GLASS));
+                    cell.set_bg(shade(f64::midpoint(top, bottom) * GLASS));
                 } else {
-                    cell.set_char('▀')
-                        .set_fg(shade(f64::from(top), OPACITY))
-                        .set_bg(shade(f64::from(bottom), OPACITY));
+                    cell.set_char('▀').set_fg(shade(top)).set_bg(shade(bottom));
                     // O meio-bloco não herda negrito nem sublinhado de quem
                     // desenhou a linha.
                     cell.modifier = Modifier::empty();
@@ -348,19 +373,16 @@ fn behind_glass(inks: &[Ink]) -> Vec<bool> {
         .collect()
 }
 
-/// A cor de um calor visto com certa opacidade por cima do fundo: do fundo
-/// quase preto ao cinza, sempre com R, G e B iguais. Vermelho não entra, nem
-/// no fogo.
-fn shade(heat: f64, opacity: f64) -> Color {
+/// A cor de um brilho, de 0 (o fundo quase preto) a 1 (branco), sempre com
+/// R, G e B iguais. Vermelho não entra, nem no fogo.
+fn shade(light: f64) -> Color {
     let backdrop = f64::from(theme::BACKGROUND_GRAY);
-    // A paleta do site: o calor vira um cinza de 0 a 255.
-    let flame = heat.clamp(0.0, f64::from(HOTTEST)) / f64::from(HOTTEST) * 255.0;
     #[expect(
         clippy::cast_possible_truncation,
         clippy::cast_sign_loss,
-        reason = "a mistura de dois cinzas fica entre 0 e 255"
+        reason = "o cinza fica entre o do fundo e 255"
     )]
-    let gray = (backdrop + (flame - backdrop) * opacity.clamp(0.0, 1.0)).round() as u8;
+    let gray = (backdrop + (255.0 - backdrop) * light.clamp(0.0, 1.0)).round() as u8;
     Color::Rgb(gray, gray, gray)
 }
 
@@ -525,7 +547,7 @@ mod tests {
     fn the_fire_shows_dimmed_behind_the_empty_screen() {
         let fire = burnt_in(40, 1.0, 40);
         let (mut buf, area) = screen(&fire);
-        fire.underlay(area, &mut buf);
+        fire.underlay(area, &mut buf, None);
         // A linha de baixo é brasa pura: o branco com 25% de opacidade.
         let ember = &buf[(5, area.height - 1)];
         assert_eq!(ember.symbol(), "▀");
@@ -541,7 +563,7 @@ mod tests {
         let (mut buf, area) = screen(&fire);
         let last = area.height - 1;
         buf.set_string(2, last, "gol  de  placa", theme::muted());
-        fire.underlay(area, &mut buf);
+        fire.underlay(area, &mut buf, None);
         // A letra continua lá, com o fogo bem mais escuro por trás.
         assert_eq!(buf[(2, last)].symbol(), "g");
         assert_eq!(buf[(2, last)].fg, theme::MUTED);
@@ -564,7 +586,7 @@ mod tests {
         let last = area.height - 1;
         buf.set_style(Rect::new(0, last, 4, 1), Style::new().bg(theme::SURFACE));
         buf.set_style(Rect::new(10, last, 4, 1), theme::cursor());
-        fire.underlay(area, &mut buf);
+        fire.underlay(area, &mut buf, None);
         assert_eq!(buf[(1, last)].symbol(), " ");
         assert!(gray(buf[(1, last)].bg) <= 25);
         assert_eq!(buf[(11, last)].symbol(), " ");
@@ -577,17 +599,56 @@ mod tests {
         let (mut buf, area) = screen(&fire);
         let last = area.height - 1;
         buf.set_string(4, last, "火", theme::text());
-        fire.underlay(area, &mut buf);
+        fire.underlay(area, &mut buf, None);
         assert_eq!(buf[(4, last)].symbol(), "火");
         assert_eq!(buf[(5, last)].symbol(), " ");
     }
 
     #[test]
+    fn the_star_shines_cold_and_the_fire_heats_it_to_white() {
+        // Um fogo apagado, do tamanho de um terminal de 80 por 30, e a cor
+        // do miolo da estrela (coluna 67, linha 21) depois de um quadro.
+        let cold_fire = || {
+            let mut fire = Fire::new(SEED);
+            fire.resize(80, 30);
+            fire
+        };
+        let heart = |fire: &Fire, star: &Star| {
+            let (mut buf, area) = screen(fire);
+            fire.underlay(area, &mut buf, Some(star));
+            // Fora da estrela, sem fogo, a tela fica como estava.
+            assert_eq!(buf[(5, 5)].symbol(), " ");
+            assert_eq!(buf[(67, 21)].symbol(), "▀");
+            gray(buf[(67, 21)].fg)
+        };
+        let star = Star::in_corner(80, 30).unwrap();
+        assert!(star.coverage(67, 42) > 0.99);
+
+        // Fria, a estrela tem o brilho dela.
+        assert_eq!(heart(&cold_fire(), &star), 120);
+        // Com a chama passando, ela esquenta até o branco.
+        let mut fire = cold_fire();
+        fire.explode(67, 21);
+        assert_eq!(heart(&fire, &star), 255);
+        // No grito de gol, ela acende inteira mesmo sem fogo.
+        assert_eq!(heart(&cold_fire(), &star.glowing(true)), 255);
+    }
+
+    #[test]
+    fn text_over_the_star_stays_readable() {
+        let mut fire = Fire::new(SEED);
+        fire.resize(80, 30);
+        let (mut buf, area) = screen(&fire);
+        buf.set_string(66, 21, "gol", theme::muted());
+        fire.underlay(area, &mut buf, Some(&Star::in_corner(80, 30).unwrap()));
+        assert_eq!(buf[(67, 21)].symbol(), "o");
+        assert!(gray(buf[(67, 21)].bg) < 45);
+    }
+
+    #[test]
     fn no_red_in_the_fire() {
-        for heat in 0..=HOTTEST {
-            for opacity in [OPACITY, OPACITY * GLASS, 1.0] {
-                gray(shade(f64::from(heat), opacity));
-            }
+        for step in 0..=100 {
+            gray(shade(f64::from(step) / 100.0));
         }
     }
 }
