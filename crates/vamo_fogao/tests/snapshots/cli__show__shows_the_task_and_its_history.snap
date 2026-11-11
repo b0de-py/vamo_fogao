@@ -1,0 +1,15 @@
+---
+source: crates/vamo_fogao/tests/cli.rs
+expression: "vamo.ok(&[\"show\", \"1\"])"
+---
+T-001 Trocar o filtro da água
+
+área     casa
+encaixe  brecha
+status   concluída
+notas    O refil está na gaveta.
+
+Súmula
+[data e hora]  notebook  entrou no banco: Trocar o filtro da água (casa, brecha, pronta)
+[data e hora]  notebook  notas: O refil está na gaveta.
+[data e hora]  notebook  status: concluída

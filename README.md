@@ -18,7 +18,21 @@ O vamo_fogao junta num lugar só as tarefas, a agenda e um pedaço da história 
 
 ## Em que pé está
 
-Fase 0, a fundação: workspace, CI, regras de qualidade, ADRs e o esqueleto do livro. Ainda não dá pra usar no dia a dia; os comandos de tarefa chegam na fase 1. O [ROADMAP](ROADMAP.md) mostra todas as fases.
+Fase 1, o núcleo: as tarefas já moram num banco SQLite e dá pra usar pela linha de comando. A TUI chega na fase 2. O [ROADMAP](ROADMAP.md) mostra todas as fases.
+
+```console
+$ vamo add Trocar o filtro da água --area casa
+T-001 entrou no banco: Trocar o filtro da água
+$ vamo list
+T-001  pronta  brecha  casa  Trocar o filtro da água
+$ vamo done 1
+GOOOL! T-001 Trocar o filtro da água
+$ vamo show 1
+```
+
+O banco fica em `~/.local/share/vamo_fogao/vamo.db`, ou na pasta que o `XDG_DATA_HOME` apontar.
+
+O [acervo](acervo/), com os fatos da história do Botafogo que vão virar a curiosidade do dia, já tem o formato, as primeiras sementes e a régua que a CI confere: fato verificado só com duas fontes independentes.
 
 ## Como compilar
 

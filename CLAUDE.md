@@ -12,6 +12,7 @@ O Claude escreve o código e a documentação. O Raul revisa os PRs e aprende Ru
 - `cargo clippy --workspace --all-targets --all-features -- -D warnings`
 - `RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --open`
 - `cargo deny check`: licenças, avisos de segurança e fontes das dependências.
+- `cargo run -- acervo validar`: a régua do acervo (`acervo/`), a mesma do job Acervo da CI.
 - `mdbook serve book --open`: o livro, recarregando a cada arquivo salvo. Mudou a arquitetura, o livro muda no mesmo PR.
 
 ## Arquitetura

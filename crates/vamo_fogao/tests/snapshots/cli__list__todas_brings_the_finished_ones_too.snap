@@ -1,0 +1,7 @@
+---
+source: crates/vamo_fogao/tests/cli.rs
+expression: "with_three_tasks().ok(&[\"list\", \"--todas\"])"
+---
+T-001  concluída  brecha  casa     Trocar o filtro da água
+T-002  pronta     foco    saúde    Ligar pro dentista
+T-003  ideia      brecha  estudos  Ler o livro

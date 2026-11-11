@@ -15,8 +15,26 @@ O código fala inglês e a interface fala português, com a linguagem de jogo li
 | Título do caderno | `NotebookTitle` | Um título de até cinco palavras que começa com verbo. |
 | Brecha | gap | Uma janela livre no expediente, onde cabe uma tarefa curta. |
 | Gol | done | Tarefa concluída. |
+| Evento | `Event` | Uma mudança numa tarefa, com o instante, a máquina e um ID que nunca se repete. |
+| Mudança | `Change` | O que um evento mudou: a criação da tarefa ou um campo só. |
+| Projeção | `Projection` | O estado das tarefas calculado a partir do log de eventos. |
+| Máquina | `Machine` | O nome do PC onde a mudança aconteceu. |
+| Banco | `Store` | O SQLite onde o log de eventos fica guardado. |
 
-Os nomes do código das linhas sem crase ainda vão nascer nas próximas fases; o glossário acompanha.
+## Do acervo ao código
+
+| No app | No código | O que é |
+|--------|-----------|---------|
+| Acervo | `vamo-acervo` | O museu de bolso: os fatos da história do Botafogo. |
+| Fato | `Fact` | Um fato do acervo, com texto, data, tags e fontes. |
+| Curiosidade do dia | daily fact | O fato verificado que abre o dia. Chega na fase 2. |
+| Resenha | `Banter` | A zoeira, absurda de cara e com selo próprio. |
+| Fonte | `Source` | De onde o fato veio: o nome e, se tiver, o link. |
+| Origem | `Origin` | O domínio de uma fonte, pra régua de independência. |
+| Verificado, a conferir | `Verification` | Se o fato já tem as duas fontes independentes. |
+| Recorde | `Kind::Record` | Um fato que pode cair, e por isso precisa de data. |
+
+Os nomes do código sem crase ainda vão nascer nas próximas fases; o glossário acompanha.
 
 ## A linguagem de jogo
 

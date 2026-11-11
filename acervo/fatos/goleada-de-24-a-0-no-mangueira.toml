@@ -1,0 +1,14 @@
+texto = "24 x 0 no Mangueira, pelo Campeonato Carioca: a maior goleada da história do Botafogo."
+data = "1909-05-30"
+tipo = "recorde"
+status = "verificado"
+tags = ["adversario:mangueira"]
+notas = "As fontes divergem sobre o local: o Lance! põe o jogo em General Severiano, e a Wikipédia, no campo da Rua Voluntários da Pátria. O texto fica sem o local até um jornal de 1909 resolver."
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/lancepedia/maior-goleada-da-historia-do-botafogo.html"
+
+[[fontes]]
+nome = "Wikipédia em inglês: Sport Club Mangueira"
+url = "https://en.wikipedia.org/wiki/Sport_Club_Mangueira"

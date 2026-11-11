@@ -16,7 +16,7 @@ Pra quem já escreveu um pouco de Rust e quer ver um projeto inteiro de pé, com
 
 ## Em que pé está
 
-O livro cresce junto com o código. Na fase 0 ele tem o esqueleto: este capítulo, o roteiro de leitura, a arquitetura, o Rust que já aparece e o glossário. Cada fase seguinte acrescenta os capítulos dela, no mesmo PR do código.
+O livro cresce junto com o código. A fase 0 trouxe o esqueleto: este capítulo, o roteiro de leitura, a arquitetura, o Rust que aparece e o glossário. A fase 1 acrescentou o núcleo: o domínio, o log de eventos e o acervo. Cada fase seguinte acrescenta os capítulos dela, no mesmo PR do código.
 
 ## Como ler na sua máquina
 

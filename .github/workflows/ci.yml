@@ -93,6 +93,20 @@ jobs:
           tool: cargo-deny@0.20
       - run: cargo deny --locked check
 
+  acervo:
+    name: Acervo
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Instalar o Rust do rust-toolchain.toml
+        run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+      # A régua do acervo: fato verificado com duas fontes independentes,
+      # recorde com data e cada campo no formato. Barra o PR que não passa.
+      - run: cargo run --locked -- acervo validar
+
   livro:
     name: Livro
     runs-on: ubuntu-24.04

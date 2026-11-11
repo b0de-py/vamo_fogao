@@ -1,0 +1,18 @@
+---
+source: crates/vamo_fogao/tests/cli.rs
+expression: "Vamo::new().ok(&[\"add\", \"--help\"])"
+---
+Põe uma tarefa nova no banco
+
+Uso: vamo add [OPÇÕES] <TÍTULO>...
+
+Argumentos:
+  <TÍTULO>...  O título, no padrão do caderno: verbo na frente e até cinco palavras. Não precisa de aspas
+
+Opções:
+  -a, --area <ÁREA>            A área da tarefa (sem ela, vai pra geral)
+  -e, --encaixe <ENCAIXE>      O encaixe: foco, brecha ou com-alguém (sem ele, brecha)
+  -s, --status <STATUS>        O status de partida (sem ele, pronta)
+  -n, --notas <NOTAS>          As notas: o detalhe que não cabe no título
+      --linguagem <LINGUAGEM>  A linguagem das mensagens: jogo (o padrão) ou neutra
+  -h, --help                   Mostra esta ajuda

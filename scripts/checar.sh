@@ -35,6 +35,9 @@ RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features --lock
 passo "Dependências"
 cargo deny --locked check
 
+passo "Acervo"
+cargo run --quiet --locked -- acervo validar
+
 passo "Livro"
 mdbook build book
 mdbook test book

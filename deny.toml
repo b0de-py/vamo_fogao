@@ -18,7 +18,13 @@ ignore = []
 [licenses]
 # Só licenças compatíveis com a do projeto (MIT OR Apache-2.0). Licença
 # nova entra aqui num PR, com o porquê no commit.
-allow = ["Apache-2.0", "MIT"]
+allow = [
+    "Apache-2.0",
+    "MIT",
+    # Licença permissiva dos dados do Unicode, usada pelo unicode-ident (que
+    # todo crate de macro procedural puxa, via proc-macro2 e syn).
+    "Unicode-3.0",
+]
 confidence-threshold = 0.9
 
 [bans]

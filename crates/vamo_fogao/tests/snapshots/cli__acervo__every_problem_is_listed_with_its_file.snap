@@ -1,0 +1,10 @@
+---
+source: crates/vamo_fogao/tests/cli.rs
+expression: "vamo.fails(&[\"acervo\", \"validar\"], 1)"
+---
+Deu ruim: 
+   0: o acervo tem 4 arquivos com problema:
+        acervo/fatos/LEIA.md: só arquivo .toml entra no acervo
+        acervo/fatos/Maiuscula.toml: `Maiuscula` não serve: use só letra minúscula sem acento, número e hífen, como `24-a-0-no-mangueira`
+        acervo/fatos/data-errada.toml:2: `30/05/1909` não é uma data: o formato é AAAA, AAAA-MM ou AAAA-MM-DD
+        acervo/resenha/com-fonte.toml:2: o campo `fontes` não existe aqui: os campos são texto e notas

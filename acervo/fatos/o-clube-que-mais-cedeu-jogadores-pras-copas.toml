@@ -1,0 +1,13 @@
+texto = "Até a Copa de 2026, o Botafogo é o clube brasileiro que mais cedeu jogadores pra seleção em Copas do Mundo."
+data = "2026"
+tipo = "recorde"
+status = "verificado"
+notas = "As fontes divergem no número exato de jogadores, então o texto fica sem ele. A TVT, de maio de 2026, conta 48 com a convocação pra Copa de 2026."
+
+[[fontes]]
+nome = "Wikipédia em inglês: History of Botafogo FR"
+url = "https://en.wikipedia.org/wiki/History_of_Botafogo_FR"
+
+[[fontes]]
+nome = "TVT News"
+url = "https://tvtnews.com.br/21-dias-para-copa-clubes-com-mais-jogadores-copas/"

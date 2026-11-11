@@ -1,0 +1,9 @@
+texto = "O primeiro título carioca, fechado com 11 x 0 no Haddock Lobo, dá ao clube o apelido de Glorioso."
+data = "1910"
+status = "a-conferir"
+tags = ["titulo:carioca", "adversario:haddock-lobo"]
+notas = "Falta a segunda fonte pro título, pro placar e pra origem do apelido."
+
+[[fontes]]
+nome = "Wikipédia em inglês: History of Botafogo FR"
+url = "https://en.wikipedia.org/wiki/History_of_Botafogo_FR"

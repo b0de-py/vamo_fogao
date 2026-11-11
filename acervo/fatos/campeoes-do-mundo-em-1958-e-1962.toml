@@ -1,0 +1,18 @@
+texto = "O Brasil é campeão do mundo com três do Botafogo em 1958 (Nilton Santos, Didi e Garrincha) e cinco em 1962 (os três, mais Zagallo e Amarildo)."
+data = "1958"
+ate = "1962"
+status = "verificado"
+tags = ["idolo:nilton-santos", "idolo:didi", "idolo:garrincha", "idolo:zagallo", "idolo:amarildo"]
+notas = "A página de história do clube na Wikipédia põe Zagallo entre os campeões de 1958, mas na Copa ele ainda era do Flamengo. Ela também dá a Garrincha cinco companheiros de clube em 1962, quando a lista de convocados tem cinco do Botafogo contando com ele."
+
+[[fontes]]
+nome = "TMC"
+url = "https://tmc.com.br/esporte/relembre-as-convocacoes-do-brasil-em-todos-os-titulos-da-copa-do-mundo/"
+
+[[fontes]]
+nome = "Wikipédia em inglês: Zagallo"
+url = "https://en.wikipedia.org/wiki/Zagallo"
+
+[[fontes]]
+nome = "Wikipédia em inglês: Amarildo Tavares da Silveira"
+url = "https://en.wikipedia.org/wiki/Amarildo_Tavares_da_Silveira"
