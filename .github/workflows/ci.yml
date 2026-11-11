@@ -78,3 +78,17 @@ jobs:
         run: rustup toolchain install
       - uses: Swatinem/rust-cache@v2
       - run: cargo doc --workspace --no-deps --all-features --locked
+
+  deny:
+    name: Dependências
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Instalar o Rust do rust-toolchain.toml
+        run: rustup toolchain install
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny@0.20
+      - run: cargo deny --locked check

@@ -1,0 +1,36 @@
+# A checagem da cadeia de dependências, feita pelo cargo-deny.
+# Rode com `cargo deny check`. A documentação de cada seção está em
+# https://embarkstudios.github.io/cargo-deny/
+
+[graph]
+# Checa o grafo com todas as features ligadas, igual à CI.
+all-features = true
+
+[advisories]
+# Avisos de segurança do RustSec. Vulnerabilidade, crate sem manutenção e
+# código unsound já barram por padrão. Versão retirada do crates.io
+# (yanked) também barra.
+yanked = "deny"
+# Pra ignorar um aviso, ele entra aqui com o motivo:
+# { id = "RUSTSEC-0000-0000", reason = "..." }
+ignore = []
+
+[licenses]
+# Só licenças compatíveis com a do projeto (MIT OR Apache-2.0). Licença
+# nova entra aqui num PR, com o porquê no commit.
+allow = ["Apache-2.0", "MIT"]
+confidence-threshold = 0.9
+
+[bans]
+# Duas versões do mesmo crate no grafo é aviso, não erro: às vezes não tem
+# como evitar, mas é bom saber.
+multiple-versions = "warn"
+# Dependência sem versão (`*`) não entra. Os caminhos entre crates do
+# workspace são a exceção, porque eles não vão pro crates.io.
+wildcards = "deny"
+allow-wildcard-paths = true
+
+[sources]
+# Dependência só do crates.io. Nada de repositório git ou registro estranho.
+unknown-registry = "deny"
+unknown-git = "deny"

@@ -16,6 +16,7 @@ precisa() {
 }
 
 precisa nextest
+precisa deny
 
 passo "Formatação"
 cargo fmt --all --check
@@ -29,5 +30,8 @@ cargo test --doc --workspace --all-features --locked
 
 passo "Documentação"
 RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features --locked
+
+passo "Dependências"
+cargo deny --locked check
 
 printf '\n\033[1;32mTudo certo. Pode subir.\033[0m\n'
