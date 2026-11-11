@@ -830,10 +830,10 @@ pub(crate) mod tests {
         let corner = screen
             .lines()
             .skip(12)
-            .any(|line| line.chars().skip(50).any(|c| c == '▀'));
+            .any(|line| line.chars().skip(70).any(|c| c == '▀'));
         let elsewhere = screen
             .lines()
-            .any(|line| line.chars().take(50).any(|c| c == '▀'));
+            .any(|line| line.chars().take(70).any(|c| c == '▀'));
         corner && !elsewhere
     }
 
@@ -842,16 +842,17 @@ pub(crate) mod tests {
         // Sem animação não tem fogo, e a estrela fica lá do mesmo jeito.
         let app = new_app(Voice::Game);
         let ledger = ledger();
-        let screen = draw(&app, &ledger, 80, 30);
+        let screen = draw(&app, &ledger, 100, 30);
         assert!(only_the_star(&screen), "{screen}");
-        // Num terminal pequeno, ela não cabe.
-        assert!(!draw(&app, &ledger, 80, 20).contains('▀'));
+        // Num terminal baixo ou estreito, ela não cabe.
+        assert!(!draw(&app, &ledger, 100, 20).contains('▀'));
+        assert!(!draw(&app, &ledger, 80, 30).contains('▀'));
     }
 
     #[test]
     fn the_neutral_voice_has_no_star() {
         let app = new_app(Voice::Neutral);
-        assert!(!draw(&app, &ledger(), 80, 30).contains('▀'));
+        assert!(!draw(&app, &ledger(), 100, 30).contains('▀'));
     }
 
     #[test]

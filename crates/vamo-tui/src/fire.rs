@@ -606,11 +606,11 @@ mod tests {
 
     #[test]
     fn the_star_shines_cold_and_the_fire_heats_it_to_white() {
-        // Um fogo apagado, do tamanho de um terminal de 80 por 30, e a cor
-        // do miolo da estrela (coluna 67, linha 21) depois de um quadro.
+        // Um fogo apagado, do tamanho de um terminal de 100 por 30, e a cor
+        // do miolo da estrela (coluna 87, linha 20) depois de um quadro.
         let cold_fire = || {
             let mut fire = Fire::new(SEED);
-            fire.resize(80, 30);
+            fire.resize(100, 30);
             fire
         };
         let heart = |fire: &Fire, star: &Star| {
@@ -618,17 +618,17 @@ mod tests {
             fire.underlay(area, &mut buf, Some(star));
             // Fora da estrela, sem fogo, a tela fica como estava.
             assert_eq!(buf[(5, 5)].symbol(), " ");
-            assert_eq!(buf[(67, 21)].symbol(), "▀");
-            gray(buf[(67, 21)].fg)
+            assert_eq!(buf[(87, 20)].symbol(), "▀");
+            gray(buf[(87, 20)].fg)
         };
-        let star = Star::in_corner(80, 30).unwrap();
-        assert!(star.coverage(67, 42) > 0.99);
+        let star = Star::in_corner(100, 30).unwrap();
+        assert!(star.coverage(87, 40) > 0.99);
 
         // Fria, a estrela tem o brilho dela.
         assert_eq!(heart(&cold_fire(), &star), 120);
         // Com a chama passando, ela esquenta até o branco.
         let mut fire = cold_fire();
-        fire.explode(67, 21);
+        fire.explode(87, 20);
         assert_eq!(heart(&fire, &star), 255);
         // No grito de gol, ela acende inteira mesmo sem fogo.
         assert_eq!(heart(&cold_fire(), &star.glowing(true)), 255);
@@ -637,12 +637,12 @@ mod tests {
     #[test]
     fn text_over_the_star_stays_readable() {
         let mut fire = Fire::new(SEED);
-        fire.resize(80, 30);
+        fire.resize(100, 30);
         let (mut buf, area) = screen(&fire);
-        buf.set_string(66, 21, "gol", theme::muted());
-        fire.underlay(area, &mut buf, Some(&Star::in_corner(80, 30).unwrap()));
-        assert_eq!(buf[(67, 21)].symbol(), "o");
-        assert!(gray(buf[(67, 21)].bg) < 45);
+        buf.set_string(86, 20, "gol", theme::muted());
+        fire.underlay(area, &mut buf, Some(&Star::in_corner(100, 30).unwrap()));
+        assert_eq!(buf[(87, 20)].symbol(), "o");
+        assert!(gray(buf[(87, 20)].bg) < 45);
     }
 
     #[test]

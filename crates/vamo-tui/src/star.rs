@@ -17,9 +17,10 @@ const HALF_STEP: f64 = std::f64::consts::PI / 5.0;
 /// alinhadas, como no pentagrama.
 const INNER: f64 = 0.381_966;
 
-/// A partir de que tamanho de terminal a estrela aparece. Menor que isso,
-/// não sobra canto vazio pra ela.
-const MIN_COLUMNS: u16 = 60;
+/// A partir de que tamanho de terminal a estrela aparece. Com menos de 92
+/// colunas, a tela Hoje põe o quadro da curiosidade embaixo da lista, bem
+/// no canto da estrela; com menos de 24 linhas, não sobra canto vazio.
+const MIN_COLUMNS: u16 = 92;
 const MIN_ROWS: u16 = 24;
 
 /// Quantas amostras por lado a [`Star::coverage`] tira de cada célula. Com
@@ -197,8 +198,8 @@ mod tests {
 
     #[test]
     fn a_small_terminal_has_no_star() {
-        assert!(Star::in_corner(59, 45).is_none());
+        assert!(Star::in_corner(91, 45).is_none());
         assert!(Star::in_corner(172, 23).is_none());
-        assert!(Star::in_corner(60, 24).is_some());
+        assert!(Star::in_corner(92, 24).is_some());
     }
 }

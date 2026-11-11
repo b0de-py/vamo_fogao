@@ -31,7 +31,7 @@ No canto de baixo, à direita, fica uma estrela branca de cinco pontas, do taman
 
 A estrela não é uma imagem guardada: é uma conta (`crates/vamo-tui/src/star.rs`). Pra cada célula do fogo, a `Star::coverage` tira nove amostras e responde quanto da célula cai dentro da estrela, o que dá meios-tons na borda no lugar de degraus. Pra saber se um ponto está dentro, a conta dobra o ponto pra uma das dez fatias iguais da estrela e confere de que lado da borda ele caiu.
 
-Ela aparece em terminais de 60 colunas por 24 linhas pra cima, com ou sem animação, e só na linguagem de jogo: no modo neutro, a TUI não fala de futebol nem por desenho. É só a estrela, que é símbolo de torcedor. O escudo é marca do clube e não entra.
+Ela aparece em terminais de 92 colunas por 24 linhas pra cima (menor que isso, o canto é do quadro da curiosidade), com ou sem animação, e só na linguagem de jogo: no modo neutro, a TUI não fala de futebol nem por desenho. É só a estrela, que é símbolo de torcedor. O escudo é marca do clube e não entra.
 
 ### A conta
 
