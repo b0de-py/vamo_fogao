@@ -381,6 +381,90 @@ mod neutral_voice {
     }
 }
 
+mod import {
+    use super::*;
+
+    const EMPTY: &str = "Ninguém no banco. Pra contratar: vamo add <título>\n";
+
+    /// O banco antigo de exemplo, com dados inventados.
+    fn fixture() -> String {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/fixtures/banco-antigo.md")
+            .to_string_lossy()
+            .into_owned()
+    }
+
+    /// Uma cópia do exemplo sem os itens pra decidir, como ficaria depois
+    /// de a pessoa ajustar o arquivo.
+    fn fixture_without_pending(vamo: &Vamo) -> String {
+        let pending = ["| T-004 ", "| T-006 ", "| T-007 ", "| T-009 "];
+        let text = std::fs::read_to_string(fixture()).expect("o exemplo existe");
+        let ready = text
+            .lines()
+            .filter(|line| !pending.iter().any(|id| line.starts_with(id)))
+            .collect::<Vec<_>>()
+            .join("\n");
+        let path = vamo.home.path().join("banco-ajustado.md");
+        std::fs::write(&path, ready).expect("a pasta temporária aceita escrita");
+        path.to_string_lossy().into_owned()
+    }
+
+    #[test]
+    fn the_dry_run_shows_the_triage_and_writes_nothing() {
+        let vamo = Vamo::new();
+
+        insta::assert_snapshot!(vamo.ok(&["import", "--dry-run", &fixture()]));
+        assert_eq!(vamo.ok(&["list", "--todas"]), EMPTY);
+    }
+
+    #[test]
+    fn items_to_decide_block_the_import() {
+        let vamo = Vamo::new();
+
+        let stderr = vamo.fails(&["import", &fixture()], 1);
+
+        assert!(stderr.contains("ainda tem 4 itens pra decidir"), "{stderr}");
+        assert_eq!(vamo.ok(&["list", "--todas"]), EMPTY);
+    }
+
+    #[test]
+    fn the_import_keeps_the_old_ids() {
+        let vamo = Vamo::new();
+        let file = fixture_without_pending(&vamo);
+
+        insta::assert_snapshot!("import_report", vamo.ok(&["import", &file]));
+        insta::assert_snapshot!("list_after_import", vamo.ok(&["list", "--todas"]));
+        // A próxima tarefa vem depois do maior ID importado.
+        assert!(vamo.ok(&["add", "Ler o livro"]).starts_with("T-006 "));
+    }
+
+    #[test]
+    fn what_did_not_fit_goes_to_the_notes() {
+        let vamo = Vamo::new();
+        vamo.ok(&["import", &fixture_without_pending(&vamo)]);
+
+        assert_snapshot_without_time!(vamo.ok(&["show", "2"]));
+    }
+
+    #[test]
+    fn importing_twice_changes_nothing() {
+        let vamo = Vamo::new();
+        let file = fixture_without_pending(&vamo);
+        vamo.ok(&["import", &file]);
+
+        let second = vamo.ok(&["import", &file]);
+
+        assert!(second.contains("Já estavam no banco (4):"), "{second}");
+        assert!(second.ends_with("Nenhum reforço entrou no banco.\n"));
+    }
+
+    #[test]
+    fn a_file_that_does_not_exist_is_an_error() {
+        let stderr = Vamo::new().fails(&["import", "nao-existe.md"], 1);
+        assert!(stderr.contains("não deu pra ler o banco antigo em nao-existe.md"));
+    }
+}
+
 /// O banco fica onde o XDG manda, e não no diretório atual.
 #[test]
 fn nothing_is_written_outside_the_data_folder() {

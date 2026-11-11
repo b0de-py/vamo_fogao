@@ -1,0 +1,8 @@
+---
+source: crates/vamo_fogao/tests/cli.rs
+expression: "vamo.ok(&[\"list\", \"--todas\"])"
+---
+T-001  pronta      brecha  casa     Trocar o filtro da água
+T-002  ideia       brecha  casa     Comprar ração e areia
+T-003  concluída   foco    casa     Pintar a parede da sala
+T-005  recorrente  brecha  estudos  Estudar inglês com o app

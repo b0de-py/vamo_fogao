@@ -4,6 +4,8 @@
 //! ajuda, `--help`, `--version`, mensagens de erro de uso) são trocados por
 //! textos em português aqui.
 
+use std::path::PathBuf;
+
 use clap::error::{ContextKind, ErrorKind};
 use clap::{ArgAction, Parser, Subcommand};
 use vamo_core::{Area, Fit, Status, TaskId};
@@ -163,6 +165,22 @@ pub(crate) enum Command {
         /// O ID da tarefa, como T-041 ou só 41
         #[arg(value_name = "ID", value_parser = parse_task_id, help_heading = "Argumentos")]
         id: TaskId,
+    },
+
+    /// Traz as tarefas do banco antigo, um markdown com a tabela de índice
+    #[command(
+        override_usage = "vamo import [OPÇÕES] <ARQUIVO>",
+        help_template = SUBCOMMAND_HELP_TEMPLATE,
+        next_help_heading = "Opções"
+    )]
+    Import {
+        /// O arquivo do banco antigo
+        #[arg(value_name = "ARQUIVO", help_heading = "Argumentos")]
+        file: PathBuf,
+
+        /// Mostra a triagem de cada item, sem gravar nada
+        #[arg(long = "dry-run")]
+        dry_run: bool,
     },
 
     /// Mostra a ficha de uma tarefa, com o histórico

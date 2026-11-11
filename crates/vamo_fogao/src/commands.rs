@@ -1,7 +1,9 @@
 //! Os comandos de tarefa. Cada um abre o banco, pede a regra pro core e
 //! devolve o texto pra mostrar; quem imprime é o `main`.
 
-use color_eyre::eyre::{Result, WrapErr, eyre};
+use std::path::Path;
+
+use color_eyre::eyre::{Result, WrapErr, bail, eyre};
 use jiff::Timestamp;
 use jiff::tz::TimeZone;
 use uuid::Uuid;
@@ -12,6 +14,7 @@ use vamo_core::{
 use vamo_store::Store;
 
 use crate::cli::Command;
+use crate::import::{self, Plan};
 use crate::messages::Voice;
 use crate::paths;
 
@@ -29,6 +32,7 @@ pub(crate) fn run(command: Command, voice: Voice) -> Result<String> {
         Command::List { all, area, status } => Ok(session.list(all, area.as_ref(), status)),
         Command::Done { id } => session.done(id),
         Command::Show { id } => session.show(id),
+        Command::Import { file, dry_run } => session.import(&file, dry_run),
     }
 }
 
@@ -121,8 +125,11 @@ impl Session {
             format!("encaixe  {}", task.fit()),
             format!("status   {}", task.status()),
         ];
-        if !task.notes().is_empty() {
-            lines.push(format!("notas    {}", task.notes()));
+        // Nota de várias linhas fica alinhada embaixo da primeira.
+        let mut notes = task.notes().lines();
+        if let Some(first) = notes.next() {
+            lines.push(format!("notas    {first}"));
+            lines.extend(notes.map(|line| format!("         {line}")));
         }
 
         lines.push(String::new());
@@ -141,6 +148,39 @@ impl Session {
             ));
         }
         Ok(lines.join("\n"))
+    }
+
+    /// `vamo import`: a triagem do banco antigo e, fora do ensaio, a
+    /// gravação do que migra. Com item pra decidir, nada é gravado.
+    fn import(&mut self, path: &Path, dry_run: bool) -> Result<String> {
+        let markdown = std::fs::read_to_string(path)
+            .wrap_err_with(|| format!("não deu pra ler o banco antigo em {}", path.display()))?;
+        let items = import::parse(&markdown)?;
+        let plan = Plan::new(&items, |id| self.projection.task(id).is_some());
+
+        if !dry_run {
+            if !plan.decide.is_empty() {
+                bail!(
+                    "ainda tem {} itens pra decidir, e o import só grava quando não sobra nenhum: \
+                     veja quais com `vamo import --dry-run {}`",
+                    plan.decide.len(),
+                    path.display()
+                );
+            }
+            for migration in &plan.migrate {
+                let mut changes = vec![Change::Created {
+                    title: migration.title.clone(),
+                    area: migration.area.clone(),
+                    fit: migration.fit,
+                    status: migration.status,
+                }];
+                if !migration.notes.is_empty() {
+                    changes.push(Change::Notes(migration.notes.join("\n")));
+                }
+                self.record(migration.id, changes)?;
+            }
+        }
+        Ok(plan.render(self.voice, dry_run))
     }
 
     /// A tarefa com esse ID, ou o erro de tarefa que não existe.

@@ -1,7 +1,7 @@
-//! Os textos da interface, nas duas linguagens: a de jogo e a neutra.
+//! Os textos da interface que mudam com a linguagem: a de jogo e a neutra.
 //!
-//! Todo texto que o `vamo` mostra sai daqui, então trocar de linguagem é
-//! trocar a [`Voice`], sem caçar string pelo código.
+//! Todo texto que muda de uma linguagem pra outra sai daqui, então trocar de
+//! linguagem é trocar a [`Voice`], sem caçar string pelo código.
 
 use clap::ValueEnum;
 use vamo_core::{Change, Task};
@@ -70,7 +70,22 @@ impl Voice {
             Change::Fit(fit) => format!("encaixe: {fit}"),
             Change::Status(status) => format!("status: {status}"),
             Change::Notes(notes) if notes.is_empty() => "notas apagadas".to_owned(),
-            Change::Notes(notes) => format!("notas: {notes}"),
+            // No histórico, cada evento ocupa uma linha só.
+            Change::Notes(notes) => {
+                format!("notas: {}", notes.lines().collect::<Vec<_>>().join(" · "))
+            }
+        }
+    }
+
+    /// Depois de `vamo import`, com quantas tarefas entraram.
+    pub(crate) fn imported(self, count: usize) -> String {
+        match (self, count) {
+            (Self::Game, 0) => "Nenhum reforço entrou no banco.".to_owned(),
+            (Self::Game, 1) => "1 reforço entrou no banco.".to_owned(),
+            (Self::Game, n) => format!("{n} reforços entraram no banco."),
+            (Self::Neutral, 0) => "Nenhuma tarefa importada.".to_owned(),
+            (Self::Neutral, 1) => "1 tarefa importada.".to_owned(),
+            (Self::Neutral, n) => format!("{n} tarefas importadas."),
         }
     }
 

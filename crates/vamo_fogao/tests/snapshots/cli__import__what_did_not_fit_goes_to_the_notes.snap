@@ -1,0 +1,16 @@
+---
+source: crates/vamo_fogao/tests/cli.rs
+expression: "vamo.ok(&[\"show\", \"2\"])"
+---
+T-002 Comprar ração e areia
+
+área     casa
+encaixe  brecha
+status   ideia
+notas    Título no banco antigo: Comprar ração e areia para o gato
+         Área no banco antigo: casa / família
+         Encaixe no banco antigo: brecha (saída)
+
+Súmula
+[data e hora]  notebook  entrou no banco: Comprar ração e areia (casa, brecha, ideia)
+[data e hora]  notebook  notas: Título no banco antigo: Comprar ração e areia para o gato · Área no banco antigo: casa / família · Encaixe no banco antigo: brecha (saída)

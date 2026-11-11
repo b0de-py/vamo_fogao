@@ -6,6 +6,7 @@
 
 mod cli;
 mod commands;
+mod import;
 mod messages;
 mod paths;
 

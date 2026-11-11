@@ -1,0 +1,19 @@
+---
+source: crates/vamo_fogao/tests/cli.rs
+expression: "vamo.ok(&[\"import\", &file])"
+---
+Banco antigo: 6 itens.
+
+Entram no banco (3):
+  T-001  Trocar o filtro da água  (casa, brecha, pronta)
+  T-002  Comprar ração e areia  (casa, brecha, ideia)  (título cortado; o original vai pras notas)
+  T-005  Estudar inglês com o app  (estudos, brecha, recorrente)
+
+Entram arquivadas (1):
+  T-003  Pintar a parede da sala  (casa, foco, concluída)
+
+Ficam só no arquivo antigo (2):
+  T-008  o título começa com `Conserto`, e no caderno a tarefa começa com verbo no infinitivo, como Ligar, Comprar ou Pôr
+  H-001  é um hábito, e os hábitos chegam na fase 5
+
+4 reforços entraram no banco.
