@@ -1,0 +1,27 @@
+# O Dependabot abre PR quando uma dependência do Cargo ou uma action do
+# GitHub ganha versão nova. Uma vez por mês, agrupado, pra não virar ruído.
+# Alerta de segurança chega na hora, independente desta agenda.
+version: 2
+updates:
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      cargo:
+        patterns: ["*"]
+        update-types: [minor, patch]
+    commit-message:
+      prefix: deps
+    labels: [dependências]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: ci
+    labels: [dependências]

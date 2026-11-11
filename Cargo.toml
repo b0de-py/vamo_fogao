@@ -1,0 +1,59 @@
+# O workspace do vamo_fogao.
+#
+# Cada crate em `crates/` tem uma responsabilidade só. O domínio fica no
+# `vamo-core`, que não conhece banco, agenda nem terminal; os outros crates
+# são adaptadores que falam com o mundo de fora, e o `vamo_fogao` é o
+# executável que junta tudo. O porquê está em docs/adr/0002.
+
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+# Metadados que todo crate herda com `campo.workspace = true`.
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.99"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/b0de-py/vamo_fogao"
+# Nada vai pro crates.io por enquanto; a decisão fica pra fase 7.
+publish = false
+
+# Versões das dependências num lugar só. Os crates pedem com
+# `nome.workspace = true` e nunca repetem a versão.
+[workspace.dependencies]
+vamo-acervo = { path = "crates/vamo-acervo" }
+vamo-agenda = { path = "crates/vamo-agenda" }
+vamo-core = { path = "crates/vamo-core" }
+vamo-mcp = { path = "crates/vamo-mcp" }
+vamo-store = { path = "crates/vamo-store" }
+vamo-sync = { path = "crates/vamo-sync" }
+vamo-tui = { path = "crates/vamo-tui" }
+
+# As regras de qualidade que valem em todo crate (cada um herda com
+# `[lints] workspace = true`). Na CI, todo aviso vira erro.
+[workspace.lints.rust]
+# Nada de `unsafe`: o projeto não precisa, e `forbid` não deixa nem um
+# `#[allow]` local abrir exceção.
+unsafe_code = "forbid"
+# Todo item público tem doc. É a doc que o livro e o `cargo doc` mostram.
+missing_docs = "warn"
+# `pub` que ninguém de fora alcança deveria ser `pub(crate)`.
+unreachable_pub = "warn"
+# Idiomas do Rust moderno (lifetimes explícitas em `impl`, `dyn Trait` etc.).
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+[workspace.lints.clippy]
+# O grupo pedante inteiro: mais exigente que o padrão, e é de propósito.
+pedantic = { level = "warn", priority = -1 }
+# Do pedante, só este fica de fora: `#[must_use]` vai onde ignorar o retorno
+# é bug de verdade, não em toda função pura.
+must_use_candidate = "allow"
+# Fora de teste, erro se trata com `?` e tipo de erro, nunca com `unwrap`.
+unwrap_used = "deny"
+# Restos de depuração e código pela metade não entram na main.
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"
+# Todo `#[allow]` precisa dizer por quê: `#[allow(lint, reason = "...")]`.
+allow_attributes_without_reason = "warn"

@@ -1,0 +1,7 @@
+# A versão do Rust do projeto. O rustup lê este arquivo e instala sozinho a
+# versão certa, com os componentes abaixo, na sua máquina e na CI. Subir a
+# versão é um PR que mexe aqui e em `rust-version` no Cargo.toml.
+[toolchain]
+channel = "1.99"
+components = ["clippy", "rustfmt"]
+profile = "minimal"

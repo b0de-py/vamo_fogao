@@ -1,0 +1,5 @@
+# Saída do Cargo.
+/target/
+
+# Saída do mdBook (o livro é gerado a partir de book/src).
+/book/book/

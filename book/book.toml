@@ -1,0 +1,20 @@
+# O livro do vamo_fogao, em mdBook.
+# Pra ler na sua máquina: mdbook serve book --open
+
+[book]
+title = "O livro do vamo_fogao"
+authors = ["os autores do vamo_fogao"]
+language = "pt-BR"
+
+[output.html]
+# O tema escuro do mdBook, com as cores do r4ul.com.br por cima.
+default-theme = "coal"
+preferred-dark-theme = "coal"
+additional-css = ["tema/r4ul.css"]
+git-repository-url = "https://github.com/b0de-py/vamo_fogao"
+edit-url-template = "https://github.com/b0de-py/vamo_fogao/edit/main/book/{path}"
+
+# Os exemplos de código do livro compilam com a mesma edição do projeto
+# (`mdbook test book` roda eles na CI).
+[rust]
+edition = "2024"

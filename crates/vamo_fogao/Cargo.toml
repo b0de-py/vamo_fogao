@@ -1,0 +1,19 @@
+[package]
+name = "vamo_fogao"
+description = "O executável vamo: a CLI, a TUI e o servidor MCP do vamo_fogao."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+# O pacote se chama vamo_fogao, mas o comando é curto: `vamo`.
+[[bin]]
+name = "vamo"
+path = "src/main.rs"
+
+[dependencies]
+
+[lints]
+workspace = true
