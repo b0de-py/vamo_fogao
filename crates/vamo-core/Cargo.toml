@@ -1,0 +1,11 @@
+[package]
+name = "vamo-core"
+description = "O domínio do vamo_fogao: tarefas, status, encaixe e regras do tempo."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]

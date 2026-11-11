@@ -1,0 +1,11 @@
+[package]
+name = "vamo-acervo"
+description = "O acervo de fatos da história do Botafogo e a curiosidade do dia."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
