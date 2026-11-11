@@ -9,14 +9,15 @@ cd "$(dirname "$0")/.."
 passo() { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
 
 precisa() {
-    if ! cargo "$1" --version > /dev/null 2>&1; then
-        printf 'Falta o cargo-%s. Instale com: cargo install --locked cargo-%s\n' "$1" "$1" >&2
+    if ! command -v "$1" > /dev/null 2>&1; then
+        printf 'Falta o %s. Instale com: cargo install --locked %s\n' "$1" "$1" >&2
         exit 1
     fi
 }
 
-precisa nextest
-precisa deny
+precisa cargo-nextest
+precisa cargo-deny
+precisa mdbook
 
 passo "Formatação"
 cargo fmt --all --check
@@ -33,5 +34,9 @@ RUSTDOCFLAGS="-D warnings" cargo doc --workspace --no-deps --all-features --lock
 
 passo "Dependências"
 cargo deny --locked check
+
+passo "Livro"
+mdbook build book
+mdbook test book
 
 printf '\n\033[1;32mTudo certo. Pode subir.\033[0m\n'

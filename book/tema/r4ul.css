@@ -1,0 +1,80 @@
+/*
+ * O tema do livro: as cores e as fontes do r4ul.com.br por cima do tema
+ * escuro "coal" do mdBook. Vermelho não entra; atenção e atraso usam o
+ * amarelo plasma.
+ */
+
+@import url("https://fonts.googleapis.com/css2?family=Orbitron:wght@900&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap");
+
+.coal {
+    --bg: #0a0a0a;
+    --fg: #e0e0e0;
+
+    --sidebar-bg: #0a0a0a;
+    --sidebar-fg: #b0b0b0;
+    --sidebar-non-existant: #666666;
+    --sidebar-active: #ffffff;
+    --sidebar-spacer: #2a2a2a;
+    --sidebar-header-border-color: #2a2a2a;
+
+    --scrollbar: #2a2a2a;
+    --icons: #666666;
+    --icons-hover: #e0e0e0;
+
+    --links: #00d9ff;
+    --inline-code-color: #ce9178;
+
+    --theme-popup-bg: #0a0a0a;
+    --theme-popup-border: #2a2a2a;
+    --theme-hover: #161616;
+
+    --quote-bg: #101010;
+    --quote-border: #c586c0;
+
+    --warning-border: #ffff00;
+
+    --table-border-color: #2a2a2a;
+    --table-header-bg: #161616;
+    --table-alternate-bg: #0f0f0f;
+
+    --searchbar-border-color: #2a2a2a;
+    --searchbar-bg: #0f0f0f;
+    --searchbar-fg: #e0e0e0;
+    --searchbar-shadow-color: transparent;
+    --searchresults-header-fg: #b0b0b0;
+    --searchresults-border-color: #2a2a2a;
+    --searchresults-li-bg: #101010;
+    --search-mark-bg: #7f007f;
+
+    --footnote-highlight: #00d9ff;
+
+    --blockquote-note-color: #00d9ff;
+    --blockquote-tip-color: #00ff00;
+    --blockquote-important-color: #c586c0;
+    --blockquote-warning-color: #ffff00;
+    --blockquote-caution-color: #ffff00;
+
+    --mono-font: "Space Mono", "Source Code Pro", monospace;
+}
+
+/* No site, Space Mono é a fonte de todo texto legível. Aqui também. */
+html.coal {
+    font-family: "Space Mono", monospace;
+}
+
+/* Fonte de display só no título do capítulo, como no site. */
+.coal .content h1 {
+    font-family: "Orbitron", sans-serif;
+    font-weight: 900;
+    letter-spacing: 0.02em;
+}
+
+/* O destaque do tema é o branco: o alvinegro. */
+.coal .content h2,
+.coal .content h3 {
+    color: #ffffff;
+}
+
+.coal .content a:hover {
+    text-decoration: underline;
+}

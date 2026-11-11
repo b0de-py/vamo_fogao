@@ -92,3 +92,19 @@ jobs:
         with:
           tool: cargo-deny@0.20
       - run: cargo deny --locked check
+
+  livro:
+    name: Livro
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      # O `mdbook test` compila os exemplos do livro com o rustdoc.
+      - name: Instalar o Rust do rust-toolchain.toml
+        run: rustup toolchain install
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: mdbook@0.5
+      - run: mdbook build book
+      - run: mdbook test book
