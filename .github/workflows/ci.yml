@@ -28,7 +28,7 @@ jobs:
     name: Formatação
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Instalar o Rust do rust-toolchain.toml
@@ -39,7 +39,7 @@ jobs:
     name: Clippy
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Instalar o Rust do rust-toolchain.toml
@@ -51,7 +51,7 @@ jobs:
     name: Testes
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Instalar o Rust do rust-toolchain.toml
@@ -71,7 +71,7 @@ jobs:
       # Link quebrado ou doc mal formada vira erro.
       RUSTDOCFLAGS: -D warnings
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Instalar o Rust do rust-toolchain.toml
@@ -83,7 +83,7 @@ jobs:
     name: Dependências
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Instalar o Rust do rust-toolchain.toml
@@ -111,7 +111,7 @@ jobs:
     name: Livro
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       # O `mdbook test` compila os exemplos do livro com o rustdoc.
