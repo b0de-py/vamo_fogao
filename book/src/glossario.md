@@ -38,7 +38,14 @@ Os nomes do código sem crase ainda vão nascer nas próximas fases; o glossári
 
 ## A linguagem de jogo
 
-A interface fala a língua da arquibancada. Quem preferir liga o modo neutro na config, e os termos da primeira coluna voltam.
+A interface fala a língua da arquibancada. Quem preferir liga o modo neutro na config, e os termos da primeira coluna voltam:
+
+```toml
+# ~/.config/vamo_fogao/config.toml
+linguagem = "neutra"
+```
+
+Pra uma vez só, vale `vamo --linguagem neutra` ou a variável `VAMO_LINGUAGEM`, que ganham da config.
 
 | Modo neutro | Linguagem de jogo | Por quê |
 |-------------|-------------------|---------|

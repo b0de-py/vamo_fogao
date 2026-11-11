@@ -1,5 +1,9 @@
 //! A tarefa.
 
+use std::collections::BTreeSet;
+
+use jiff::civil::Date;
+
 use crate::{Area, Error, Fit, NotebookTitle, Status, TaskId};
 
 /// Uma tarefa: o que fazer, de que área, que espaço pede e em que pé está.
@@ -36,6 +40,8 @@ pub struct Task {
     fit: Fit,
     status: Status,
     notes: String,
+    day: Option<Date>,
+    checks: BTreeSet<Date>,
 }
 
 impl Task {
@@ -51,6 +57,8 @@ impl Task {
             fit,
             status,
             notes: String::new(),
+            day: None,
+            checks: BTreeSet::new(),
         }
     }
 
@@ -83,6 +91,30 @@ impl Task {
     /// não tem.
     pub fn notes(&self) -> &str {
         &self.notes
+    }
+
+    /// O dia em que a tarefa está escalada, se estiver.
+    pub fn day(&self) -> Option<Date> {
+        self.day
+    }
+
+    /// Se a tarefa (recorrente) foi marcada nesse dia.
+    pub fn is_checked(&self, day: Date) -> bool {
+        self.checks.contains(&day)
+    }
+
+    /// Escala a tarefa pra um dia, ou tira da escalação com `None`.
+    pub fn set_day(&mut self, day: Option<Date>) {
+        self.day = day;
+    }
+
+    /// Marca ou desmarca a tarefa num dia.
+    pub fn set_checked(&mut self, day: Date, done: bool) {
+        if done {
+            self.checks.insert(day);
+        } else {
+            self.checks.remove(&day);
+        }
     }
 
     /// Muda o status, se a regra de [`Status::can_become`] deixar.

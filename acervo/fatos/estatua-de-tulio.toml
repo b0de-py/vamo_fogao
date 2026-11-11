@@ -1,0 +1,13 @@
+texto = "Túlio Maravilha, ídolo do título brasileiro de 1995, ganha estátua no Setor Leste do Estádio Nilton Santos."
+data = "2021-06-11"
+status = "verificado"
+tags = ["idolo:tulio"]
+notas = "O Liberal anunciou a estátua na semana anterior, como doação de Carlos Augusto Montenegro, feita por Edgar Duvivier."
+
+[[fontes]]
+nome = "Rádio Tupi"
+url = "https://www.tupi.fm/sentinelas/botafogo-inaugura-estatua-em-homenagem-a-ex-jogador-do-clube-no-nilton-santos/"
+
+[[fontes]]
+nome = "O Liberal"
+url = "https://www.oliberal.com/esportes/tulio-maravilha-vai-virar-estatua-no-estadio-nilton-santos-do-botafogo-1.396438"

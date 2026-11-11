@@ -1,0 +1,20 @@
+---
+source: crates/vamo-tui/src/museum.rs
+expression: screen
+---
+" vamo_fogao   1 Hoje  2 Caderno  3 Banco  4 Museu                                                   "
+"────────────────────────────────────────────────────────────────────────────────────────────────────"
+"                                                                                                    "
+" Museu · por data (o: por tema · z: resenha)                                                        "
+"                                                                                                    "
+" ★ 1950-11-11  Uma goleada inventada pros tes │ ★ Neste dia                                         "
+"                                              │ 1950-11-11                                          "
+"                                              │ Uma goleada inventada pros testes.                  "
+"                                              │                                                     "
+"                                              │ Fontes                                              "
+"                                              │ · Jornal  https://jornal.example.com.br/            "
+"                                              │ · Revista  https://revista.example.org/             "
+"                                              │                                                     "
+"                                              │ adversário: time de teste                           "
+"                                                                                                    "
+"tab troca de tela · ? ajuda · q encerra a partida                                                   "

@@ -1,0 +1,13 @@
+texto = "5 x 0 no Vasco, em General Severiano."
+data = "1958"
+status = "verificado"
+tags = ["adversario:vasco"]
+notas = "A Rádio Tupi dá o placar e o estádio; a Wikipédia diz que é a maior vitória do Botafogo sobre o Vasco, o que a Tupi não confirma."
+
+[[fontes]]
+nome = "Rádio Tupi"
+url = "https://www.tupi.fm/?p=1794409"
+
+[[fontes]]
+nome = "Wikipédia em inglês: History of Botafogo FR"
+url = "https://en.wikipedia.org/wiki/History_of_Botafogo_FR"

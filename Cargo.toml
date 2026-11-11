@@ -42,6 +42,9 @@ insta = { version = "1.49", features = ["filters"] }
 # liga as features que precisa.
 jiff = { version = "0.2.42", default-features = false, features = ["std"] }
 proptest = "1.12"
+# A TUI. Sem as features padrão: o calendário e as macros não são usados, e o
+# crossterm (que vem re-exportado em `ratatui::crossterm`) é o único backend.
+ratatui = { version = "0.30", default-features = false, features = ["crossterm", "layout-cache"] }
 # O SQLite vai compilado dentro do binário (`bundled`): não depende da versão
 # instalada no sistema. Sem as features padrão, que só trazem o cache de
 # comandos preparados (e três dependências a mais) e o suporte a WebAssembly.

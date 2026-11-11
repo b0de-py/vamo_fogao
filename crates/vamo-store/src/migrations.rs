@@ -14,7 +14,10 @@ use crate::Error;
 ///
 /// Migração que já foi publicada não muda nunca: mudança no esquema é uma
 /// migração nova no fim da lista.
-const MIGRATIONS: &[&str] = &[include_str!("../migrations/0001-log-de-eventos.sql")];
+const MIGRATIONS: &[&str] = &[
+    include_str!("../migrations/0001-log-de-eventos.sql"),
+    include_str!("../migrations/0002-escalacao-e-marcacao.sql"),
+];
 
 /// A versão do esquema que esta versão do vamo conhece.
 pub(crate) fn latest() -> u32 {

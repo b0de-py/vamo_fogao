@@ -1,0 +1,13 @@
+texto = "Loco Abreu bate o pênalti de cavadinha, Jefferson pega o do Adriano, e o 2 x 1 no Flamengo dá a Taça Rio e o Carioca de 2010."
+data = "2010-04-18"
+status = "verificado"
+tags = ["titulo:carioca", "adversario:flamengo", "idolo:loco-abreu", "idolo:jefferson"]
+notas = "O Jornal do Brasil dá o dia, o placar e a defesa do Jefferson, e diz só que o Loco bateu mal; a cavadinha vem da Trivela."
+
+[[fontes]]
+nome = "Jornal do Brasil"
+url = "https://www.jb.com.br/esportes/noticias/2010/04/18/amp/jefferson-pega-penalti-botafogo-vence-e-e-campeao-carioca.html"
+
+[[fontes]]
+nome = "Trivela"
+url = "https://trivela.com.br/brasil/ha-dez-anos-a-cavadinha-de-loco-abreu-e-o-penalti-defendido-por-jefferson-transformavam-a-sina-botafoguense-em-extase/"

@@ -62,7 +62,7 @@ fn a_new_database_is_created_and_migrated_from_zero() {
     let store = Store::open(&path).unwrap();
 
     assert!(path.exists());
-    assert_eq!(store.schema_version().unwrap(), 1);
+    assert_eq!(store.schema_version().unwrap(), 2);
     assert_eq!(store.events().unwrap(), []);
 }
 
@@ -93,6 +93,24 @@ fn every_kind_of_change_comes_back_the_same() {
         event(5, 41, Change::Status(Status::Done)),
         event(6, 41, Change::Notes("Saco azul é reciclável. ♻".to_owned())),
         event(7, 41, Change::Notes(String::new())),
+        event(8, 41, Change::Day(Some(jiff::civil::date(2026, 11, 11)))),
+        event(9, 41, Change::Day(None)),
+        event(
+            10,
+            41,
+            Change::Check {
+                day: jiff::civil::date(2026, 11, 11),
+                done: true,
+            },
+        ),
+        event(
+            11,
+            41,
+            Change::Check {
+                day: jiff::civil::date(2026, 11, 12),
+                done: false,
+            },
+        ),
     ];
 
     store.append(&events).unwrap();
@@ -140,7 +158,7 @@ fn a_database_from_a_newer_version_is_refused_and_left_alone() {
         result,
         Err(Error::NewerSchema {
             found: 99,
-            known: 1
+            known: 2
         })
     ));
     let version: u32 = Connection::open(&path)
@@ -197,4 +215,39 @@ fn the_schema_refuses_an_unknown_kind_of_change() {
     );
 
     assert!(result.is_err());
+}
+
+#[test]
+fn a_database_from_the_first_version_is_migrated_with_its_events() {
+    let (_dir, path) = temp_db();
+    // Um banco como o da versão 1: só a primeira migração.
+    {
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let conn = Connection::open(&path).unwrap();
+        conn.execute_batch(include_str!("../migrations/0001-log-de-eventos.sql"))
+            .unwrap();
+        conn.pragma_update(None, "user_version", 1).unwrap();
+        conn.execute(
+            "INSERT INTO events (id, at, machine, task, kind, status)
+             VALUES ('0192f0c4-8a00-7000-8000-000000000001', '2026-11-11T12:00:00Z',
+                     'notebook', 'T-041', 'status', 'pronta')",
+            [],
+        )
+        .unwrap();
+    }
+    let mut store = Store::open(&path).unwrap();
+    assert_eq!(store.schema_version().unwrap(), 2);
+    let old = store.events().unwrap();
+    assert_eq!(old.len(), 1);
+    assert_eq!(old[0].change, Change::Status(Status::Ready));
+
+    // E a tabela nova aceita as mudanças novas.
+    store
+        .append(&[event(
+            2,
+            41,
+            Change::Day(Some(jiff::civil::date(2026, 11, 11))),
+        )])
+        .unwrap();
+    assert_eq!(store.events().unwrap().len(), 2);
 }

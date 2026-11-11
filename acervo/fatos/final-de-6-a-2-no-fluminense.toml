@@ -1,0 +1,17 @@
+texto = "6 x 2 no Fluminense na final do Carioca de 1957, com cinco gols de Paulinho Valentim."
+data = "1957-12-22"
+status = "verificado"
+tags = ["titulo:carioca", "adversario:fluminense", "idolo:carlito-rocha"]
+notas = "A Trivela dá o dia e os cinco gols. O Lance! conta que o presidente Carlito Rocha disse antes do jogo que tinha conversado com Deus. A Wikipédia diz que foi a final com mais gols até ali, o que o Lance! não confirma."
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/lancepedia/a-historia-de-carlito-rocha-botafogo-supersticao.html"
+
+[[fontes]]
+nome = "Wikipédia em inglês: History of Botafogo FR"
+url = "https://en.wikipedia.org/wiki/History_of_Botafogo_FR"
+
+[[fontes]]
+nome = "Trivela"
+url = "https://trivela.com.br/brasil/as-historias-de-duas-grandes-partidas-entre-flu-e-botafogo-contadas-pelo-canal-100/"

@@ -1,0 +1,13 @@
+texto = "1 x 0 no Vasco na final, e o Botafogo é bicampeão carioca em 1990."
+data = "1990"
+status = "verificado"
+tags = ["titulo:carioca", "adversario:vasco"]
+notas = "A Wikipédia chama a final de polêmica, sem dizer por quê."
+
+[[fontes]]
+nome = "NetVasco"
+url = "https://www.netvasco.com.br/n/270593/veja-como-ficou-o-historico-das-decisoes-entre-vasco-e-botafogo-apos-a-taca-rio-2021"
+
+[[fontes]]
+nome = "Wikipédia em inglês: History of Botafogo FR"
+url = "https://en.wikipedia.org/wiki/History_of_Botafogo_FR"

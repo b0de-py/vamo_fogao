@@ -1,0 +1,12 @@
+---
+source: crates/vamo-tui/src/app.rs
+expression: "draw(&app, &ledger(), 70, 8)"
+---
+" vamo_fogao   1 Hoje  2 Caderno  3 Banco  4 Museu                     "
+"──────────────────────────────────────────────────────────────────────"
+"                                                                      "
+" Hoje · quarta, 11/11                                  Placar: 0 de 0 "
+"                                                                      "
+" Ninguém escalado hoje. No Banco, o e escala uma tarefa pro dia.      "
+"                                                                      "
+"tab troca de tela · ? ajuda · q encerra a partida                     "

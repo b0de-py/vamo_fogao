@@ -12,7 +12,7 @@ use std::collections::BTreeSet;
 use color_eyre::eyre::{Result, eyre};
 use vamo_core::{Area, Fit, NotebookTitle, Status, TaskId};
 
-use crate::messages::Voice;
+use vamo_tui::Voice;
 
 /// Um item do índice do banco antigo, com o texto de cada coluna.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

@@ -1,0 +1,13 @@
+texto = "Biriba, um vira-lata preto e branco, invade o campo e vira mascote nas mãos do presidente Carlito Rocha, no ano do título carioca de 1948."
+data = "1948"
+status = "verificado"
+tags = ["titulo:carioca", "idolo:carlito-rocha"]
+notas = "A Wikipédia diz que Biriba entrou em campo num 10 x 2 no Madureira; o Lance! não dá o jogo. O texto fica sem ele."
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/lancepedia/a-historia-de-carlito-rocha-botafogo-supersticao.html"
+
+[[fontes]]
+nome = "Wikipédia em inglês: Botafogo FR"
+url = "https://en.wikipedia.org/wiki/Botafogo_FR"

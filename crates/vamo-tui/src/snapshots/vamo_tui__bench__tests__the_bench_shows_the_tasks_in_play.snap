@@ -1,0 +1,16 @@
+---
+source: crates/vamo-tui/src/bench.rs
+expression: "draw(&app, &ledger, 90, 12)"
+---
+" vamo_fogao   1 Hoje  2 Caderno  3 Banco  4 Museu                                         "
+"──────────────────────────────────────────────────────────────────────────────────────────"
+"                                                                                          "
+" Banco · 4 · em jogo (/ filtra, todas traz as encerradas)                                 "
+"                                                                                          "
+" ID     status         encaixe     área          dia    título                            "
+" T-001  pronta         brecha      casa                 Trocar o filtro da água           "
+" T-002  pronta         foco        estudos              Revisar o capítulo dois           "
+" T-003  ideia          com-alguém  lazer                Pensar na viagem                  "
+" T-005  destrinchando  foco        casa                 Lavar o tapete                    "
+"                                                                                          "
+"tab troca de tela · ? ajuda · q encerra a partida                                         "

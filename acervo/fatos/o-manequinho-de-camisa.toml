@@ -1,0 +1,13 @@
+texto = "Na festa do título carioca de 1957, um torcedor veste o Manequinho, a réplica do menino que faz xixi, com a camisa do Botafogo."
+data = "1957"
+status = "verificado"
+tags = ["titulo:carioca"]
+notas = "O ano vem do Lance!; a Wikipédia confirma a estátua perto da sede e o costume de vestir a camisa, sem o ano."
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/botafogo/qual-e-a-mascote-do-botafogo.html"
+
+[[fontes]]
+nome = "Wikipédia em inglês: Botafogo FR"
+url = "https://en.wikipedia.org/wiki/Botafogo_FR"

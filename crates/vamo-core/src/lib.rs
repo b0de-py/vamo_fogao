@@ -31,6 +31,11 @@
 //! - [`Projection`]: o estado das tarefas, com conflito resolvido campo a
 //!   campo.
 //!
+//! # O dia
+//!
+//! - [`Lineup`]: a escalação de um dia, com o atraso e as fixas.
+//! - [`Score`]: o placar do dia.
+//!
 //! Todos esses tipos validam na construção, então um valor que existe é um
 //! valor válido. Quando algo dá errado, o erro é um [`Error`].
 //!
@@ -46,6 +51,7 @@ mod error;
 mod event;
 mod fit;
 mod id;
+mod lineup;
 mod machine;
 mod port;
 mod projection;
@@ -58,6 +64,7 @@ pub use error::Error;
 pub use event::{Change, Event, EventId};
 pub use fit::Fit;
 pub use id::TaskId;
+pub use lineup::{Lineup, Score};
 pub use machine::Machine;
 pub use port::EventStore;
 pub use projection::Projection;

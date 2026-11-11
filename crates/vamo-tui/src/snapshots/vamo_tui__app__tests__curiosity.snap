@@ -1,0 +1,18 @@
+---
+source: crates/vamo-tui/src/app.rs
+expression: screen
+---
+" vamo_fogao   1 Hoje  2 Caderno  3 Banco  4 Museu           "
+"────────────────────────────────────────────────────────────"
+"                                                            "
+" Hoje · quarta, 11/11                        Placar: 0 de 0 "
+"                                                            "
+" Ninguém escalado hoje. No Banco, o e escala uma tarefa pro "
+" dia.                                                       "
+" ┌ Neste dia, em 1950 ────────────────────────────────────┐ "
+" │Uma goleada inventada pros testes.                      │ "
+" │                                                        │ "
+" │Fontes: Jornal · Revista                                │ "
+" └────────────────────────────────────────────────────────┘ "
+"                                                            "
+"tab troca de tela · ? ajuda · q encerra a partida           "

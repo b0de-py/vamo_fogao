@@ -1,0 +1,13 @@
+texto = "General Severiano, o primeiro estádio do Botafogo, é inaugurado com 1 x 0 no Flamengo."
+data = "1913-05-13"
+status = "verificado"
+tags = ["adversario:flamengo"]
+notas = "O Lance! dá o dia, sem o jogo; o placar vem da Wikipédia."
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/lancepedia/primeiro-estadio-do-botafogo.html"
+
+[[fontes]]
+nome = "Wikipédia em inglês: Estádio General Severiano"
+url = "https://en.wikipedia.org/wiki/Est%C3%A1dio_General_Severiano"

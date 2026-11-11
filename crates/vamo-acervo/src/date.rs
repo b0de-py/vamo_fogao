@@ -114,7 +114,7 @@ fn two_digits(text: &str) -> Option<u8> {
     u8::try_from(number(text, 2)?).ok()
 }
 
-fn days_in_month(year: u16, month: u8) -> u8 {
+pub(crate) fn days_in_month(year: u16, month: u8) -> u8 {
     match month {
         2 if is_leap_year(year) => 29,
         2 => 28,

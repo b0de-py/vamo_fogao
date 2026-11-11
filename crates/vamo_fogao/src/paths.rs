@@ -15,3 +15,11 @@ pub(crate) fn database() -> Result<PathBuf> {
         .wrap_err("não achei a pasta pessoal: a variável HOME está definida?")?;
     Ok(base.data_dir().join(APP_DIR).join("vamo.db"))
 }
+
+/// O arquivo de config: `$XDG_CONFIG_HOME/vamo_fogao/config.toml`, que na
+/// maioria das máquinas é `~/.config/vamo_fogao/config.toml`.
+pub(crate) fn config() -> Result<PathBuf> {
+    let base = etcetera::choose_base_strategy()
+        .wrap_err("não achei a pasta pessoal: a variável HOME está definida?")?;
+    Ok(base.config_dir().join(APP_DIR).join("config.toml"))
+}

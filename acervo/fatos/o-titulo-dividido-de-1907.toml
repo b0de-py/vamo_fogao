@@ -1,0 +1,13 @@
+texto = "O Carioca de 1907 termina com Botafogo e Fluminense empatados, e o regulamento não tinha desempate."
+data = "1907"
+status = "verificado"
+tags = ["titulo:carioca", "adversario:fluminense"]
+notas = "A Wikipédia diz que a disputa só foi resolvida em 1996, com os dois clubes campeões."
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/lancepedia/primeiro-titulo-da-historia-do-botafogo.html"
+
+[[fontes]]
+nome = "Wikipédia em inglês: History of Botafogo FR"
+url = "https://en.wikipedia.org/wiki/History_of_Botafogo_FR"

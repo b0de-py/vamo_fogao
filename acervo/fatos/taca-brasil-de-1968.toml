@@ -1,0 +1,13 @@
+texto = "A Taça Brasil de 1968 é o primeiro título brasileiro do Botafogo."
+data = "1968"
+status = "verificado"
+tags = ["titulo:brasileiro", "adversario:fortaleza"]
+notas = "O Lance! dá a final com o Fortaleza (4 x 0 e 2 x 0). A Wikipédia diz que a CBF reconheceu o título em 1969."
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/lancepedia/titulos-brasileiros-botafogo.html"
+
+[[fontes]]
+nome = "Wikipédia em inglês: History of Botafogo FR"
+url = "https://en.wikipedia.org/wiki/History_of_Botafogo_FR"

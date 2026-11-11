@@ -1,0 +1,12 @@
+texto = "Seedorf estreia pelo Botafogo no Engenhão, e o Grêmio estraga a festa: 1 x 0."
+data = "2012-07-22"
+status = "verificado"
+tags = ["idolo:seedorf", "adversario:gremio"]
+
+[[fontes]]
+nome = "Jornal do Brasil"
+url = "https://www.jb.com.br/esportes/noticias/2012/07/22/amp/gremio-frustra-estreia-de-seedorf-vence-botafogo-e-entra-no-g-4.html"
+
+[[fontes]]
+nome = "Live Soccer TV"
+url = "https://www.livesoccertv.com/news/5858/Botafogo-lose-to-gremio-in-clarence-seedorf-s-official-debut/"

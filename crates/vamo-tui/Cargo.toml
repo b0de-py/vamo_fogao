@@ -9,6 +9,15 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+# A TUI mostra o dia de hoje na hora local, então precisa dos fusos.
+jiff = { workspace = true, features = ["tz-system", "tzdb-bundle-platform", "tzdb-zoneinfo"] }
+ratatui.workspace = true
+vamo-acervo.workspace = true
+vamo-core.workspace = true
+
+[dev-dependencies]
+insta.workspace = true
+uuid = { workspace = true, features = ["v7"] }
 
 [lints]
 workspace = true

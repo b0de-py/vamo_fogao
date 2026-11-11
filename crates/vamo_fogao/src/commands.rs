@@ -16,11 +16,12 @@ use vamo_store::Store;
 use crate::acervo;
 use crate::cli::{AcervoCommand, Command};
 use crate::import::{self, Plan};
-use crate::messages::Voice;
 use crate::paths;
+use vamo_tui::{Animation, Voice};
 
-/// Roda um comando e devolve o que mostrar na saída.
-pub(crate) fn run(command: Command, voice: Voice) -> Result<String> {
+/// Roda um comando e devolve o que mostrar na saída. A animação só vale
+/// pra TUI.
+pub(crate) fn run(command: Command, voice: Voice, animation: Animation) -> Result<String> {
     match command {
         Command::Add {
             title,
@@ -35,6 +36,22 @@ pub(crate) fn run(command: Command, voice: Voice) -> Result<String> {
         Command::Done { id } => Session::open(voice)?.done(id),
         Command::Show { id } => Session::open(voice)?.show(id),
         Command::Import { file, dry_run } => Session::open(voice)?.import(&file, dry_run),
+        Command::Curiosidade { date, banter } => {
+            let date = date.unwrap_or_else(|| jiff::Zoned::now().date());
+            acervo::curiosity(date, banter, voice)
+        }
+        Command::Tui => {
+            let mut session = Session::open(voice)?;
+            let acervo::Bundled { facts, banter } = acervo::bundled();
+            let setup = vamo_tui::Setup {
+                voice,
+                acervo: vamo_tui::Acervo { facts, banter },
+                time_zone: TimeZone::system(),
+                animation,
+            };
+            vamo_tui::run(&mut session, setup).wrap_err("a TUI não conseguiu usar o terminal")?;
+            Ok(String::new())
+        }
         // O acervo não mexe nas tarefas, então nem abre o banco.
         Command::Acervo {
             command: AcervoCommand::Validate { folder },
@@ -92,7 +109,8 @@ impl Session {
         }
         self.record(id, changes)?;
 
-        Ok(self.voice.added(&self.task(id)?))
+        let task = self.task(id)?;
+        Ok(self.voice.added(task.id(), task.title()))
     }
 
     /// `vamo list`: as tarefas em jogo, ou as do filtro pedido.
@@ -116,9 +134,11 @@ impl Session {
 
     /// `vamo done`: conclui a tarefa, se a regra de status deixar.
     fn done(&mut self, id: TaskId) -> Result<String> {
-        let change = self.projection.status_change(id, Status::Done)?;
-        self.record(id, vec![change])?;
-        Ok(self.voice.done(&self.task(id)?))
+        // O gol conta no dia em que saiu.
+        let changes = self.projection.finish(id, jiff::Zoned::now().date())?;
+        self.record(id, changes)?;
+        let task = self.task(id)?;
+        Ok(self.voice.goal(task.id(), task.title()))
     }
 
     /// `vamo show`: a ficha da tarefa e o histórico dela.
@@ -219,7 +239,25 @@ impl Session {
         for event in &events {
             self.projection.apply(event);
         }
+        self.events.extend(events);
         Ok(())
+    }
+}
+
+/// A TUI lê e grava as tarefas pela mesma sessão da CLI.
+impl vamo_tui::Ledger for Session {
+    type Error = color_eyre::Report;
+
+    fn projection(&self) -> &Projection {
+        &self.projection
+    }
+
+    fn events(&self) -> &[Event] {
+        &self.events
+    }
+
+    fn record(&mut self, task: TaskId, changes: Vec<Change>) -> Result<()> {
+        Session::record(self, task, changes)
     }
 }
 

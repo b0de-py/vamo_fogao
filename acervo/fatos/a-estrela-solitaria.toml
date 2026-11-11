@@ -1,0 +1,11 @@
+texto = "Com a fusão de 1942, a estrela solitária do clube de remo vai pro escudo do Botafogo."
+data = "1942"
+status = "verificado"
+
+[[fontes]]
+nome = "Wikipédia em inglês: Botafogo FR"
+url = "https://en.wikipedia.org/wiki/Botafogo_FR"
+
+[[fontes]]
+nome = "Bahia Notícias"
+url = "https://www.bahianoticias.com.br/esportes/noticia/70017-historia-do-botafogo-de-futebol-e-regatas"

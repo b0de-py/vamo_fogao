@@ -1,0 +1,12 @@
+texto = "Heleno de Freitas faz 209 gols pelo Botafogo nos anos 1940."
+status = "verificado"
+tags = ["idolo:heleno-de-freitas"]
+notas = "A Wikipédia dá 209 gols em 235 jogos, mas no próprio texto também fala em 204 em 233."
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/botafogo/artilheiros-botafogo.html"
+
+[[fontes]]
+nome = "Wikipédia em inglês: History of Botafogo FR"
+url = "https://en.wikipedia.org/wiki/History_of_Botafogo_FR"

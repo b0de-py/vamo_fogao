@@ -28,6 +28,7 @@ impl Vamo {
             .current_dir(self.home.path())
             .env("HOME", self.home.path())
             .env("XDG_DATA_HOME", self.home.path().join("dados"))
+            .env("XDG_CONFIG_HOME", self.home.path().join("config"))
             .env("VAMO_MAQUINA", "notebook")
             .env("TZ", "America/Sao_Paulo")
             .env_remove("VAMO_LINGUAGEM")
@@ -59,6 +60,13 @@ impl Vamo {
         text(&out.stderr)
     }
 
+    /// Escreve o arquivo de config com o texto dado.
+    fn configure(&self, text: &str) {
+        let folder = self.home.path().join("config/vamo_fogao");
+        std::fs::create_dir_all(&folder).expect("a pasta da config deveria ser criada");
+        std::fs::write(folder.join("config.toml"), text).expect("a config deveria ser gravada");
+    }
+
     fn database(&self) -> std::path::PathBuf {
         self.home.path().join("dados/vamo_fogao/vamo.db")
     }
@@ -70,11 +78,14 @@ fn text(bytes: &[u8]) -> String {
 }
 
 /// Confere um snapshot trocando data e hora, que mudam a cada execução,
-/// por um marcador.
+/// por marcadores.
 macro_rules! assert_snapshot_without_time {
     ($value:expr) => {
         insta::with_settings!({
-            filters => vec![(r"\d{2}/\d{2}/\d{4} \d{2}:\d{2}", "[data e hora]")],
+            filters => vec![
+                (r"\d{2}/\d{2}/\d{4} \d{2}:\d{2}", "[data e hora]"),
+                (r"\d{2}/\d{2}/\d{4}", "[data]"),
+            ],
         }, {
             insta::assert_snapshot!($value);
         });
@@ -373,6 +384,32 @@ mod neutral_voice {
     }
 
     #[test]
+    fn the_config_file_chooses_the_voice() {
+        let vamo = Vamo::new();
+        vamo.configure("linguagem = \"neutra\"\n");
+
+        assert_eq!(
+            vamo.ok(&["list"]),
+            "Nenhuma tarefa. Pra criar uma: vamo add <título>\n"
+        );
+        // A linha de comando ganha da config.
+        assert_eq!(
+            vamo.ok(&["list", "--linguagem", "jogo"]),
+            "Ninguém no banco. Pra contratar: vamo add <título>\n"
+        );
+    }
+
+    #[test]
+    fn a_broken_config_says_where_it_is() {
+        let vamo = Vamo::new();
+        vamo.configure("linguagem = \"torcida\"\n");
+
+        let error = vamo.fails(&["list"], 1);
+        assert!(error.contains("config.toml tem erro"), "{error}");
+        assert!(error.contains("`torcida` não é uma linguagem"), "{error}");
+    }
+
+    #[test]
     fn errors_change_too() {
         assert!(
             Vamo::new()
@@ -525,7 +562,7 @@ url = "https://pt.wikipedia.org/wiki/Botafogo_de_Futebol_e_Regatas"
         );
         assert_eq!(
             vamo.ok(&["--linguagem", "neutra", "acervo", "validar"]),
-            "Acervo validado: 2 fatos verificados, 1 a conferir e 1 da resenha.\n"
+            "Acervo validado: 2 fatos verificados, 1 a conferir e 1 de piada.\n"
         );
     }
 
@@ -624,4 +661,44 @@ fn nothing_is_written_outside_the_data_folder() {
         .collect();
     assert_eq!(entries, ["dados"]);
     assert!(Path::new(&vamo.database()).exists());
+}
+
+mod curiosidade {
+    use super::*;
+
+    #[test]
+    fn a_day_with_a_fact_brings_it_with_the_sources() {
+        // 30 de novembro: a Libertadores de 2024, no acervo embutido.
+        let out = Vamo::new().ok(&["curiosidade", "--data", "2026-11-30"]);
+        assert!(out.starts_with("Neste dia, em 2024\n"), "{out}");
+        assert!(out.contains("Libertadores"), "{out}");
+        assert!(out.contains("\nFontes: "), "{out}");
+    }
+
+    #[test]
+    fn the_same_day_gives_the_same_curiosity() {
+        let vamo = Vamo::new();
+        let first = vamo.ok(&["curiosidade", "--data", "2026-11-11"]);
+        let second = vamo.ok(&["curiosidade", "--data", "2026-11-11"]);
+        assert_eq!(first, second);
+    }
+
+    #[test]
+    fn the_banter_comes_with_its_seal() {
+        let out = Vamo::new().ok(&["curiosidade", "--resenha"]);
+        assert!(out.starts_with("Resenha (é zoeira, não é fato)\n"), "{out}");
+    }
+
+    #[test]
+    fn a_day_that_does_not_exist_is_a_usage_error() {
+        let err = Vamo::new().fails(&["curiosidade", "--data", "2026-02-30"], 2);
+        assert!(err.contains("use o formato AAAA-MM-DD"), "{err}");
+    }
+
+    #[test]
+    fn the_curiosity_does_not_touch_the_database() {
+        let vamo = Vamo::new();
+        vamo.ok(&["curiosidade"]);
+        assert!(!vamo.database().exists());
+    }
 }

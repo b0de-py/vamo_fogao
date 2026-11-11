@@ -1,0 +1,16 @@
+---
+source: crates/vamo-tui/src/app.rs
+expression: "draw(&app, &ledger, 70, 12)"
+---
+" vamo_fogao   1 Hoje  2 Caderno  3 Banco  4 Museu                     "
+"──────────────────────────────────────────────────────────────────────"
+"    ┌ Prancheta ────────────────────────────────────────────────┐     "
+" Hoj│j, k, setas     sobe e desce na lista                      │de 0 "
+"    │espaço, enter   marca o gol (ou anula) e marca a fixa      │     "
+" Nin│a               adia a tarefa pra amanhã                   │     "
+"    │b               tira do dia e devolve pro banco            │     "
+"    │r               troca a curiosidade pela resenha, e volta  │     "
+"    │1 a 4           vai direto pra tela                        │     "
+"    │tab, shift+tab  próxima tela, tela anterior                │     "
+"    └───────────────────────────────────────────────────────────┘     "
+"tab troca de tela · ? ajuda · q encerra a partida                     "

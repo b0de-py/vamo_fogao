@@ -1,0 +1,15 @@
+texto = "Até 2026, Nilton Santos é quem mais jogou pelo Botafogo: mais de 720 jogos, de 1948 a 1964."
+data = "1948"
+ate = "1964"
+tipo = "recorde"
+status = "verificado"
+tags = ["idolo:nilton-santos"]
+notas = "As fontes divergem no número exato: 721 no Lance!, 723 na Wikipédia."
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/botafogo/jogadores-com-mais-jogos-pelo-botafogo.html"
+
+[[fontes]]
+nome = "Wikipédia em inglês: Botafogo FR"
+url = "https://en.wikipedia.org/wiki/Botafogo_FR"

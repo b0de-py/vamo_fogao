@@ -1,0 +1,12 @@
+texto = "Nasce Nilton Santos, a Enciclopédia do Futebol, que jogou de 1948 a 1964 no Botafogo."
+data = "1925-05-16"
+status = "verificado"
+tags = ["idolo:nilton-santos"]
+
+[[fontes]]
+nome = "Jovem Pan"
+url = "https://jovempan.com.br/colunistas/thiago-uberreich/nilton-santos-chamado-de-a-enciclopedia-do-futebol-estaria-fazendo-cem-anos/"
+
+[[fontes]]
+nome = "Wikipédia em inglês: Nílton Santos"
+url = "https://en.wikipedia.org/wiki/N%C3%ADlton_Santos"

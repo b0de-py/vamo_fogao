@@ -3,6 +3,7 @@
 use std::collections::BTreeMap;
 
 use jiff::Timestamp;
+use jiff::civil::Date;
 
 use crate::{Area, Change, Error, Event, EventId, Fit, NotebookTitle, Status, Task, TaskId};
 
@@ -96,6 +97,11 @@ impl Projection {
             Change::Fit(fit) => write(&mut draft.fit, fit, stamp),
             Change::Status(status) => write(&mut draft.status, status, stamp),
             Change::Notes(notes) => write(&mut draft.notes, notes, stamp),
+            Change::Day(day) => write(&mut draft.day, day, stamp),
+            // Cada dia é um campo à parte: marcar hoje não mexe em ontem.
+            Change::Check { day, done } => {
+                write(draft.checks.entry(*day).or_default(), done, stamp);
+            }
         }
     }
 
@@ -124,6 +130,75 @@ impl Projection {
         let task = self.task(id).ok_or(Error::UnknownTask { id })?;
         task.status().transition_to(next)?;
         Ok(Change::Status(next))
+    }
+
+    /// As mudanças que concluem a tarefa: o gol, e o gol conta no dia em
+    /// que saiu. Se a tarefa estava escalada pra outro dia (ou pra nenhum),
+    /// ela passa pra `today`.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::UnknownTask`] se a tarefa não existir.
+    /// - [`Error::InvalidTransition`] se a regra de [`Status`] não deixar.
+    pub fn finish(&self, id: TaskId, today: Date) -> Result<Vec<Change>, Error> {
+        let task = self.task(id).ok_or(Error::UnknownTask { id })?;
+        let mut changes = vec![self.status_change(id, Status::Done)?];
+        if task.day() != Some(today) {
+            changes.push(Change::Day(Some(today)));
+        }
+        Ok(changes)
+    }
+
+    /// As mudanças que escalam a tarefa pra um dia: ela fica agendada. Se
+    /// já estava agendada, só muda o dia.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::UnknownTask`] se a tarefa não existir.
+    /// - [`Error::InvalidTransition`] se a tarefa não puder ser agendada
+    ///   (uma ideia, por exemplo, precisa ficar pronta antes).
+    pub fn schedule(&self, id: TaskId, day: Date) -> Result<Vec<Change>, Error> {
+        let task = self.task(id).ok_or(Error::UnknownTask { id })?;
+        let mut changes = Vec::new();
+        if task.status() != Status::Scheduled {
+            changes.push(self.status_change(id, Status::Scheduled)?);
+        }
+        if task.day() != Some(day) {
+            changes.push(Change::Day(Some(day)));
+        }
+        Ok(changes)
+    }
+
+    /// As mudanças que tiram a tarefa da escalação. Se ela estava agendada,
+    /// volta pro banco, pronta; com outro status, só perde o dia.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::UnknownTask`] se a tarefa não existir.
+    pub fn unschedule(&self, id: TaskId) -> Result<Vec<Change>, Error> {
+        let task = self.task(id).ok_or(Error::UnknownTask { id })?;
+        let mut changes = Vec::new();
+        if task.status() == Status::Scheduled {
+            changes.push(Change::Status(Status::Ready));
+        }
+        if task.day().is_some() {
+            changes.push(Change::Day(None));
+        }
+        Ok(changes)
+    }
+
+    /// A mudança que marca (ou desmarca) uma tarefa recorrente num dia.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::UnknownTask`] se a tarefa não existir.
+    /// - [`Error::NotRecurring`] se ela não for recorrente.
+    pub fn check(&self, id: TaskId, day: Date, done: bool) -> Result<Change, Error> {
+        let task = self.task(id).ok_or(Error::UnknownTask { id })?;
+        if task.status() != Status::Recurring {
+            return Err(Error::NotRecurring { id });
+        }
+        Ok(Change::Check { day, done })
     }
 
     /// O ID pra próxima tarefa: um a mais que o maior ID que já apareceu em
@@ -161,6 +236,8 @@ struct Draft {
     fit: Option<Latest<Fit>>,
     status: Option<Latest<Status>>,
     notes: Option<Latest<String>>,
+    day: Option<Latest<Option<Date>>>,
+    checks: BTreeMap<Date, Option<Latest<bool>>>,
 }
 
 impl Draft {
@@ -178,6 +255,14 @@ impl Draft {
         );
         if let Some(notes) = &self.notes {
             task.set_notes(&notes.value);
+        }
+        if let Some(day) = &self.day {
+            task.set_day(day.value);
+        }
+        for (&day, check) in &self.checks {
+            if let Some(check) = check {
+                task.set_checked(day, check.value);
+            }
         }
         Some(task)
     }
@@ -435,6 +520,12 @@ mod tests {
             fits.prop_map(Change::Fit),
             statuses.prop_map(Change::Status),
             notes.prop_map(Change::Notes),
+            prop::option::of(10..=12_i8)
+                .prop_map(|day| Change::Day(day.map(|day| jiff::civil::date(2026, 11, day)))),
+            (10..=12_i8, any::<bool>()).prop_map(|(day, done)| Change::Check {
+                day: jiff::civil::date(2026, 11, day),
+                done
+            }),
         ];
 
         prop::collection::vec((1..=3u32, 0..4i64, change), 0..40).prop_map(|items| {

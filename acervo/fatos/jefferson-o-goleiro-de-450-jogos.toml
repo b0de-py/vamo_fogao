@@ -1,0 +1,13 @@
+texto = "Jefferson se despede do gol do Botafogo com mais de 450 jogos pelo clube."
+data = "2018"
+status = "verificado"
+tags = ["idolo:jefferson"]
+notas = "As fontes divergem no número exato: 457 no Lance!, 459 na Wikipédia."
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/botafogo/jogadores-com-mais-jogos-pelo-botafogo.html"
+
+[[fontes]]
+nome = "Wikipédia em inglês: Botafogo FR"
+url = "https://en.wikipedia.org/wiki/Botafogo_FR"

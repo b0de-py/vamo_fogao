@@ -1,0 +1,13 @@
+texto = "Campeão da Copa Conmebol de 1993: 1 x 1 com o Peñarol em Montevidéu, 2 x 2 no Maracanã e 3 x 1 nos pênaltis."
+data = "1993-09"
+status = "verificado"
+tags = ["titulo:conmebol", "adversario:penarol"]
+notas = "As fontes divergem no dia do jogo do Maracanã: a Wikipédia dá 29 de setembro, e a Rádio Tupi conta 30 anos completos num sábado, 30 de setembro de 2023. O texto fica com o mês."
+
+[[fontes]]
+nome = "Rádio Tupi"
+url = "https://www.tupi.fm/sentinelas/botafogo-completa-30-anos-do-titulo-de-1993-da-taca-conmebol/"
+
+[[fontes]]
+nome = "Wikipédia em inglês: 1993 Copa CONMEBOL finals"
+url = "https://en.wikipedia.org/wiki/1993_Copa_CONMEBOL_finals"

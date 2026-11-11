@@ -1,0 +1,9 @@
+---
+source: crates/vamo-acervo/src/draw.rs
+expression: picks
+---
+[
+    "fato-06",
+    "fato-04",
+    "fato-03",
+]

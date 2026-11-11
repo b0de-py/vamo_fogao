@@ -7,20 +7,28 @@ vamo, o app de tarefas do vamo_fogao
 Uso: vamo [OPÇÕES] <COMANDO>
 
 Comandos:
-  add     Põe uma tarefa nova no banco
-  list    Lista as tarefas em jogo (sem as concluídas e as descartadas)
-  done    Conclui uma tarefa: gol!
-  import  Traz as tarefas do banco antigo, um markdown com a tabela de índice
-  show    Mostra a ficha de uma tarefa, com o histórico
-  acervo  Cuida do acervo, o museu de bolso com a história do Botafogo
+  add          Põe uma tarefa nova no banco
+  list         Lista as tarefas em jogo (sem as concluídas e as descartadas)
+  done         Conclui uma tarefa: gol!
+  import       Traz as tarefas do banco antigo, um markdown com a tabela de índice
+  show         Mostra a ficha de uma tarefa, com o histórico
+  curiosidade  Conta a curiosidade do dia, uma história do Botafogo
+  tui          Abre a interface de terminal, com as telas do dia
+  acervo       Cuida do acervo, o museu de bolso com a história do Botafogo
 
 Opções:
       --linguagem <LINGUAGEM>  A linguagem das mensagens: jogo (o padrão) ou neutra
   -h, --help                   Mostra esta ajuda
   -V, --version                Mostra a versão
 
+Config:
+  ~/.config/vamo_fogao/config.toml, com linguagem = "neutra" pra trocar o
+  padrão e animacao = false pra apagar o fogo da TUI. A --linguagem e a
+  VAMO_LINGUAGEM ganham da config.
+
 Variáveis de ambiente:
-  VAMO_LINGUAGEM  jogo ou neutra, o mesmo que --linguagem
-  VAMO_MAQUINA    o nome desta máquina nos eventos (sem ela, vale o hostname)
-  VAMO_LOG        o nível dos logs na saída de erro, como debug (padrão: warn)
-  XDG_DATA_HOME   onde fica a pasta do banco (padrão: ~/.local/share)
+  VAMO_LINGUAGEM   jogo ou neutra, o mesmo que --linguagem
+  VAMO_MAQUINA     o nome desta máquina nos eventos (sem ela, vale o hostname)
+  VAMO_LOG         o nível dos logs na saída de erro, como debug (padrão: warn)
+  XDG_CONFIG_HOME  onde fica a pasta da config (padrão: ~/.config)
+  XDG_DATA_HOME    onde fica a pasta do banco (padrão: ~/.local/share)

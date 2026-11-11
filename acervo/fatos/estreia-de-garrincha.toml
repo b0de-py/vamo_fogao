@@ -1,0 +1,12 @@
+texto = "Garrincha estreia no time principal do Botafogo com três gols no Bonsucesso."
+data = "1953-07-19"
+status = "verificado"
+tags = ["idolo:garrincha", "adversario:bonsucesso"]
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/lancepedia/a-historia-de-garrincha-no-botafogo.html"
+
+[[fontes]]
+nome = "Wikipédia em inglês: Garrincha"
+url = "https://en.wikipedia.org/wiki/Garrincha"

@@ -1,15 +1,76 @@
-//! `vamo acervo validar`: passa cada arquivo do acervo pela régua do
-//! `vamo-acervo`. É o mesmo comando que a CI roda em todo PR.
+//! O acervo no binário: o que vem embutido, a curiosidade do dia e o
+//! `vamo acervo validar`, que passa cada arquivo da pasta pela régua do
+//! `vamo-acervo` (o mesmo comando que a CI roda em todo PR).
 //!
-//! A régua mora no `vamo-acervo`; aqui só se lê a pasta e se junta o
-//! relatório.
+//! A régua e o sorteio moram no `vamo-acervo`; aqui só se lê arquivo e se
+//! junta texto.
 
 use std::path::{Path, PathBuf};
 
-use color_eyre::eyre::{Result, WrapErr, bail};
-use vamo_acervo::{Banter, Error, Fact};
+use color_eyre::eyre::{Result, WrapErr, bail, eyre};
+use jiff::civil::Date;
+use vamo_acervo::{Banter, Day, Error, Fact, banter_of_the_day, curiosity_of_the_day};
 
-use crate::messages::Voice;
+use vamo_tui::Voice;
+
+/// Os arquivos do acervo, embutidos na compilação pelo `build.rs`.
+mod embedded {
+    include!(concat!(env!("OUT_DIR"), "/acervo.rs"));
+}
+
+/// O acervo que veio dentro do binário.
+pub(crate) struct Bundled {
+    pub(crate) facts: Vec<Fact>,
+    pub(crate) banter: Vec<Banter>,
+}
+
+/// Lê o acervo embutido. Um arquivo fora da régua não derruba o app: fica
+/// de fora, com um aviso no log. (Na CI ele nem passa.)
+pub(crate) fn bundled() -> Bundled {
+    let facts = embedded::FACTS
+        .iter()
+        .filter_map(|(id, toml)| {
+            Fact::from_toml(id, toml)
+                .inspect_err(|error| tracing::warn!(id, %error, "fato fora da régua ficou de fora"))
+                .ok()
+        })
+        .collect();
+    let banter = embedded::BANTER
+        .iter()
+        .filter_map(|(id, toml)| {
+            Banter::from_toml(id, toml)
+                .inspect_err(
+                    |error| tracing::warn!(id, %error, "resenha fora da régua ficou de fora"),
+                )
+                .ok()
+        })
+        .collect();
+    Bundled { facts, banter }
+}
+
+/// O dia do calendário no formato do acervo.
+pub(crate) fn day(date: Date) -> Result<Day> {
+    u16::try_from(date.year())
+        .ok()
+        .and_then(|year| Day::new(year, date.month().unsigned_abs(), date.day().unsigned_abs()))
+        .ok_or_else(|| eyre!("o acervo só conhece dias a partir do ano 1000"))
+}
+
+/// `vamo curiosidade`: o fato do dia, ou a resenha.
+pub(crate) fn curiosity(date: Date, banter: bool, voice: Voice) -> Result<String> {
+    let acervo = bundled();
+    let today = day(date)?;
+    if banter {
+        return Ok(match banter_of_the_day(&acervo.banter, today) {
+            Some(banter) => voice.banter(banter),
+            None => voice.no_banter().to_owned(),
+        });
+    }
+    Ok(match curiosity_of_the_day(&acervo.facts, today) {
+        Some(curiosity) => voice.curiosity(curiosity),
+        None => voice.no_curiosity().to_owned(),
+    })
+}
 
 /// Confere o acervo da pasta e devolve o resumo. Se algum arquivo não passa,
 /// o erro lista todos, cada um com o seu problema.

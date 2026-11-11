@@ -1,0 +1,12 @@
+texto = "Carli marca aos 49 do segundo tempo, Gatito pega dois pênaltis, e o Botafogo é campeão carioca em cima do Vasco."
+data = "2018-04-08"
+status = "verificado"
+tags = ["titulo:carioca", "adversario:vasco", "idolo:gatito-fernandez", "idolo:carli"]
+
+[[fontes]]
+nome = "Tribuna do Paraná"
+url = "https://www.tribunapr.com.br/esportes/carli-faz-no-ultimo-lance-gatito-pega-dois-penaltis-e-botafogo-fatura-o-carioca/"
+
+[[fontes]]
+nome = "Wikipédia em inglês: History of Botafogo FR"
+url = "https://en.wikipedia.org/wiki/History_of_Botafogo_FR"

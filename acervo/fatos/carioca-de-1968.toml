@@ -1,0 +1,13 @@
+texto = "4 x 0 no Vasco na última rodada, e o Botafogo de Zagallo é bicampeão carioca em 1968."
+data = "1968"
+status = "verificado"
+tags = ["titulo:carioca", "adversario:vasco", "idolo:zagallo"]
+notas = "O placar vem do NetVasco; a Wikipédia dá o bicampeonato de 1967 e 1968 com Zagallo de técnico."
+
+[[fontes]]
+nome = "NetVasco"
+url = "https://www.netvasco.com.br/n/270593/veja-como-ficou-o-historico-das-decisoes-entre-vasco-e-botafogo-apos-a-taca-rio-2021"
+
+[[fontes]]
+nome = "Wikipédia em inglês: History of Botafogo FR"
+url = "https://en.wikipedia.org/wiki/History_of_Botafogo_FR"

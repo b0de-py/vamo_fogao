@@ -1,9 +1,17 @@
-texto = "O primeiro título carioca, fechado com 11 x 0 no Haddock Lobo, dá ao clube o apelido de Glorioso."
+texto = "O título carioca de 1910, com 66 gols em dez jogos, dá ao clube o apelido de Glorioso."
 data = "1910"
-status = "a-conferir"
-tags = ["titulo:carioca", "adversario:haddock-lobo"]
-notas = "Falta a segunda fonte pro título, pro placar e pra origem do apelido."
+status = "verificado"
+tags = ["titulo:carioca"]
+notas = "O título de 1907, dividido com o Fluminense, só foi reconhecido em 1996. A Trivela dá os 66 gols; o Lance! e o Bahia Notícias, a origem do apelido."
 
 [[fontes]]
 nome = "Wikipédia em inglês: History of Botafogo FR"
 url = "https://en.wikipedia.org/wiki/History_of_Botafogo_FR"
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/lancepedia/primeiro-titulo-da-historia-do-botafogo.html"
+
+[[fontes]]
+nome = "Trivela"
+url = "https://trivela.com.br/brasil/titulos-botafogo-lista-atualizada/"

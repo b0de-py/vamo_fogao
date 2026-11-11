@@ -1,0 +1,13 @@
+texto = "O Botafogo joga a Recopa Sul-Americana em Kobe, no Japão, e perde de 3 x 1 pro São Paulo."
+data = "1994-04-03"
+status = "verificado"
+tags = ["adversario:sao-paulo"]
+notas = "O dia vem do Lance!; a Wikipédia dá só o ano."
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/lancepedia/botafogo-ja-jogou-a-recopa.html"
+
+[[fontes]]
+nome = "Wikipédia em inglês: History of Botafogo FR"
+url = "https://en.wikipedia.org/wiki/History_of_Botafogo_FR"

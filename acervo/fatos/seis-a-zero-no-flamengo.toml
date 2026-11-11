@@ -1,0 +1,13 @@
+texto = "Botafogo 6 x 0 Flamengo, em 1972."
+data = "1972"
+status = "verificado"
+tags = ["adversario:flamengo"]
+notas = "A Wikipédia diz que foi no dia do aniversário do Flamengo, 15 de novembro; falta uma segunda fonte pro dia."
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/lancepedia/piores-vexames-da-historia-do-botafogo.html"
+
+[[fontes]]
+nome = "Wikipédia em inglês: History of Botafogo FR"
+url = "https://en.wikipedia.org/wiki/History_of_Botafogo_FR"
