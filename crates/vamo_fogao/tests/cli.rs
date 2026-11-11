@@ -625,3 +625,43 @@ fn nothing_is_written_outside_the_data_folder() {
     assert_eq!(entries, ["dados"]);
     assert!(Path::new(&vamo.database()).exists());
 }
+
+mod curiosidade {
+    use super::*;
+
+    #[test]
+    fn a_day_with_a_fact_brings_it_with_the_sources() {
+        // 30 de novembro: a Libertadores de 2024, no acervo embutido.
+        let out = Vamo::new().ok(&["curiosidade", "--data", "2026-11-30"]);
+        assert!(out.starts_with("Neste dia, em 2024\n"), "{out}");
+        assert!(out.contains("Libertadores"), "{out}");
+        assert!(out.contains("\nFontes: "), "{out}");
+    }
+
+    #[test]
+    fn the_same_day_gives_the_same_curiosity() {
+        let vamo = Vamo::new();
+        let first = vamo.ok(&["curiosidade", "--data", "2026-11-11"]);
+        let second = vamo.ok(&["curiosidade", "--data", "2026-11-11"]);
+        assert_eq!(first, second);
+    }
+
+    #[test]
+    fn the_banter_comes_with_its_seal() {
+        let out = Vamo::new().ok(&["curiosidade", "--resenha"]);
+        assert!(out.starts_with("Resenha (é zoeira, não é fato)\n"), "{out}");
+    }
+
+    #[test]
+    fn a_day_that_does_not_exist_is_a_usage_error() {
+        let err = Vamo::new().fails(&["curiosidade", "--data", "2026-02-30"], 2);
+        assert!(err.contains("use o formato AAAA-MM-DD"), "{err}");
+    }
+
+    #[test]
+    fn the_curiosity_does_not_touch_the_database() {
+        let vamo = Vamo::new();
+        vamo.ok(&["curiosidade"]);
+        assert!(!vamo.database().exists());
+    }
+}

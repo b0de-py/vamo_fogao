@@ -65,3 +65,15 @@ O slice pattern `[.., second, country]` pega os dois últimos pedaços do domín
 A conferência fica em `check_sources`, no `fact.rs`: todo fato precisa de pelo menos uma fonte, e o verificado precisa de duas origens diferentes. As origens vão para um `BTreeSet`, que descarta repetidas, e basta contar.
 
 A régua não enxerga tudo. Duas matérias de veículos diferentes podem ter copiado uma da outra, e só quem revisa o PR percebe. O validador cuida do que dá pra conferir de máquina; o VAR, do resto.
+
+## A curiosidade do dia
+
+Em `crates/vamo-acervo/src/draw.rs`. A curiosidade é um "sorteio" que não sorteia: o fato sai da data, então o mesmo dia mostra o mesmo fato em qualquer PC, sem guardar nada nem sincronizar nada.
+
+1. Só fato `verificado` entra.
+2. Se algum fato aconteceu neste dia e mês, em qualquer ano, ele tem prioridade: é o "Neste dia". Com mais de um, cada ano mostra um.
+3. Sem "Neste dia", vale o rodízio. Os fatos, em ordem de id, são embaralhados uma vez, sempre do mesmo jeito (um Fisher-Yates com semente fixa), e cada dia anda uma casa. Um fato só repete depois que todos passaram.
+
+A casa do dia é o número de dias desde 1º de janeiro de 1970, contado pelo algoritmo `days_from_civil`, de Howard Hinnant. O acervo não lê o relógio: quem chama passa o `Day` de hoje.
+
+O acervo vai dentro do binário. O `build.rs` do `vamo_fogao` transforma cada `.toml` de `acervo/` num `include_str!`, então quem instala o `vamo` tem a curiosidade sem precisar da pasta. É o `vamo curiosidade` no terminal, e o quadro da tela Hoje na TUI, onde a tecla `r` troca o fato pela resenha.

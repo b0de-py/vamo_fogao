@@ -1629,6 +1629,7 @@ dependencies = [
 name = "vamo-acervo"
 version = "0.1.0"
 dependencies = [
+ "insta",
  "proptest",
  "thiserror",
  "toml",

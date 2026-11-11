@@ -1,0 +1,18 @@
+---
+source: crates/vamo-tui/src/app.rs
+expression: screen
+---
+" vamo_fogao   1 Hoje  2 Caderno  3 Banco  4 Museu           "
+"────────────────────────────────────────────────────────────"
+"                                                            "
+" Hoje                                                       "
+"                                                            "
+" ┌ Resenha (é zoeira, não é fato) ────────────────────────┐ "
+" │O time dos testes perdeu de novo.                       │ "
+" │                                                        │ "
+" │r: volta pro fato                                       │ "
+" │                                                        │ "
+" │                                                        │ "
+" └────────────────────────────────────────────────────────┘ "
+"                                                            "
+"tab troca de tela · ? ajuda · q encerra a partida           "

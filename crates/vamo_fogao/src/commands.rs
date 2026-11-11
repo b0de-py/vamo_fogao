@@ -35,10 +35,18 @@ pub(crate) fn run(command: Command, voice: Voice) -> Result<String> {
         Command::Done { id } => Session::open(voice)?.done(id),
         Command::Show { id } => Session::open(voice)?.show(id),
         Command::Import { file, dry_run } => Session::open(voice)?.import(&file, dry_run),
+        Command::Curiosidade { date, banter } => {
+            let date = date.unwrap_or_else(|| jiff::Zoned::now().date());
+            acervo::curiosity(date, banter, voice)
+        }
         Command::Tui => {
             let mut session = Session::open(voice)?;
-            vamo_tui::run(&mut session, voice.into())
-                .wrap_err("a TUI não conseguiu usar o terminal")?;
+            let acervo::Bundled { facts, banter } = acervo::bundled();
+            let setup = vamo_tui::Setup {
+                voice: voice.into(),
+                acervo: vamo_tui::Acervo { facts, banter },
+            };
+            vamo_tui::run(&mut session, setup).wrap_err("a TUI não conseguiu usar o terminal")?;
             Ok(String::new())
         }
         // O acervo não mexe nas tarefas, então nem abre o banco.

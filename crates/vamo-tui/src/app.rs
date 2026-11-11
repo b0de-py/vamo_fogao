@@ -11,7 +11,10 @@ use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 
-use crate::{Ledger, Voice, theme};
+use jiff::civil::Date;
+
+use crate::curiosity::{self, Acervo};
+use crate::{Ledger, Setup, Voice, theme};
 
 /// As abas, na ordem em que aparecem no topo.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -53,19 +56,32 @@ impl Tab {
 #[derive(Debug)]
 pub(crate) struct App {
     voice: Voice,
+    acervo: Acervo,
+    /// O dia de hoje, na hora local. Quem roda a TUI atualiza a cada quadro.
+    today: Date,
     tab: Tab,
+    /// Se o quadro da curiosidade mostra a resenha no lugar do fato.
+    banter: bool,
     help: bool,
     quit: bool,
 }
 
 impl App {
-    pub(crate) fn new(voice: Voice) -> Self {
+    pub(crate) fn new(setup: Setup, today: Date) -> Self {
         Self {
-            voice,
+            voice: setup.voice,
+            acervo: setup.acervo,
+            today,
             tab: Tab::Today,
+            banter: false,
             help: false,
             quit: false,
         }
+    }
+
+    /// Avisa que dia é hoje. A TUI pode ficar aberta de um dia pro outro.
+    pub(crate) fn set_today(&mut self, today: Date) {
+        self.today = today;
     }
 
     /// Se a TUI deve fechar depois deste quadro.
@@ -88,6 +104,7 @@ impl App {
         match key.code {
             KeyCode::Char('q') => self.quit = true,
             KeyCode::Char('?') => self.help = true,
+            KeyCode::Char('r') => self.banter = !self.banter,
             KeyCode::Tab => self.tab = self.tab.next(),
             KeyCode::BackTab => self.tab = self.tab.previous(),
             KeyCode::Char(digit @ '1'..='4') => {
@@ -147,11 +164,24 @@ impl App {
 
     /// O miolo da tela atual.
     fn render_body(&self, frame: &mut Frame<'_>, area: Rect) {
-        let title = Line::styled(self.voice.tab(self.tab), theme::heading());
+        let area = area.inner(ratatui::layout::Margin::new(1, 1));
+        let [title, rest] =
+            Layout::vertical([Constraint::Length(2), Constraint::Fill(1)]).areas(area);
         frame.render_widget(
-            Paragraph::new(title),
-            area.inner(ratatui::layout::Margin::new(1, 1)),
+            Paragraph::new(Line::styled(self.voice.tab(self.tab), theme::heading())),
+            title,
         );
+        if self.tab == Tab::Today {
+            let [corner] = Layout::vertical([Constraint::Max(8)]).areas(rest);
+            curiosity::render(
+                frame,
+                corner,
+                &self.acervo,
+                self.today,
+                self.banter,
+                self.voice,
+            );
+        }
     }
 
     /// A ajuda, numa caixa por cima da tela.
@@ -223,6 +253,53 @@ pub(crate) mod tests {
         }
     }
 
+    /// O dia dos testes: 11 de novembro de 2026.
+    pub(crate) fn today() -> Date {
+        jiff::civil::date(2026, 11, 11)
+    }
+
+    /// Um acervo inventado pros testes, com um fato verificado, um a
+    /// conferir e uma resenha.
+    pub(crate) fn acervo() -> Acervo {
+        let source =
+            |name: &str, url: &str| format!("[[fontes]]\nnome = \"{name}\"\nurl = \"{url}\"\n");
+        let both = format!(
+            "{}{}",
+            source("Jornal", "https://jornal.example.com.br/"),
+            source("Revista", "https://revista.example.org/")
+        );
+        let facts = vec![
+            vamo_acervo::Fact::from_toml(
+                "goleada-de-teste",
+                &format!("texto = \"Uma goleada inventada pros testes.\"\ndata = \"1950-11-11\"\nstatus = \"verificado\"\n{both}"),
+            )
+            .unwrap(),
+            vamo_acervo::Fact::from_toml(
+                "fato-a-conferir",
+                &format!("texto = \"Um fato que ainda não fechou.\"\ndata = \"1960\"\nstatus = \"a-conferir\"\n{both}"),
+            )
+            .unwrap(),
+        ];
+        let banter = vec![
+            vamo_acervo::Banter::from_toml(
+                "zoeira-de-teste",
+                "texto = \"O time dos testes perdeu de novo.\"",
+            )
+            .unwrap(),
+        ];
+        Acervo { facts, banter }
+    }
+
+    pub(crate) fn new_app(voice: Voice) -> App {
+        App::new(
+            Setup {
+                voice,
+                acervo: acervo(),
+            },
+            today(),
+        )
+    }
+
     pub(crate) fn ledger() -> MemoryLedger {
         MemoryLedger::new("2026-11-11T10:00:00Z".parse::<Timestamp>().unwrap())
     }
@@ -236,14 +313,14 @@ pub(crate) mod tests {
 
     #[test]
     fn opens_on_today() {
-        let app = App::new(Voice::Game);
+        let app = new_app(Voice::Game);
         assert_eq!(app.tab, Tab::Today);
         assert_snapshot!(draw(&app, &ledger(), 70, 8));
     }
 
     #[test]
     fn tab_goes_around() {
-        let mut app = App::new(Voice::Game);
+        let mut app = new_app(Voice::Game);
         let mut ledger = ledger();
         let mut seen = Vec::new();
         for _ in 0..5 {
@@ -261,14 +338,14 @@ pub(crate) mod tests {
             ]
         );
         // Da primeira, o shift+tab vai pra última.
-        let mut app = App::new(Voice::Game);
+        let mut app = new_app(Voice::Game);
         app.on_key(key(KeyCode::BackTab), &mut ledger);
         assert_eq!(app.tab, Tab::Museum);
     }
 
     #[test]
     fn numbers_jump_to_the_tab() {
-        let mut app = App::new(Voice::Game);
+        let mut app = new_app(Voice::Game);
         let mut ledger = ledger();
         app.on_key(key(KeyCode::Char('3')), &mut ledger);
         assert_eq!(app.tab, Tab::Bench);
@@ -278,7 +355,7 @@ pub(crate) mod tests {
 
     #[test]
     fn help_opens_and_any_key_closes_it() {
-        let mut app = App::new(Voice::Game);
+        let mut app = new_app(Voice::Game);
         let mut ledger = ledger();
         app.on_key(key(KeyCode::Char('?')), &mut ledger);
         assert_snapshot!(draw(&app, &ledger, 70, 12));
@@ -291,11 +368,11 @@ pub(crate) mod tests {
     #[test]
     fn q_and_ctrl_c_quit() {
         let mut ledger = ledger();
-        let mut app = App::new(Voice::Game);
+        let mut app = new_app(Voice::Game);
         app.on_key(key(KeyCode::Char('q')), &mut ledger);
         assert!(app.should_quit());
 
-        let mut app = App::new(Voice::Game);
+        let mut app = new_app(Voice::Game);
         app.on_key(
             KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL),
             &mut ledger,
@@ -305,15 +382,29 @@ pub(crate) mod tests {
 
     #[test]
     fn the_neutral_voice_renames_the_bench() {
-        let app = App::new(Voice::Neutral);
+        let app = new_app(Voice::Neutral);
         let screen = draw(&app, &ledger(), 70, 4);
         assert!(screen.contains("3 Tarefas"), "{screen}");
         assert!(!screen.contains("Banco"), "{screen}");
     }
 
     #[test]
+    fn today_shows_the_curiosity_and_r_swaps_in_the_banter() {
+        let mut app = new_app(Voice::Game);
+        let mut ledger = ledger();
+        let screen = draw(&app, &ledger, 60, 14);
+        assert!(screen.contains("Neste dia, em 1950"), "{screen}");
+        assert_snapshot!("curiosity", screen);
+
+        app.on_key(key(KeyCode::Char('r')), &mut ledger);
+        let screen = draw(&app, &ledger, 60, 14);
+        assert!(screen.contains("é zoeira, não é fato"), "{screen}");
+        assert_snapshot!("banter", screen);
+    }
+
+    #[test]
     fn a_tiny_terminal_does_not_panic() {
-        let mut app = App::new(Voice::Game);
+        let mut app = new_app(Voice::Game);
         app.help = true;
         for (width, height) in [(1, 1), (5, 2), (20, 3)] {
             draw(&app, &ledger(), width, height);

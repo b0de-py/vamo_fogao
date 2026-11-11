@@ -195,6 +195,22 @@ pub(crate) enum Command {
         id: TaskId,
     },
 
+    /// Conta a curiosidade do dia, uma história do Botafogo
+    #[command(
+        override_usage = "vamo curiosidade [OPÇÕES]",
+        help_template = SUBCOMMAND_HELP_TEMPLATE,
+        next_help_heading = "Opções"
+    )]
+    Curiosidade {
+        /// O dia, como 2026-11-11 (sem ela, hoje)
+        #[arg(long = "data", value_name = "DATA", value_parser = parse_date)]
+        date: Option<jiff::civil::Date>,
+
+        /// Mostra a resenha do dia, a zoeira, no lugar do fato
+        #[arg(long = "resenha")]
+        banter: bool,
+    },
+
     /// Abre a interface de terminal, com as telas do dia
     #[command(
         override_usage = "vamo tui",
@@ -241,6 +257,12 @@ pub(crate) enum AcervoCommand {
         )]
         folder: PathBuf,
     },
+}
+
+/// Lê uma data no formato `AAAA-MM-DD`.
+fn parse_date(text: &str) -> Result<jiff::civil::Date, String> {
+    text.parse()
+        .map_err(|_| format!("`{text}` não é uma data: use o formato AAAA-MM-DD, como 2026-11-11"))
 }
 
 /// Lê o ID de uma tarefa com um pouco de folga pra quem digita: além de

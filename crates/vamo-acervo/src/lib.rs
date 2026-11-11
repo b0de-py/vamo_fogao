@@ -55,6 +55,7 @@
 mod banter;
 mod date;
 mod document;
+mod draw;
 mod error;
 mod fact;
 mod slug;
@@ -64,6 +65,7 @@ mod text;
 
 pub use banter::Banter;
 pub use date::FactDate;
+pub use draw::{Curiosity, Day, banter_of_the_day, curiosity_of_the_day};
 pub use error::Error;
 pub use fact::{Fact, Kind, Verification};
 pub use slug::Slug;

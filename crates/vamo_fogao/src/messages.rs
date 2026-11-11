@@ -4,6 +4,7 @@
 //! linguagem é trocar a [`Voice`], sem caçar string pelo código.
 
 use clap::ValueEnum;
+use vamo_acervo::{Banter, Curiosity};
 use vamo_core::{Change, Task};
 
 /// A linguagem das mensagens.
@@ -108,6 +109,53 @@ impl Voice {
         match self {
             Self::Game => format!("O VAR conferiu o acervo: {summary}."),
             Self::Neutral => format!("Acervo validado: {summary}."),
+        }
+    }
+
+    /// A curiosidade do dia, com as fontes embaixo.
+    pub(crate) fn curiosity(self, curiosity: Curiosity<'_>) -> String {
+        let fact = curiosity.fact();
+        let heading = match (curiosity, fact.date()) {
+            (Curiosity::OnThisDay(_), Some(date)) => format!("Neste dia, em {}", date.year()),
+            _ => match self {
+                Self::Game => "Do baú do Glorioso".to_owned(),
+                Self::Neutral => "Curiosidade do dia".to_owned(),
+            },
+        };
+        let sources: Vec<&str> = fact
+            .sources()
+            .iter()
+            .map(vamo_acervo::Source::name)
+            .collect();
+        format!(
+            "{heading}\n\n{}\n\nFontes: {}",
+            fact.text(),
+            sources.join(" · ")
+        )
+    }
+
+    /// A resenha do dia, sempre com o selo de que não é fato.
+    pub(crate) fn banter(self, banter: &Banter) -> String {
+        let seal = match self {
+            Self::Game => "Resenha (é zoeira, não é fato)",
+            Self::Neutral => "Piada (não é fato)",
+        };
+        format!("{seal}\n\n{}", banter.text())
+    }
+
+    /// Quando o acervo não tem nenhum fato verificado.
+    pub(crate) fn no_curiosity(self) -> &'static str {
+        match self {
+            Self::Game => "O baú está vazio: nenhum fato verificado no acervo ainda.",
+            Self::Neutral => "Nenhum fato verificado no acervo ainda.",
+        }
+    }
+
+    /// Quando a resenha está vazia.
+    pub(crate) fn no_banter(self) -> &'static str {
+        match self {
+            Self::Game => "A resenha está vazia.",
+            Self::Neutral => "Nenhuma piada no acervo.",
         }
     }
 
