@@ -54,11 +54,11 @@ pub(crate) fn render(
 fn line(title: &str, done: bool) -> Line<'static> {
     if done {
         Line::from(vec![
-            Span::styled(format!("  - {title} "), theme::base()),
+            Span::styled(format!("  - {title} "), theme::text()),
             Span::styled("✓", theme::success()),
         ])
     } else {
-        Line::styled(format!("  - {title}"), theme::base())
+        Line::styled(format!("  - {title}"), theme::text())
     }
 }
 

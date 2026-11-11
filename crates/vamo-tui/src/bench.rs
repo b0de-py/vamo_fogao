@@ -170,7 +170,7 @@ fn row(task: &Task, cursor: bool) -> Row<'static> {
     let style = match task.status() {
         Status::Done => theme::success(),
         Status::Dropped => theme::muted(),
-        _ => theme::base(),
+        _ => theme::text(),
     };
     let day = task
         .day()

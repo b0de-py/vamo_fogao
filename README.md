@@ -13,12 +13,12 @@ O vamo_fogao junta num lugar só as tarefas, a agenda e um pedaço da história 
 - **Agenda.** Lê a agenda pelo link ICS (com OAuth do Google como opção), acha as brechas do expediente e liga evento a tarefa por uma linha no fim do evento.
 - **Linguagem de jogo.** Concluir é gol, as tarefas do dia são a escalação e o resumo do dia é a súmula. Quem preferir liga o modo neutro.
 - **Curiosidade do dia.** Uma história do Botafogo por dia, tirada de um acervo em que cada fato tem duas fontes independentes. A zoeira mora separada, na Resenha, e não se mistura com a história.
-- **Fogo alvinegro.** Um fogo em preto e branco no rodapé da tela, que sobe com o placar do dia.
+- **Fogo alvinegro.** O fogo do Doom em preto e branco, queimando atrás da tela inteira. Ele sobe com o placar do dia, solta foguetes no gol e um clique atiça.
 - **Claude por MCP.** Um servidor MCP pro Claude ler o dia, agendar tarefas e fazer a revisão semanal gastando pouco contexto.
 
 ## Em que pé está
 
-Fase 2, a TUI: as tarefas moram num banco SQLite, a linha de comando cuida do rápido e `vamo tui` abre as telas do dia, com o fogo alvinegro no rodapé. No Hyprland, um atalho mostra e esconde a TUI ([como configurar](book/src/a-tui.md#no-hyprland-a-janela-que-aparece-e-some)). O [ROADMAP](ROADMAP.md) mostra todas as fases.
+Fase 2, a TUI: as tarefas moram num banco SQLite, a linha de comando cuida do rápido e `vamo tui` abre as telas do dia, com o fogo alvinegro queimando no fundo. No Hyprland, um atalho mostra e esconde a TUI ([como configurar](book/src/a-tui.md#no-hyprland-a-janela-que-aparece-e-some)). O [ROADMAP](ROADMAP.md) mostra todas as fases.
 
 ```console
 $ vamo add Trocar o filtro da água --area casa

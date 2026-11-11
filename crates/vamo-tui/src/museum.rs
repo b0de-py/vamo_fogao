@@ -175,7 +175,7 @@ impl Museum {
                     let mut line = Line::from(vec![
                         Span::styled(if this_day { "★ " } else { "  " }, theme::museum()),
                         Span::styled(format!("{date:<10}  "), theme::muted()),
-                        Span::styled(fact.text().to_string(), theme::base()),
+                        Span::styled(fact.text().to_string(), theme::text()),
                     ]);
                     if index == cursor {
                         line = line.style(theme::cursor());
@@ -186,7 +186,7 @@ impl Museum {
                     index += 1;
                 }
                 Entry::Banter(banter) => {
-                    let mut line = Line::styled(format!("  {}", banter.text()), theme::base());
+                    let mut line = Line::styled(format!("  {}", banter.text()), theme::text());
                     if index == cursor {
                         line = line.style(theme::cursor());
                         selected = Some(entry);
@@ -211,7 +211,7 @@ impl Museum {
             Some(Entry::Banter(banter)) => vec![
                 Line::styled(voice.banter_seal(), theme::museum()),
                 Line::default(),
-                Line::styled(banter.text().to_string(), theme::base()),
+                Line::styled(banter.text().to_string(), theme::text()),
             ],
             _ => Vec::new(),
         };
@@ -242,7 +242,7 @@ fn fact_detail(fact: &Fact, this_day: bool, voice: Voice) -> Vec<Line<'static>> 
         _ => String::new(),
     };
     lines.push(Line::styled(format!(" {when}"), theme::muted()));
-    lines.push(Line::styled(format!(" {}", fact.text()), theme::base()));
+    lines.push(Line::styled(format!(" {}", fact.text()), theme::text()));
     lines.push(Line::default());
     lines.push(Line::styled(
         format!(" {}", voice.sources().trim_end_matches(": ")),
@@ -254,7 +254,7 @@ fn fact_detail(fact: &Fact, this_day: bool, voice: Voice) -> Vec<Line<'static>> 
             .map(|url| format!("  {url}"))
             .unwrap_or_default();
         lines.push(Line::from(vec![
-            Span::styled(format!(" · {}", source.name()), theme::base()),
+            Span::styled(format!(" · {}", source.name()), theme::text()),
             Span::styled(link, theme::selected()),
         ]));
     }

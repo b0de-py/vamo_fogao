@@ -40,9 +40,12 @@ pub(crate) fn render(
         Some(today) => curiosity_lines(acervo, today, voice),
         None => (voice.curiosity_title().to_owned(), Vec::new()),
     };
+    // Uma caixa de vidro, como as do site: o fogo passa por trás dela mais
+    // escuro do que no resto da tela.
     let block = Block::bordered()
         .border_style(theme::line())
-        .title(Line::styled(format!(" {title} "), theme::museum()));
+        .title(Line::styled(format!(" {title} "), theme::museum()))
+        .style(theme::surface());
     frame.render_widget(
         Paragraph::new(lines).block(block).wrap(Wrap { trim: true }),
         area,
@@ -67,7 +70,7 @@ fn curiosity_lines(acervo: &Acervo, today: Day, voice: Voice) -> (String, Vec<Li
         .map(vamo_acervo::Source::name)
         .collect();
     let lines = vec![
-        Line::styled(fact.text().to_string(), theme::base()),
+        Line::styled(fact.text().to_string(), theme::text()),
         Line::default(),
         Line::from(vec![
             Span::styled(voice.sources(), theme::muted()),
@@ -82,7 +85,7 @@ fn banter_lines(acervo: &Acervo, today: Day, voice: Voice) -> (String, Vec<Line<
     let title = voice.banter_seal().to_owned();
     let lines = match banter_of_the_day(&acervo.banter, today) {
         Some(banter) => vec![
-            Line::styled(banter.text().to_string(), theme::base()),
+            Line::styled(banter.text().to_string(), theme::text()),
             Line::default(),
             Line::styled(voice.back_to_fact_hint(), theme::muted()),
         ],

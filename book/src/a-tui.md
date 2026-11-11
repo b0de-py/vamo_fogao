@@ -1,6 +1,6 @@
 # A TUI
 
-`vamo tui` abre a interface de terminal: as tarefas do dia, o caderno, o banco e o museu, com o fogo alvinegro no rodapé. Este capítulo mostra como usar e como o código está montado; o porquê das escolhas está na [ADR 0007](https://github.com/b0de-py/vamo_fogao/blob/main/docs/adr/0007-tui-com-ratatui-e-porta-propria.md).
+`vamo tui` abre a interface de terminal: as tarefas do dia, o caderno, o banco e o museu, com o fogo alvinegro queimando atrás de tudo. Este capítulo mostra como usar e como o código está montado; o porquê das escolhas está na [ADR 0007](https://github.com/b0de-py/vamo_fogao/blob/main/docs/adr/0007-tui-com-ratatui-e-porta-propria.md).
 
 ## As telas
 
@@ -17,13 +17,40 @@ Na Hoje e no Banco, o espaço conclui a tarefa (gol!) e, numa tarefa já conclu�
 
 ## O fogo alvinegro
 
-O fogo do rodapé acompanha o placar do dia: com nada feito, é só um fogo piloto; com tudo feito, as chamas chegam no alto da faixa. Concluir uma tarefa põe a brasa no máximo por um segundo e pisca um GOOOL! por cima.
+Atrás de todas as telas queima o fogo do Doom, o mesmo do fundo do [r4ul.com.br](https://r4ul.com.br), só que em preto e branco. A brasa acompanha o placar do dia: com nada feito, é uma linha de fogo piloto no pé da tela; com tudo feito, ela ocupa os 18% de baixo, como no site. Concluir uma tarefa põe a brasa no máximo por um segundo e meio, solta foguetes e pisca um GOOOL! perto do rodapé.
 
-É o fogo das demos antigas, numa grade de calor (`crates/vamo-tui/src/fire.rs`). A linha de baixo é a brasa. A cada passo, cada célula puxa o calor da de baixo, perde de 0 a 2 pontos e escorrega uma coluna pro lado ao acaso. O calor máximo é a altura da grade, então com a brasa cheia o fogo sobe até o topo, e com metade, até a metade. Cada linha do terminal mostra duas linhas do fogo com o meio-bloco `▀`: a cor da letra é a célula de cima e a do fundo, a de baixo. As cores vão do quase preto ao branco, sem nenhum outro tom.
+Como no site, o fogo reage a quem usa:
 
-O acaso vem de um gerador com semente fixa (`SEED`), então o mesmo número de passos dá sempre o mesmo fogo. É o que deixa o fogo ter teste: um snapshot da grade e um teste que confere que a chama sobe com o placar.
+- **Mexeu, queima.** Cada tecla e cada movimento do mouse acordam o fogo. Depois de 3 segundos sem ninguém mexer, ele congela onde estava.
+- **Clicou, atiça.** Um clique acende um círculo de fogo no lugar do clique, que sobe e esfria. Com o mouse capturado pela TUI, selecionar texto no terminal pede o `shift` apertado.
+- **Sumiu, pausa.** Quando a janela perde o foco, o fogo para.
 
-O fogo só gasta CPU quando está à vista. O laço principal (`main_loop` em `lib.rs`) dá um passo a cada 80 ms enquanto a animação está ligada e a janela tem foco. Quando o terminal avisa que a janela perdeu o foco, ou com a animação desligada, o laço volta a esperar tecla e o processo fica parado.
+### A conta
+
+A simulação mora em `crates/vamo-tui/src/fire.rs` e é a mesma do site (`js/common_effects.js`):
+
+- uma grade de calor, de 0 a 36 em cada célula;
+- a cada passo, as linhas de baixo (a brasa) voltam pro calor máximo;
+- cada célula copia o calor da de baixo, perdendo de 0 a 3 pontos ao acaso, e o vento escreve o resultado uma célula pro lado. Com perda média de um ponto e meio por linha, a chama sobe umas 24 linhas acima da brasa.
+
+Três coisas mudam do site pra cá. A cor é só o branco (lá ela troca a cada 5 segundos). A altura da brasa segue o placar. E num terminal com menos de 36 linhas a perda cresce, pra chama ficar com um quarto da altura e não tomar a tela.
+
+O acaso vem de um gerador com semente fixa (`SEED`), então o mesmo número de passos dá sempre o mesmo fogo. É o que deixa o fogo ter teste: um snapshot da grade e testes que conferem que a brasa e a chama sobem com o placar.
+
+### O fogo por baixo do texto
+
+No site, o fogo é um canvas com 25% de opacidade atrás de caixas de vidro fumê. Aqui, o `Fire::underlay` faz esse papel. Ele roda depois de todas as telas e olha a tela célula por célula:
+
+- **Célula vazia:** vira um meio-bloco `▀` com o fogo misturado ao fundo em 25%. A cor da letra é a célula de cima do fogo e a do fundo, a de baixo, então cada linha do terminal mostra duas linhas do fogo.
+- **Texto, e o vão entre dois textos da mesma linha:** o caractere fica como está e só o fundo muda, com um quarto daquele brilho. É o vidro: até o texto apagado continua legível em cima da brasa, e quem copia um texto da tela não leva meio-bloco no lugar dos espaços.
+- **Caixas** (a ajuda, o quadro da curiosidade, o rodapé): vidro de ponta a ponta. Elas se anunciam pela cor de fundo `SURFACE` do tema.
+- **Outro fundo** (a linha do cursor, o grito de gol): fica como está.
+
+As cores vão do quase preto ao cinza, sempre com R, G e B iguais.
+
+### Quanto custa
+
+O fogo só gasta CPU enquanto queima. O laço principal (`main_loop` em `lib.rs`) dá um passo a cada 40 ms (25 quadros por segundo) enquanto a animação está ligada, a janela tem foco e alguém mexeu nos últimos 3 segundos. Fora disso, o laço volta a esperar um evento e o processo fica parado. Queimando numa janela grande, a TUI manda perto de 1,5 MB por segundo pro terminal: num terminal local não pesa, mas por SSH vale desligar com `animacao = false`.
 
 ## A config
 
@@ -32,7 +59,7 @@ O arquivo `~/.config/vamo_fogao/config.toml` é opcional:
 ```toml
 # jogo (o padrão) ou neutra
 linguagem = "neutra"
-# false apaga o fogo
+# false apaga o fogo e solta o mouse
 animacao = false
 ```
 

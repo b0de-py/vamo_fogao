@@ -7,8 +7,13 @@
 
 use ratatui::style::{Color, Modifier, Style};
 
+/// O cinza do fundo, de 0 a 255. O fogo mistura as chamas com ele.
+pub(crate) const BACKGROUND_GRAY: u8 = 0x0a;
 /// O fundo de tudo.
-pub(crate) const BACKGROUND: Color = Color::Rgb(0x0a, 0x0a, 0x0a);
+pub(crate) const BACKGROUND: Color = Color::Rgb(BACKGROUND_GRAY, BACKGROUND_GRAY, BACKGROUND_GRAY);
+/// O fundo das caixas (a ajuda, o quadro da curiosidade): o vidro fumê das
+/// caixas de terminal do site. O fogo passa por trás dele bem mais escuro.
+pub(crate) const SURFACE: Color = Color::Rgb(0x0f, 0x0f, 0x0f);
 /// O texto comum.
 pub(crate) const TEXT: Color = Color::Rgb(0xe0, 0xe0, 0xe0);
 /// O texto que fica em segundo plano: atalhos, legendas, fontes.
@@ -31,13 +36,24 @@ pub(crate) const PLASMA: Color = Color::Rgb(0xff, 0xff, 0x00);
 
 /// Todas as cores do tema, pro teste que garante que nenhuma é vermelha.
 #[cfg(test)]
-const ALL: [Color; 10] = [
-    BACKGROUND, TEXT, MUTED, SOFT, LINE, WHITE, ACCENT, MAGENTA, GREEN, PLASMA,
+const ALL: [Color; 11] = [
+    BACKGROUND, SURFACE, TEXT, MUTED, SOFT, LINE, WHITE, ACCENT, MAGENTA, GREEN, PLASMA,
 ];
 
 /// O estilo de base de toda a tela.
 pub(crate) fn base() -> Style {
     Style::new().fg(TEXT).bg(BACKGROUND)
+}
+
+/// O texto comum, sem mexer no fundo de onde ele cai: dentro de uma caixa,
+/// o fundo continua o da caixa.
+pub(crate) fn text() -> Style {
+    Style::new().fg(TEXT)
+}
+
+/// O fundo de uma caixa.
+pub(crate) fn surface() -> Style {
+    Style::new().fg(TEXT).bg(SURFACE)
 }
 
 /// Texto em segundo plano.

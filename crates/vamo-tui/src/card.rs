@@ -66,7 +66,7 @@ pub(crate) fn render(
     let field = |name: &str, value: String| {
         Line::from(vec![
             Span::styled(format!("{name:<9}"), theme::muted()),
-            Span::styled(value, theme::base()),
+            Span::styled(value, theme::text()),
         ])
     };
     let mut lines = vec![

@@ -199,7 +199,7 @@ fn row(group: Group, task: &Task, today: Date, cursor: bool, voice: Voice) -> Li
     let base = match (group, done) {
         (_, true) => theme::success(),
         (Group::Late, false) => theme::warning(),
-        _ => theme::base(),
+        _ => theme::text(),
     };
     let detail = match (group, task.day()) {
         (Group::Late, Some(day)) => voice.was_planned_for(&day.strftime("%d/%m").to_string()),

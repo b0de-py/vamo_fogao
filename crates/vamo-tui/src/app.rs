@@ -6,6 +6,7 @@
 //! desenhando o estado num terminal de mentira e comparando com o snapshot.
 
 use std::cell::Cell;
+use std::time::{Duration, Instant};
 
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
@@ -139,9 +140,13 @@ pub(crate) struct App {
     /// Se a janela está à vista. Quando some (outro workspace, outra
     /// janela por cima), o fogo pausa.
     window: Window,
+    /// Até quando o fogo queima sem ninguém mexer. Cada tecla e cada
+    /// movimento do mouse empurram esse instante pra frente.
+    awake_until: Option<Instant>,
     fire: Fire,
-    /// O tamanho da faixa do fogo no último quadro. O desenho não muda o
-    /// estado, então guarda aqui e o próximo passo do fogo ajusta.
+    /// O tamanho da tela no último quadro, ou zero linhas quando o fogo não
+    /// cabe. O desenho não muda o estado, então guarda aqui e o próximo
+    /// passo do fogo ajusta.
     fire_area: Cell<(u16, u16)>,
     /// Quantos passos do fogo ainda faltam no grito de gol.
     flash: u8,
@@ -156,15 +161,23 @@ pub(crate) enum Window {
     Hidden,
 }
 
-/// Quantas linhas do terminal o fogo ocupa.
-const FIRE_ROWS: u16 = 3;
+/// Quanto tempo o fogo queima depois da última tecla ou do último movimento
+/// do mouse. São os 3 segundos do site: parado, o fogo congela e a TUI não
+/// gasta CPU.
+const IDLE: Duration = Duration::from_secs(3);
 
-/// Quantos passos dura o grito de gol: com um passo a cada 80 ms, pouco
-/// mais de um segundo.
-const FLASH_STEPS: u8 = 16;
+/// Quantos passos dura o grito de gol: com um passo a cada 40 ms, um
+/// segundo e meio.
+const FLASH_STEPS: u8 = 36;
+
+/// De quantos em quantos passos do grito de gol estoura um foguete.
+const FIREWORK_EVERY: u8 = 6;
+
+/// De quantos em quantos passos o grito de gol acende e apaga.
+const BLINK_EVERY: u8 = 4;
 
 /// A partir de quantas linhas de terminal o fogo aparece. Num terminal
-/// mais baixo, as telas precisam do espaço.
+/// mais baixo, quase toda linha tem texto e não sobra onde ver a chama.
 const FIRE_MIN_HEIGHT: u16 = 16;
 
 impl App {
@@ -186,16 +199,31 @@ impl App {
             quit: false,
             animation: setup.animation,
             window: Window::Visible,
+            awake_until: None,
             fire: Fire::new(fire::SEED),
             fire_area: Cell::new((0, 0)),
             flash: 0,
         }
     }
 
-    /// Se o fogo está queimando: com animação e a janela à vista. Quando
-    /// não está, quem roda a TUI só espera tecla e não gasta CPU.
-    pub(crate) fn animating(&self) -> bool {
-        self.animation == Animation::On && self.window == Window::Visible
+    /// Se a animação está ligada na config. Desligada, a TUI nem pede os
+    /// eventos do mouse ao terminal.
+    pub(crate) fn animated(&self) -> bool {
+        self.animation == Animation::On
+    }
+
+    /// Se o fogo está queimando em `now`: com animação, a janela à vista e
+    /// alguém mexendo há pouco (ou um gol sendo gritado). Quando não está,
+    /// quem roda a TUI só espera um evento e não gasta CPU.
+    pub(crate) fn animating(&self, now: Instant) -> bool {
+        let awake = self.flash > 0 || self.awake_until.is_some_and(|until| now < until);
+        self.animated() && self.window == Window::Visible && awake
+    }
+
+    /// Acorda o fogo: alguém mexeu em `now`. No site, é o que o movimento
+    /// do mouse e as teclas fazem.
+    pub(crate) fn wake(&mut self, now: Instant) {
+        self.awake_until = Some(now + IDLE);
     }
 
     /// Avisa se a janela ganhou ou perdeu o foco.
@@ -203,13 +231,26 @@ impl App {
         self.window = window;
     }
 
-    /// Um passo do fogo. A altura segue o placar do dia; no grito de gol, a
-    /// brasa vai ao máximo.
-    pub(crate) fn tick<L: Ledger>(&mut self, ledger: &L) {
-        if !self.animating() {
+    /// Um clique numa célula do terminal atiça o fogo ali, como o clique no
+    /// fundo do site.
+    pub(crate) fn on_click(&mut self, column: u16, row: u16) {
+        if self.fire_area.get().1 > 0 {
+            self.fire.explode(column, row);
+        }
+    }
+
+    /// Um passo do fogo. A brasa segue o placar do dia; no grito de gol, ela
+    /// vai ao máximo e os foguetes estouram.
+    pub(crate) fn tick<L: Ledger>(&mut self, ledger: &L, now: Instant) {
+        if !self.animating(now) {
             return;
         }
+        let (columns, rows) = self.fire_area.get();
+        self.fire.resize(columns, rows);
         let strength = if self.flash > 0 {
+            if self.flash.is_multiple_of(FIREWORK_EVERY) {
+                self.fire.burst();
+            }
             self.flash -= 1;
             1.0
         } else {
@@ -222,8 +263,6 @@ impl App {
                     / f64::from(u32::try_from(score.planned).unwrap_or(u32::MAX))
             }
         };
-        let (columns, rows) = self.fire_area.get();
-        self.fire.resize(columns, rows);
         self.fire.step(strength);
     }
 
@@ -406,59 +445,55 @@ impl App {
         let area = frame.area();
         frame.render_widget(Block::new().style(theme::base()), area);
 
-        let fire_rows = if self.animation == Animation::On && area.height >= FIRE_MIN_HEIGHT {
-            FIRE_ROWS
-        } else {
-            0
-        };
-        let [header, body, fire_band, footer] = Layout::vertical([
+        let [header, body, footer] = Layout::vertical([
             Constraint::Length(2),
             Constraint::Fill(1),
-            Constraint::Length(fire_rows),
             Constraint::Length(1),
         ])
         .areas(area);
-        self.fire_area.set((fire_band.width, fire_band.height));
-        self.render_fire(frame, fire_band);
 
         self.render_header(frame, header);
         self.render_body(frame, body, ledger);
         let footer_line = match (&self.prompt, &self.message) {
             (Some(prompt), _) => Line::from(vec![
                 Span::styled(prompt.label(self.voice), theme::selected()),
-                Span::styled(prompt.text.clone(), theme::base()),
+                Span::styled(prompt.text.clone(), theme::text()),
                 Span::styled("▏", theme::selected()),
             ]),
             (None, Some(message)) => Line::styled(message.text.clone(), message.style),
             (None, None) => Line::styled(self.voice.hints(), theme::muted()),
         };
-        frame.render_widget(Paragraph::new(footer_line), footer);
+        // O rodapé é uma faixa de vidro de ponta a ponta, como o do site: é
+        // onde a brasa é mais clara e as dicas são mais apagadas.
+        frame.render_widget(Paragraph::new(footer_line).style(theme::surface()), footer);
 
         if self.help {
             self.render_help(frame, body);
         }
+
+        // O fogo entra por último, por baixo de tudo o que já foi desenhado.
+        let burns = self.animated() && area.height >= FIRE_MIN_HEIGHT;
+        self.fire_area
+            .set((area.width, if burns { area.height } else { 0 }));
+        if burns {
+            self.fire.underlay(area, frame.buffer_mut());
+            self.render_shout(frame, body);
+        }
     }
 
-    /// O fogo e, no grito de gol, o GOL! piscando por cima.
-    fn render_fire(&self, frame: &mut Frame<'_>, area: Rect) {
-        if area.height == 0 {
+    /// No grito de gol, o GOL! piscando por cima do fogo, perto do rodapé.
+    fn render_shout(&self, frame: &mut Frame<'_>, area: Rect) {
+        let dark = (self.flash / BLINK_EVERY).is_multiple_of(2);
+        if self.flash == 0 || dark || area.height < 3 {
             return;
         }
-        frame.render_widget(&self.fire, area);
-        // Pisca: dois passos aceso, dois apagado.
-        if self.flash > 0 && (self.flash / 2) % 2 == 1 {
-            let shout = self.voice.goal_shout();
-            let [_, middle, _] = Layout::vertical([
-                Constraint::Fill(1),
-                Constraint::Length(1),
-                Constraint::Fill(1),
-            ])
-            .areas(area);
-            frame.render_widget(
-                Paragraph::new(Line::styled(shout, theme::shout())).centered(),
-                middle,
-            );
-        }
+        let line = Rect {
+            y: area.bottom() - 2,
+            height: 1,
+            ..area
+        };
+        let shout = Line::styled(self.voice.goal_shout(), theme::shout());
+        frame.render_widget(Paragraph::new(shout).centered(), line);
     }
 
     /// O nome do app e as abas, com uma linha embaixo.
@@ -513,7 +548,9 @@ impl App {
 
     /// A ajuda, numa caixa por cima da tela.
     fn render_help(&self, frame: &mut Frame<'_>, area: Rect) {
-        let rows = self.voice.help(self.tab, self.card.is_some());
+        let rows = self
+            .voice
+            .help(self.tab, self.card.is_some(), self.animation);
         let key_width = rows
             .iter()
             .map(|(key, _)| key.chars().count())
@@ -542,7 +579,7 @@ impl App {
                 format!(" {} ", self.voice.help_title()),
                 theme::heading(),
             ))
-            .style(theme::base());
+            .style(theme::surface());
         frame.render_widget(Clear, popup);
         frame.render_widget(Paragraph::new(lines).block(block), popup);
     }
@@ -674,73 +711,136 @@ pub(crate) mod tests {
         assert_eq!(app.tab, Tab::Museum);
     }
 
-    /// O app com o fogo ligado, no dia de exemplo.
-    fn burning() -> (App, MemoryLedger) {
+    /// O app com o fogo ligado e acordado, no dia de exemplo, e o instante
+    /// em que ele acordou.
+    fn burning() -> (App, MemoryLedger, Instant) {
         let mut app = new_app(Voice::Game);
         app.animation = Animation::On;
-        (app, crate::today::tests::example_day())
+        let now = Instant::now();
+        app.wake(now);
+        (app, crate::today::tests::example_day(), now)
     }
 
     #[test]
-    fn the_fire_burns_in_the_footer() {
-        let (mut app, ledger) = burning();
-        // O primeiro quadro mede a faixa; os passos acendem o fogo.
+    fn the_fire_burns_behind_the_screen() {
+        let (mut app, ledger, now) = burning();
+        // O primeiro quadro mede a tela; os passos acendem o fogo.
         draw(&app, &ledger, 60, 18);
-        for _ in 0..30 {
-            app.tick(&ledger);
+        assert_eq!(app.fire_area.get(), (60, 18));
+        for _ in 0..40 {
+            app.tick(&ledger, now);
         }
         let screen = draw(&app, &ledger, 60, 18);
         assert!(screen.contains('▀'), "{screen}");
+        // O fogo passa por trás: o que estava escrito continua escrito.
+        assert!(screen.contains("vamo_fogao"), "{screen}");
+        assert!(screen.contains(app.voice.hints()), "{screen}");
         assert_snapshot!(screen);
     }
 
     #[test]
     fn a_short_terminal_has_no_fire() {
-        let (mut app, ledger) = burning();
+        let (mut app, ledger, now) = burning();
         draw(&app, &ledger, 60, 12);
         assert_eq!(app.fire_area.get(), (60, 0));
-        app.tick(&ledger);
+        app.tick(&ledger, now);
         assert!(!draw(&app, &ledger, 60, 12).contains('▀'));
     }
 
     #[test]
     fn a_goal_shouts_over_the_fire() {
-        let (mut app, mut ledger) = burning();
+        let (mut app, mut ledger, now) = burning();
         draw(&app, &ledger, 60, 18);
         // O cursor começa na primeira tarefa do dia que ainda não foi feita?
         // Não importa: desce até a T-002, que está em aberto.
         app.on_key(key(KeyCode::Char('j')), &mut ledger);
         app.on_key(key(KeyCode::Char(' ')), &mut ledger);
         assert_eq!(app.flash, FLASH_STEPS);
+        // O grito termina mesmo que ninguém mexa mais: o gol mantém o fogo
+        // acordado depois dos 3 segundos.
+        let later = now + IDLE * 2;
+        assert!(app.animating(later));
         let mut shouted = false;
         for _ in 0..FLASH_STEPS {
-            app.tick(&ledger);
+            app.tick(&ledger, later);
             shouted |= draw(&app, &ledger, 60, 18).contains("G O O O L !");
         }
         assert!(shouted);
         assert_eq!(app.flash, 0);
+        assert!(!app.animating(later));
         assert!(!draw(&app, &ledger, 60, 18).contains("G O O O L !"));
     }
 
     #[test]
-    fn the_fire_stops_when_the_window_hides_or_the_animation_is_off() {
-        let (mut app, ledger) = burning();
+    fn the_fire_sleeps_after_three_idle_seconds_and_any_move_wakes_it() {
+        let (mut app, ledger, now) = burning();
         draw(&app, &ledger, 60, 18);
-        app.tick(&ledger);
-        assert!(app.animating());
+        assert!(app.animating(now + Duration::from_secs(2)));
+        let later = now + Duration::from_secs(4);
+        assert!(!app.animating(later));
+        // Dormindo, o fogo fica como estava, e continua na tela.
+        app.tick(&ledger, now);
+        let before = app.fire.clone();
+        app.tick(&ledger, later);
+        assert_eq!(app.fire, before);
+        assert!(draw(&app, &ledger, 60, 18).contains('▀'));
+
+        app.wake(later);
+        assert!(app.animating(later));
+        app.tick(&ledger, later);
+        assert_ne!(app.fire, before);
+    }
+
+    #[test]
+    fn a_click_stokes_the_fire() {
+        let (mut app, ledger, now) = burning();
+        // Antes do primeiro quadro, o fogo não tem tamanho: o clique passa.
+        app.on_click(30, 5);
+        draw(&app, &ledger, 60, 18);
+        app.tick(&ledger, now);
+        let before = app.fire.clone();
+        app.on_click(30, 5);
+        assert_ne!(app.fire, before);
+        // O clique acende um círculo lá no alto, longe da brasa.
+        let row = draw(&app, &ledger, 60, 18)
+            .lines()
+            .nth(5)
+            .unwrap()
+            .to_owned();
+        assert!(row.contains('▀'), "{row}");
+    }
+
+    #[test]
+    fn the_help_teaches_the_click_only_with_the_fire_on() {
+        let (mut app, mut ledger, _) = burning();
+        app.on_key(key(KeyCode::Char('?')), &mut ledger);
+        assert!(draw(&app, &ledger, 70, 18).contains("atiça o fogo"));
+        app.animation = Animation::Off;
+        assert!(!draw(&app, &ledger, 70, 18).contains("atiça o fogo"));
+    }
+
+    #[test]
+    fn the_fire_stops_when_the_window_hides_or_the_animation_is_off() {
+        let (mut app, ledger, now) = burning();
+        draw(&app, &ledger, 60, 18);
+        app.tick(&ledger, now);
+        assert!(app.animating(now));
 
         app.set_window(Window::Hidden);
-        assert!(!app.animating());
+        assert!(!app.animating(now));
         let before = app.fire.clone();
-        app.tick(&ledger);
+        app.tick(&ledger, now);
         assert_eq!(app.fire, before);
 
         app.set_window(Window::Visible);
         app.animation = Animation::Off;
-        assert!(!app.animating());
-        app.tick(&ledger);
+        assert!(!app.animating(now));
+        app.tick(&ledger, now);
         assert_eq!(app.fire, before);
         assert!(!draw(&app, &ledger, 60, 18).contains('▀'));
+        // Sem animação, o clique também não acende nada.
+        app.on_click(30, 5);
+        assert_eq!(app.fire, before);
     }
 
     #[test]

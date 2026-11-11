@@ -11,6 +11,7 @@ use jiff::civil::Weekday;
 use vamo_acervo::{Banter, Curiosity, Tag};
 use vamo_core::{Change, NotebookTitle, TaskId};
 
+use crate::Animation;
 use crate::app::Tab;
 use crate::museum::Shelf;
 use crate::today::Group;
@@ -492,8 +493,14 @@ impl Voice {
         }
     }
 
-    /// As linhas da ajuda: as teclas da tela aberta e as de sempre.
-    pub(crate) fn help(self, tab: Tab, card: bool) -> Vec<(&'static str, &'static str)> {
+    /// As linhas da ajuda: as teclas da tela aberta e as de sempre. Com a
+    /// animação ligada, entra também o clique que atiça o fogo.
+    pub(crate) fn help(
+        self,
+        tab: Tab,
+        card: bool,
+        animation: Animation,
+    ) -> Vec<(&'static str, &'static str)> {
         let back_to_bench = self.pick(
             "tira do dia e devolve pro banco",
             "tira do dia e devolve pra lista",
@@ -568,6 +575,9 @@ impl Voice {
             ("?", "abre e fecha esta ajuda"),
             ("q, ctrl+c", self.pick("encerra a partida", "sai")),
         ]);
+        if animation == Animation::On {
+            rows.push(("clique", "atiça o fogo do fundo"));
+        }
         rows
     }
 }
