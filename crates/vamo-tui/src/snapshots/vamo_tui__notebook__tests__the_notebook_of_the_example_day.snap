@@ -1,0 +1,16 @@
+---
+source: crates/vamo-tui/src/notebook.rs
+expression: "draw(&app, &ledger, 60, 12)"
+---
+" vamo_fogao   1 Hoje  2 Caderno  3 Banco  4 Museu           "
+"────────────────────────────────────────────────────────────"
+"                                                            "
+" Caderno · 11/11                                            "
+"                                                            "
+"   - Trocar o filtro da água ✓                              "
+"   - Revisar o capítulo dois                                "
+"   - Pagar a conta de luz                                   "
+"                                                            "
+"   - Beber dois litros d'água ✓                             "
+"                                                            "
+"tab troca de tela · ? ajuda · q encerra a partida           "

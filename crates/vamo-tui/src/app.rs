@@ -13,12 +13,16 @@ use ratatui::widgets::{Block, Borders, Clear, Paragraph};
 
 use jiff::civil::Date;
 
+use jiff::tz::TimeZone;
 use ratatui::style::Style;
-use vamo_core::{Change, TaskId};
+use vamo_core::{Change, Fit, NotebookTitle, Status, TaskId};
 
+use crate::bench::Bench;
 use crate::curiosity::Acervo;
+use crate::prompt::{Prompt, Purpose, Step};
 use crate::today::Today;
-use crate::{Ledger, Setup, Voice, theme};
+use crate::when::parse_day;
+use crate::{Ledger, Setup, Voice, card, notebook, theme};
 
 /// O que aconteceu depois de uma ação de quem usa.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -27,6 +31,8 @@ pub(crate) enum Feedback {
     Done,
     /// A mudança foi gravada e foi gol: a tarefa ficou concluída.
     Goal,
+    /// A mudança foi gravada, com um recado pro rodapé.
+    Note(String),
     /// Não deu: a regra não deixou ou a gravação falhou. A mensagem vai pro
     /// rodapé, em amarelo plasma.
     Refused(String),
@@ -92,17 +98,35 @@ impl Tab {
     }
 }
 
+/// O que uma tecla numa tela pede pro app fazer.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) enum Action {
+    /// Mostrar o resultado de uma mudança.
+    Feedback(Feedback),
+    /// Abrir a Ficha da tarefa.
+    Open(TaskId),
+    /// Fechar a Ficha.
+    Close,
+    /// Abrir a linha de digitar.
+    Ask(Prompt),
+}
+
 /// O estado da TUI.
 #[derive(Debug)]
 pub(crate) struct App {
     voice: Voice,
     acervo: Acervo,
+    zone: TimeZone,
     /// O dia de hoje, na hora local. Quem roda a TUI atualiza a cada quadro.
     today: Date,
     tab: Tab,
     /// Se o quadro da curiosidade mostra a resenha no lugar do fato.
     banter: bool,
     today_screen: Today,
+    bench: Bench,
+    /// A tarefa com a Ficha aberta, por cima do Banco.
+    card: Option<TaskId>,
+    prompt: Option<Prompt>,
     message: Option<Message>,
     help: bool,
     quit: bool,
@@ -113,10 +137,14 @@ impl App {
         Self {
             voice: setup.voice,
             acervo: setup.acervo,
+            zone: setup.time_zone,
             today,
             tab: Tab::Today,
             banter: false,
             today_screen: Today::default(),
+            bench: Bench::default(),
+            card: None,
+            prompt: None,
             message: None,
             help: false,
             quit: false,
@@ -142,6 +170,20 @@ impl App {
             self.quit = true;
             return;
         }
+        // Com a linha de digitar aberta, as teclas são texto.
+        if let Some(prompt) = &mut self.prompt {
+            match prompt.on_key(key) {
+                Step::Typing => {}
+                Step::Cancel => self.prompt = None,
+                Step::Submit => {
+                    if let Some(prompt) = self.prompt.take() {
+                        let feedback = self.submit(prompt, ledger);
+                        self.show(Some(feedback));
+                    }
+                }
+            }
+            return;
+        }
         // Com a ajuda aberta, qualquer tecla só fecha a ajuda.
         if self.help {
             self.help = false;
@@ -151,29 +193,125 @@ impl App {
             KeyCode::Char('q') => self.quit = true,
             KeyCode::Char('?') => self.help = true,
             KeyCode::Char('r') => self.banter = !self.banter,
-            KeyCode::Tab => self.tab = self.tab.next(),
-            KeyCode::BackTab => self.tab = self.tab.previous(),
+            KeyCode::Tab => self.go_to(self.tab.next()),
+            KeyCode::BackTab => self.go_to(self.tab.previous()),
             KeyCode::Char(digit @ '1'..='4') => {
                 let index = usize::from(digit as u8 - b'1');
-                self.tab = Tab::ALL[index];
+                self.go_to(Tab::ALL[index]);
             }
             _ => {
-                let feedback = match self.tab {
-                    Tab::Today => self.today_screen.on_key(key, ledger, self.today),
+                let action = match (self.tab, self.card) {
+                    (Tab::Bench, Some(id)) => match ledger.projection().task(id) {
+                        Some(task) => card::on_key(key, &task, ledger, self.today),
+                        None => Some(Action::Close),
+                    },
+                    (Tab::Bench, None) => self.bench.on_key(key, ledger, self.today),
+                    (Tab::Today, _) => self.today_screen.on_key(key, ledger, self.today),
                     _ => None,
                 };
-                self.show(feedback, ledger);
+                self.act(action);
+            }
+        }
+    }
+
+    /// Troca de aba, fechando a Ficha.
+    fn go_to(&mut self, tab: Tab) {
+        self.tab = tab;
+        self.card = None;
+    }
+
+    /// Faz o que a tela pediu.
+    fn act(&mut self, action: Option<Action>) {
+        match action {
+            None => {}
+            Some(Action::Feedback(feedback)) => self.show(Some(feedback)),
+            Some(Action::Open(id)) => self.card = Some(id),
+            Some(Action::Close) => self.card = None,
+            Some(Action::Ask(prompt)) => self.prompt = Some(prompt),
+        }
+    }
+
+    /// Confirma o que foi digitado. A validação é a dos tipos do domínio:
+    /// um título fora do padrão do caderno nem vira mudança.
+    fn submit<L: Ledger>(&mut self, prompt: Prompt, ledger: &mut L) -> Feedback {
+        let text = prompt.text.trim();
+        let projection = ledger.projection();
+        match prompt.purpose {
+            Purpose::Filter => {
+                self.bench.set_filter(text);
+                Feedback::Done
+            }
+            Purpose::NewTask => {
+                let created = text.parse::<NotebookTitle>().and_then(|title| {
+                    let id = projection
+                        .next_id()
+                        .ok_or(vamo_core::Error::UnknownTask { id: TaskId::FIRST })?;
+                    Ok((id, title))
+                });
+                match created {
+                    Ok((id, title)) => {
+                        let change = Change::Created {
+                            title: title.clone(),
+                            area: "geral".parse().expect("`geral` é uma área válida"),
+                            fit: Fit::Gap,
+                            status: Status::Ready,
+                        };
+                        match record(ledger, id, Ok(vec![change])) {
+                            Feedback::Done => Feedback::Note(self.voice.added(id, &title)),
+                            other => other,
+                        }
+                    }
+                    Err(error) => Feedback::Refused(error.to_string()),
+                }
+            }
+            Purpose::Title(id) => {
+                let change = text.parse().map(|title| vec![Change::Title(title)]);
+                record(ledger, id, change)
+            }
+            Purpose::Area(id) => {
+                let change = text.parse().map(|area| vec![Change::Area(area)]);
+                record(ledger, id, change)
+            }
+            Purpose::Notes(id) => record(ledger, id, Ok(vec![Change::Notes(text.to_owned())])),
+            Purpose::Day(id) => match parse_day(text, self.today) {
+                Ok(day) => {
+                    let changes = projection.schedule(id, day);
+                    record(ledger, id, changes)
+                }
+                Err(message) => Feedback::Refused(message),
+            },
+            Purpose::Status(id, options) => {
+                let chosen = text
+                    .parse::<usize>()
+                    .ok()
+                    .and_then(|n| n.checked_sub(1))
+                    .and_then(|index| options.get(index).copied());
+                match chosen {
+                    Some(status) => {
+                        let change = projection
+                            .status_change(id, status)
+                            .map(|change| vec![change]);
+                        record(ledger, id, change)
+                    }
+                    None => Feedback::Refused(format!(
+                        "`{text}` não é uma das opções: digite o número do status"
+                    )),
+                }
             }
         }
     }
 
     /// Mostra no rodapé o que aconteceu.
-    fn show<L: Ledger>(&mut self, feedback: Option<Feedback>, _ledger: &L) {
+    fn show(&mut self, feedback: Option<Feedback>) {
         self.message = match feedback {
             None | Some(Feedback::Done) => None,
             Some(Feedback::Goal) => Some(Message {
                 text: self.voice.goal("a tarefa está no placar"),
                 style: theme::success(),
+            }),
+            Some(Feedback::Note(text)) => Some(Message {
+                text,
+                style: theme::soft(),
             }),
             Some(Feedback::Refused(text)) => Some(Message {
                 text,
@@ -196,9 +334,14 @@ impl App {
 
         self.render_header(frame, header);
         self.render_body(frame, body, ledger);
-        let footer_line = match &self.message {
-            Some(message) => Line::styled(message.text.clone(), message.style),
-            None => Line::styled(self.voice.hints(), theme::muted()),
+        let footer_line = match (&self.prompt, &self.message) {
+            (Some(prompt), _) => Line::from(vec![
+                Span::styled(prompt.label(self.voice), theme::selected()),
+                Span::styled(prompt.text.clone(), theme::base()),
+                Span::styled("▏", theme::selected()),
+            ]),
+            (None, Some(message)) => Line::styled(message.text.clone(), message.style),
+            (None, None) => Line::styled(self.voice.hints(), theme::muted()),
         };
         frame.render_widget(Paragraph::new(footer_line), footer);
 
@@ -233,17 +376,25 @@ impl App {
     /// O miolo da tela atual.
     fn render_body<L: Ledger>(&self, frame: &mut Frame<'_>, area: Rect, ledger: &L) {
         let area = area.inner(ratatui::layout::Margin::new(1, 1));
+        let projection = ledger.projection();
         match self.tab {
             Tab::Today => self.today_screen.render(
                 frame,
                 area,
-                ledger.projection(),
+                projection,
                 self.today,
                 &self.acervo,
                 self.banter,
                 self.voice,
             ),
-            tab => frame.render_widget(
+            Tab::Notebook => notebook::render(frame, area, projection, self.today, self.voice),
+            Tab::Bench => match self.card.and_then(|id| projection.task(id)) {
+                Some(task) => {
+                    card::render(frame, area, &task, ledger.events(), &self.zone, self.voice);
+                }
+                None => self.bench.render(frame, area, projection, self.voice),
+            },
+            tab @ Tab::Museum => frame.render_widget(
                 Paragraph::new(Line::styled(self.voice.tab(tab), theme::heading())),
                 area,
             ),
@@ -252,7 +403,7 @@ impl App {
 
     /// A ajuda, numa caixa por cima da tela.
     fn render_help(&self, frame: &mut Frame<'_>, area: Rect) {
-        let rows = self.voice.help();
+        let rows = self.voice.help(self.tab, self.card.is_some());
         let key_width = rows
             .iter()
             .map(|(key, _)| key.chars().count())
@@ -361,6 +512,7 @@ pub(crate) mod tests {
             Setup {
                 voice,
                 acervo: acervo(),
+                time_zone: TimeZone::UTC,
             },
             today(),
         )

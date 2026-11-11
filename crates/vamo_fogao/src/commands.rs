@@ -45,6 +45,7 @@ pub(crate) fn run(command: Command, voice: Voice) -> Result<String> {
             let setup = vamo_tui::Setup {
                 voice: voice.into(),
                 acervo: vamo_tui::Acervo { facts, banter },
+                time_zone: TimeZone::system(),
             };
             vamo_tui::run(&mut session, setup).wrap_err("a TUI não conseguiu usar o terminal")?;
             Ok(String::new())

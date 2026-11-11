@@ -15,11 +15,16 @@
 //! terminal de mentira e comparam com um snapshot.
 
 mod app;
+mod bench;
+mod card;
 mod curiosity;
 mod ledger;
+mod notebook;
+mod prompt;
 mod theme;
 mod today;
 mod voice;
+mod when;
 
 use std::io;
 
@@ -31,12 +36,14 @@ pub use ledger::Ledger;
 pub use voice::Voice;
 
 /// O que a TUI recebe pra começar.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Setup {
     /// A linguagem da interface.
     pub voice: Voice,
     /// O acervo, pra curiosidade do dia e o Museu.
     pub acervo: Acervo,
+    /// O fuso dos horários da súmula. No app, o do sistema.
+    pub time_zone: jiff::tz::TimeZone,
 }
 
 /// Abre a TUI no terminal e só volta quando quem usa sai.

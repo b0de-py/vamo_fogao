@@ -9,7 +9,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
 use vamo_core::{Lineup, Projection, Status, Task};
 
-use crate::app::{Feedback, record};
+use crate::app::{Action, Feedback, record};
 use crate::curiosity::{self, Acervo};
 use crate::{Ledger, Voice, theme};
 
@@ -41,6 +41,15 @@ fn rows(lineup: &Lineup) -> Vec<(Group, &Task)> {
 impl Today {
     /// Reage a uma tecla da tela.
     pub(crate) fn on_key<L: Ledger>(
+        &mut self,
+        key: KeyEvent,
+        ledger: &mut L,
+        today: Date,
+    ) -> Option<Action> {
+        self.feedback(key, ledger, today).map(Action::Feedback)
+    }
+
+    fn feedback<L: Ledger>(
         &mut self,
         key: KeyEvent,
         ledger: &mut L,
@@ -244,7 +253,7 @@ fn weekday(day: Weekday) -> &'static str {
 }
 
 #[cfg(test)]
-mod tests {
+pub(crate) mod tests {
     use insta::assert_snapshot;
     use vamo_core::Fit;
 

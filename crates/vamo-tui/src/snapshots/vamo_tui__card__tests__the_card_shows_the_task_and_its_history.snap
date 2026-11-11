@@ -1,0 +1,22 @@
+---
+source: crates/vamo-tui/src/card.rs
+expression: "draw(&app, &ledger, 80, 18)"
+---
+" vamo_fogao   1 Hoje  2 Caderno  3 Banco  4 Museu                               "
+"────────────────────────────────────────────────────────────────────────────────"
+"                                                                                "
+" T-001 Trocar o filtro da água                                                  "
+"                                                                                "
+" área     casa                                                                  "
+" encaixe  brecha                                                                "
+" status   pronta                                                                "
+" dia      -                                                                     "
+" notas    O refil está na gaveta.                                               "
+"                                                                                "
+" Súmula                                                                         "
+" 11/11 10:00  notebook  entrou no banco: Trocar o filtro da água (casa, brecha, "
+" pronta)                                                                        "
+" 11/11 10:00  notebook  notas: O refil está na gaveta.                          "
+"                                                                                "
+"                                                                                "
+"tab troca de tela · ? ajuda · q encerra a partida                               "
