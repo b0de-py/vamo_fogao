@@ -113,6 +113,16 @@ impl Voice {
         }
     }
 
+    /// O título do Museu.
+    pub(crate) fn museum_title(self) -> &'static str {
+        "Museu"
+    }
+
+    /// O selo do fato que aconteceu neste dia.
+    pub(crate) fn on_this_day_badge(self) -> &'static str {
+        "Neste dia"
+    }
+
     /// O título do Caderno.
     pub(crate) fn notebook_title(self) -> &'static str {
         "Caderno"
@@ -272,7 +282,12 @@ impl Voice {
                 ("b", "tira do dia e devolve pro banco"),
                 ("r", "troca a curiosidade pela resenha, e volta"),
             ],
-            (Tab::Notebook | Tab::Museum, _) => vec![],
+            (Tab::Notebook, _) => vec![],
+            (Tab::Museum, _) => vec![
+                ("j, k, setas", "sobe e desce na lista"),
+                ("o", "ordena por data ou por tema"),
+                ("z", "mostra a resenha, e volta pros fatos"),
+            ],
             (Tab::Bench, false) => {
                 let mut rows = vec![
                     ("j, k, setas", "sobe e desce na lista"),

@@ -114,11 +114,7 @@ pub fn curiosity_of_the_day(facts: &[Fact], today: Day) -> Option<Curiosity<'_>>
     let on_this_day: Vec<&Fact> = verified
         .iter()
         .copied()
-        .filter(|fact| {
-            fact.date().is_some_and(|date| {
-                date.month() == Some(today.month) && date.day() == Some(today.date)
-            })
-        })
+        .filter(|fact| happened_on(fact, today))
         .collect();
     if !on_this_day.is_empty() {
         let index = usize::from(today.year) % on_this_day.len();
@@ -126,6 +122,13 @@ pub fn curiosity_of_the_day(facts: &[Fact], today: Day) -> Option<Curiosity<'_>>
     }
 
     rotation(&verified, today).map(Curiosity::Drawn)
+}
+
+/// Se o fato aconteceu neste mesmo dia e mês, em qualquer ano: o "Neste
+/// dia". Fato sem dia na data nunca é.
+pub fn happened_on(fact: &Fact, today: Day) -> bool {
+    fact.date()
+        .is_some_and(|date| date.month() == Some(today.month) && date.day() == Some(today.date))
 }
 
 /// A zoeira do dia, no mesmo rodízio da curiosidade. `None` com a resenha

@@ -19,6 +19,7 @@ mod bench;
 mod card;
 mod curiosity;
 mod ledger;
+mod museum;
 mod notebook;
 mod prompt;
 mod theme;

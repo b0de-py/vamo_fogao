@@ -19,6 +19,7 @@ use vamo_core::{Change, Fit, NotebookTitle, Status, TaskId};
 
 use crate::bench::Bench;
 use crate::curiosity::Acervo;
+use crate::museum::Museum;
 use crate::prompt::{Prompt, Purpose, Step};
 use crate::today::Today;
 use crate::when::parse_day;
@@ -124,6 +125,7 @@ pub(crate) struct App {
     banter: bool,
     today_screen: Today,
     bench: Bench,
+    museum: Museum,
     /// A tarefa com a Ficha aberta, por cima do Banco.
     card: Option<TaskId>,
     prompt: Option<Prompt>,
@@ -143,6 +145,7 @@ impl App {
             banter: false,
             today_screen: Today::default(),
             bench: Bench::default(),
+            museum: Museum::default(),
             card: None,
             prompt: None,
             message: None,
@@ -207,7 +210,11 @@ impl App {
                     },
                     (Tab::Bench, None) => self.bench.on_key(key, ledger, self.today),
                     (Tab::Today, _) => self.today_screen.on_key(key, ledger, self.today),
-                    _ => None,
+                    (Tab::Museum, _) => {
+                        self.museum.on_key(key, &self.acervo);
+                        None
+                    }
+                    (Tab::Notebook, _) => None,
                 };
                 self.act(action);
             }
@@ -394,10 +401,9 @@ impl App {
                 }
                 None => self.bench.render(frame, area, projection, self.voice),
             },
-            tab @ Tab::Museum => frame.render_widget(
-                Paragraph::new(Line::styled(self.voice.tab(tab), theme::heading())),
-                area,
-            ),
+            Tab::Museum => self
+                .museum
+                .render(frame, area, &self.acervo, self.today, self.voice),
         }
     }
 
@@ -488,7 +494,7 @@ pub(crate) mod tests {
         let facts = vec![
             vamo_acervo::Fact::from_toml(
                 "goleada-de-teste",
-                &format!("texto = \"Uma goleada inventada pros testes.\"\ndata = \"1950-11-11\"\nstatus = \"verificado\"\n{both}"),
+                &format!("texto = \"Uma goleada inventada pros testes.\"\ndata = \"1950-11-11\"\nstatus = \"verificado\"\ntags = [\"adversario:time-de-teste\"]\n{both}"),
             )
             .unwrap(),
             vamo_acervo::Fact::from_toml(
