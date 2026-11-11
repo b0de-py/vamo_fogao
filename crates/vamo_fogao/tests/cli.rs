@@ -53,7 +53,7 @@ fn unknown_option_is_a_usage_error() {
     let out = vamo(&["--chute"]);
 
     assert_eq!(out.status.code(), Some(2));
-    assert!(out.stdout.is_empty());
+    assert_eq!(text(out.stdout), "");
     assert!(text(out.stderr).starts_with("vamo: opção desconhecida: --chute\n"));
 }
 

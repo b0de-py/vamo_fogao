@@ -1,0 +1,9 @@
+# A formatação do projeto é a padrão do rustfmt, com poucos ajustes. O
+# `cargo fmt` lê este arquivo; o hook do Claude Code e a CI também.
+
+# A mesma edição do Cargo.toml, pra quem rodar o `rustfmt` direto num arquivo.
+edition = "2024"
+# Quebra de linha Unix, pra diff limpo entre máquinas.
+newline_style = "Unix"
+# `Task { title: title }` vira `Task { title }`.
+use_field_init_shorthand = true

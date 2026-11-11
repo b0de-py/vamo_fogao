@@ -1,0 +1,10 @@
+# Ajustes do clippy. Os lints em si ficam em [workspace.lints] no Cargo.toml.
+
+# Em teste, `unwrap` e `expect` são bem-vindos: falhar alto é o que se quer.
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+
+# Palavras que a doc pode escrever sem crase (o lint `doc_markdown` acha que
+# palavra com maiúscula no meio ou com `_` é código). O ".." mantém a lista
+# padrão do clippy e só acrescenta estas.
+doc-valid-idents = ["..", "SQLite", "iCal", "mdBook", "vamo_fogao"]

@@ -29,3 +29,31 @@ vamo-mcp = { path = "crates/vamo-mcp" }
 vamo-store = { path = "crates/vamo-store" }
 vamo-sync = { path = "crates/vamo-sync" }
 vamo-tui = { path = "crates/vamo-tui" }
+
+# As regras de qualidade que valem em todo crate (cada um herda com
+# `[lints] workspace = true`). Na CI, todo aviso vira erro.
+[workspace.lints.rust]
+# Nada de `unsafe`: o projeto não precisa, e `forbid` não deixa nem um
+# `#[allow]` local abrir exceção.
+unsafe_code = "forbid"
+# Todo item público tem doc. É a doc que o livro e o `cargo doc` mostram.
+missing_docs = "warn"
+# `pub` que ninguém de fora alcança deveria ser `pub(crate)`.
+unreachable_pub = "warn"
+# Idiomas do Rust moderno (lifetimes explícitas em `impl`, `dyn Trait` etc.).
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+[workspace.lints.clippy]
+# O grupo pedante inteiro: mais exigente que o padrão, e é de propósito.
+pedantic = { level = "warn", priority = -1 }
+# Do pedante, só este fica de fora: `#[must_use]` vai onde ignorar o retorno
+# é bug de verdade, não em toda função pura.
+must_use_candidate = "allow"
+# Fora de teste, erro se trata com `?` e tipo de erro, nunca com `unwrap`.
+unwrap_used = "deny"
+# Restos de depuração e código pela metade não entram na main.
+dbg_macro = "deny"
+todo = "deny"
+unimplemented = "deny"
+# Todo `#[allow]` precisa dizer por quê: `#[allow(lint, reason = "...")]`.
+allow_attributes_without_reason = "warn"
