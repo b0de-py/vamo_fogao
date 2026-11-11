@@ -5,5 +5,5 @@
 //! Também lê e escreve o rodapé que liga um evento a uma tarefa:
 //!
 //! ```text
-//! vamo: T-041 | Ligar na fisio | saúde | brecha
+//! vamo: T-041 | Trocar o filtro da água | casa | brecha
 //! ```
