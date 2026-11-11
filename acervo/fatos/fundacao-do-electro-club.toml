@@ -1,0 +1,12 @@
+texto = "Dois adolescentes, Flávio Ramos e Emmanuel Sodré, fundam o Electro Club, que logo vira Botafogo Football Club."
+data = "1904-08-12"
+status = "a-conferir"
+notas = "O Lance! só confirma o ano. Falta uma segunda fonte pro dia e pros nomes dos fundadores."
+
+[[fontes]]
+nome = "Wikipédia em inglês: History of Botafogo FR"
+url = "https://en.wikipedia.org/wiki/History_of_Botafogo_FR"
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/futebol-nacional/nome-botafogo-historia-origem.html"

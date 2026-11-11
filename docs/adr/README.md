@@ -8,6 +8,7 @@ Cada escolha que muda o jeito do projeto ganha um registro curto: o contexto, a 
 | [0002](0002-arquitetura-hexagonal-em-workspace.md) | Arquitetura hexagonal num workspace Cargo | aceita |
 | [0003](0003-licencas.md) | Licenças do código e do acervo | aceita |
 | [0004](0004-log-de-eventos-com-ultimo-que-escreveu-ganha.md) | Log de eventos com "o último que escreveu ganha" por campo | aceita |
+| [0005](0005-acervo-em-toml-com-a-regua-no-validador.md) | Guardar o acervo em TOML, um fato por arquivo, com a régua no validador | aceita |
 
 ## Como escrever uma
 

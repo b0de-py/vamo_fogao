@@ -1,0 +1,9 @@
+texto = "Nasce o Club de Regatas Botafogo, o lado do remo da história do clube."
+data = "1894-07-01"
+status = "a-conferir"
+tags = ["esporte:remo"]
+notas = "Falta a segunda fonte, de preferência um jornal da época na Hemeroteca Digital ou um documento do clube."
+
+[[fontes]]
+nome = "Wikipédia em inglês: History of Botafogo FR"
+url = "https://en.wikipedia.org/wiki/History_of_Botafogo_FR"

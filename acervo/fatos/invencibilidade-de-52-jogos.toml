@@ -1,0 +1,13 @@
+texto = "52 jogos sem perder entre 1977 e 1978, a maior invencibilidade já registrada no futebol brasileiro."
+data = "1977"
+ate = "1978"
+tipo = "recorde"
+status = "verificado"
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/lancepedia/maiores-invencibilidades-da-historia-do-botafogo.html"
+
+[[fontes]]
+nome = "Wikipédia em inglês: History of Botafogo FR"
+url = "https://en.wikipedia.org/wiki/History_of_Botafogo_FR"

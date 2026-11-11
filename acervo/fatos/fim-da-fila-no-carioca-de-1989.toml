@@ -1,0 +1,12 @@
+texto = "1 x 0 no Flamengo, gol de Maurício, e acaba a fila do Botafogo sem título carioca."
+data = "1989-06-21"
+status = "verificado"
+tags = ["titulo:carioca", "adversario:flamengo", "idolo:mauricio"]
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/botafogo/titulo-nova-era-fim-jejum-anos-era-campeao-carioca.html"
+
+[[fontes]]
+nome = "Wikipédia em inglês: History of Botafogo FR"
+url = "https://en.wikipedia.org/wiki/History_of_Botafogo_FR"

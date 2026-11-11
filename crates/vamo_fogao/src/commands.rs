@@ -1,5 +1,5 @@
-//! Os comandos de tarefa. Cada um abre o banco, pede a regra pro core e
-//! devolve o texto pra mostrar; quem imprime é o `main`.
+//! Os comandos do `vamo`. Os de tarefa abrem o banco, pedem a regra pro
+//! core e devolvem o texto pra mostrar; quem imprime é o `main`.
 
 use std::path::Path;
 
@@ -13,14 +13,14 @@ use vamo_core::{
 };
 use vamo_store::Store;
 
-use crate::cli::Command;
+use crate::acervo;
+use crate::cli::{AcervoCommand, Command};
 use crate::import::{self, Plan};
 use crate::messages::Voice;
 use crate::paths;
 
 /// Roda um comando e devolve o que mostrar na saída.
 pub(crate) fn run(command: Command, voice: Voice) -> Result<String> {
-    let mut session = Session::open(voice)?;
     match command {
         Command::Add {
             title,
@@ -28,11 +28,17 @@ pub(crate) fn run(command: Command, voice: Voice) -> Result<String> {
             fit,
             status,
             notes,
-        } => session.add(&title.join(" "), area, fit, status, notes),
-        Command::List { all, area, status } => Ok(session.list(all, area.as_ref(), status)),
-        Command::Done { id } => session.done(id),
-        Command::Show { id } => session.show(id),
-        Command::Import { file, dry_run } => session.import(&file, dry_run),
+        } => Session::open(voice)?.add(&title.join(" "), area, fit, status, notes),
+        Command::List { all, area, status } => {
+            Ok(Session::open(voice)?.list(all, area.as_ref(), status))
+        }
+        Command::Done { id } => Session::open(voice)?.done(id),
+        Command::Show { id } => Session::open(voice)?.show(id),
+        Command::Import { file, dry_run } => Session::open(voice)?.import(&file, dry_run),
+        // O acervo não mexe nas tarefas, então nem abre o banco.
+        Command::Acervo {
+            command: AcervoCommand::Validate { folder },
+        } => acervo::validate(&folder, voice),
     }
 }
 

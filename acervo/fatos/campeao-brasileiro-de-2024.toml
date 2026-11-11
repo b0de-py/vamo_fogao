@@ -1,0 +1,12 @@
+texto = "Campeão brasileiro de 2024: 2 x 1 no São Paulo, no Nilton Santos."
+data = "2024-12-08"
+status = "verificado"
+tags = ["titulo:brasileiro", "adversario:sao-paulo"]
+
+[[fontes]]
+nome = "Itatiaia"
+url = "https://www.itatiaia.com.br/esportes/futebol/futebol-nacional/brasileirao-serie-a/botafogo-vence-o-sao-paulo-e-conquista-o-campeonato-brasileiro-apos-29-anos/"
+
+[[fontes]]
+nome = "A Gazeta"
+url = "https://www.agazeta.com.br/futebol/botafogo-vence-o-sao-paulo-e-conquista-o-tricampeonato-do-brasileirao-1224"

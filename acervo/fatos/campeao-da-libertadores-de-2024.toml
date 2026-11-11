@@ -1,0 +1,12 @@
+texto = "Campeão da Libertadores no Monumental, em Buenos Aires: 3 x 1 no Atlético-MG, com um a menos desde o primeiro minuto."
+data = "2024-11-30"
+status = "verificado"
+tags = ["titulo:libertadores", "adversario:atletico-mg"]
+
+[[fontes]]
+nome = "Trivela"
+url = "https://trivela.com.br/america-do-sul/libertadores/botafogo-monumental-campeao-libertadores-atletico/"
+
+[[fontes]]
+nome = "ESPN"
+url = "https://global.espn.com/soccer/story/_/id/42703010/botafogo-win-first-copa-libertadores-player-sent-30-seconds"

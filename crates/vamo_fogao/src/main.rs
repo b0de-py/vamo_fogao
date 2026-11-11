@@ -4,6 +4,7 @@
 //! (caminhos, relógio, nome da máquina), abre o banco e chama o core. Regra
 //! de negócio não mora aqui.
 
+mod acervo;
 mod cli;
 mod commands;
 mod import;
@@ -29,11 +30,15 @@ fn main() -> ExitCode {
     let cli = match Cli::try_parse() {
         Ok(cli) => cli,
         // `--help` e `--version` chegam como "erro" do clap, mas não são:
-        // ele mostra o texto e sai com sucesso.
+        // ele mostra o texto e sai com sucesso. Um grupo de comandos sem o
+        // comando (`vamo acervo`) mostra a ajuda do grupo e sai com o código
+        // de uso errado.
         Err(error)
             if matches!(
                 error.kind(),
-                ErrorKind::DisplayHelp | ErrorKind::DisplayVersion
+                ErrorKind::DisplayHelp
+                    | ErrorKind::DisplayVersion
+                    | ErrorKind::DisplayHelpOnMissingArgumentOrSubcommand
             ) =>
         {
             error.exit()

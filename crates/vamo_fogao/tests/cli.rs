@@ -19,12 +19,13 @@ impl Vamo {
         }
     }
 
-    /// Roda o `vamo` com os argumentos dados, num ambiente controlado: o
-    /// banco fica na pasta temporária, a máquina se chama `notebook` e o fuso
-    /// é o de Brasília.
+    /// Roda o `vamo` com os argumentos dados, num ambiente controlado: a
+    /// pasta temporária é a casa e o diretório atual, o banco fica nela, a
+    /// máquina se chama `notebook` e o fuso é o de Brasília.
     fn run(&self, args: &[&str]) -> Output {
         Command::new(env!("CARGO_BIN_EXE_vamo"))
             .args(args)
+            .current_dir(self.home.path())
             .env("HOME", self.home.path())
             .env("XDG_DATA_HOME", self.home.path().join("dados"))
             .env("VAMO_MAQUINA", "notebook")
@@ -462,6 +463,146 @@ mod import {
     fn a_file_that_does_not_exist_is_an_error() {
         let stderr = Vamo::new().fails(&["import", "nao-existe.md"], 1);
         assert!(stderr.contains("não deu pra ler o banco antigo em nao-existe.md"));
+    }
+}
+
+mod acervo {
+    use super::*;
+
+    /// Um fato verificado, com duas fontes de domínios diferentes.
+    const VERIFIED: &str = r#"texto = "Um fato verificado."
+status = "verificado"
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/botafogo"
+
+[[fontes]]
+nome = "Trivela"
+url = "https://trivela.com.br/botafogo"
+"#;
+
+    /// Um fato a conferir, com uma fonte só.
+    const TO_CHECK: &str = r#"texto = "Um fato a conferir."
+status = "a-conferir"
+
+[[fontes]]
+nome = "Wikipédia"
+url = "https://pt.wikipedia.org/wiki/Botafogo_de_Futebol_e_Regatas"
+"#;
+
+    const BANTER: &str = "texto = \"Uma zoeira absurda de cara.\"\n";
+
+    impl Vamo {
+        /// Monta um acervo na pasta `acervo` do diretório atual do `vamo`,
+        /// com os arquivos dados (o caminho de cada um conta a partir de
+        /// `acervo`).
+        fn acervo(&self, files: &[(&str, &str)]) {
+            let root = self.home.path().join("acervo");
+            for folder in ["fatos", "resenha"] {
+                std::fs::create_dir_all(root.join(folder))
+                    .expect("a pasta temporária aceita subpastas");
+            }
+            for (path, text) in files {
+                std::fs::write(root.join(path), text).expect("a pasta temporária aceita escrita");
+            }
+        }
+    }
+
+    #[test]
+    fn counts_what_passed() {
+        let vamo = Vamo::new();
+        vamo.acervo(&[
+            ("fatos/um.toml", VERIFIED),
+            ("fatos/dois.toml", VERIFIED),
+            ("fatos/tres.toml", TO_CHECK),
+            ("resenha/zoeira.toml", BANTER),
+        ]);
+
+        assert_eq!(
+            vamo.ok(&["acervo", "validar"]),
+            "O VAR conferiu o acervo: 2 fatos verificados, 1 a conferir e 1 da resenha.\n"
+        );
+        assert_eq!(
+            vamo.ok(&["--linguagem", "neutra", "acervo", "validar"]),
+            "Acervo validado: 2 fatos verificados, 1 a conferir e 1 da resenha.\n"
+        );
+    }
+
+    #[test]
+    fn a_verified_fact_with_a_single_source_fails() {
+        let vamo = Vamo::new();
+        let single = TO_CHECK.replace("a-conferir", "verificado");
+        vamo.acervo(&[("fatos/uma-fonte.toml", &single)]);
+
+        let stderr = vamo.fails(&["acervo", "validar"], 1);
+
+        assert!(
+            stderr.contains("acervo/fatos/uma-fonte.toml: o fato está verificado com uma fonte só"),
+            "{stderr}"
+        );
+    }
+
+    #[test]
+    fn a_record_without_a_date_fails() {
+        let vamo = Vamo::new();
+        let record = VERIFIED.replace("status", "tipo = \"recorde\"\nstatus");
+        vamo.acervo(&[("fatos/recorde.toml", &record)]);
+
+        let stderr = vamo.fails(&["acervo", "validar"], 1);
+
+        assert!(
+            stderr
+                .contains("acervo/fatos/recorde.toml: recorde precisa de data, porque recorde cai"),
+            "{stderr}"
+        );
+    }
+
+    #[test]
+    fn every_problem_is_listed_with_its_file() {
+        let vamo = Vamo::new();
+        let bad_date = VERIFIED.replace("status", "data = \"30/05/1909\"\nstatus");
+        vamo.acervo(&[
+            ("fatos/bom.toml", VERIFIED),
+            ("fatos/data-errada.toml", &bad_date),
+            ("fatos/Maiuscula.toml", VERIFIED),
+            ("fatos/LEIA.md", "nada"),
+            ("fatos/.gitkeep", ""),
+            (
+                "resenha/com-fonte.toml",
+                "texto = \"Zoeira.\"\nfontes = []\n",
+            ),
+        ]);
+
+        insta::assert_snapshot!(vamo.fails(&["acervo", "validar"], 1));
+    }
+
+    #[test]
+    fn a_missing_folder_is_an_error() {
+        let stderr = Vamo::new().fails(&["acervo", "validar", "nao-existe"], 1);
+        assert!(
+            stderr.contains("não deu pra ler a pasta nao-existe/fatos"),
+            "{stderr}"
+        );
+    }
+
+    #[test]
+    fn checking_the_acervo_does_not_touch_the_database() {
+        let vamo = Vamo::new();
+        vamo.acervo(&[("fatos/um.toml", VERIFIED)]);
+
+        vamo.ok(&["acervo", "validar"]);
+
+        assert!(!vamo.database().exists());
+    }
+
+    #[test]
+    fn the_group_without_a_command_shows_its_help() {
+        let out = Vamo::new().run(&["acervo"]);
+
+        assert_eq!(out.status.code(), Some(2));
+        assert_eq!(text(&out.stdout), "");
+        insta::assert_snapshot!(text(&out.stderr));
     }
 }
 

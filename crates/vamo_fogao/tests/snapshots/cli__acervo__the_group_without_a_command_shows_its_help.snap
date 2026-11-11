@@ -1,0 +1,14 @@
+---
+source: crates/vamo_fogao/tests/cli.rs
+expression: text(&out.stderr)
+---
+Cuida do acervo, o museu de bolso com a história do Botafogo
+
+Uso: vamo acervo <COMANDO>
+
+Comandos:
+  validar  Confere cada arquivo do acervo contra a régua: duas fontes independentes no fato verificado, data no recorde e cada campo no formato
+
+Opções:
+      --linguagem <LINGUAGEM>  A linguagem das mensagens: jogo (o padrão) ou neutra
+  -h, --help                   Mostra esta ajuda

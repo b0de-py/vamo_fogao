@@ -32,6 +32,8 @@ $ vamo show 1
 
 O banco fica em `~/.local/share/vamo_fogao/vamo.db`, ou na pasta que o `XDG_DATA_HOME` apontar.
 
+O [acervo](acervo/), com os fatos da história do Botafogo que vão virar a curiosidade do dia, já tem o formato, as primeiras sementes e a régua que a CI confere: fato verificado só com duas fontes independentes.
+
 ## Como compilar
 
 Precisa só do [rustup](https://rustup.rs). A versão do Rust vem do `rust-toolchain.toml` e é instalada sozinha.

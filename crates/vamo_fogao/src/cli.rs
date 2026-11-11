@@ -194,6 +194,45 @@ pub(crate) enum Command {
         #[arg(value_name = "ID", value_parser = parse_task_id, help_heading = "Argumentos")]
         id: TaskId,
     },
+
+    /// Cuida do acervo, o museu de bolso com a história do Botafogo
+    #[command(
+        override_usage = "vamo acervo <COMANDO>",
+        help_template = SUBCOMMAND_HELP_TEMPLATE,
+        subcommand_help_heading = "Comandos",
+        subcommand_value_name = "COMANDO",
+        next_help_heading = "Opções"
+    )]
+    Acervo {
+        /// O que fazer com o acervo.
+        #[command(subcommand)]
+        command: AcervoCommand,
+    },
+}
+
+/// Os comandos do `vamo acervo`.
+#[derive(Debug, Subcommand)]
+pub(crate) enum AcervoCommand {
+    /// Confere cada arquivo do acervo contra a régua: duas fontes
+    /// independentes no fato verificado, data no recorde e cada campo no
+    /// formato
+    #[command(
+        name = "validar",
+        override_usage = "vamo acervo validar [PASTA]",
+        help_template = SUBCOMMAND_HELP_TEMPLATE,
+        next_help_heading = "Opções"
+    )]
+    Validate {
+        /// A pasta do acervo, com as subpastas fatos e resenha (sem ela,
+        /// a pasta acervo daqui)
+        #[arg(
+            value_name = "PASTA",
+            default_value = "acervo",
+            hide_default_value = true,
+            help_heading = "Argumentos"
+        )]
+        folder: PathBuf,
+    },
 }
 
 /// Lê o ID de uma tarefa com um pouco de folga pra quem digita: além de

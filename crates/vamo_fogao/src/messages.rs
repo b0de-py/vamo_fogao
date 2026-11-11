@@ -89,6 +89,19 @@ impl Voice {
         }
     }
 
+    /// Depois de `vamo acervo validar`, quando o acervo inteiro passa.
+    pub(crate) fn acervo_checked(self, verified: usize, to_check: usize, banter: usize) -> String {
+        let facts = match verified {
+            1 => "1 fato verificado".to_owned(),
+            n => format!("{n} fatos verificados"),
+        };
+        let summary = format!("{facts}, {to_check} a conferir e {banter} da resenha");
+        match self {
+            Self::Game => format!("O VAR conferiu o acervo: {summary}."),
+            Self::Neutral => format!("Acervo validado: {summary}."),
+        }
+    }
+
     /// O que vem antes da mensagem de um erro.
     pub(crate) fn error(self) -> &'static str {
         match self {

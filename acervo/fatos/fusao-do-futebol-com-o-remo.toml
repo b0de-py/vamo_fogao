@@ -1,0 +1,12 @@
+texto = "Futebol e remo viram um clube só, o Botafogo de Futebol e Regatas, meses depois da morte de Armando Albano num jogo de basquete entre os dois."
+data = "1942-12-08"
+status = "a-conferir"
+notas = "O Lance! só confirma o ano. Falta uma segunda fonte pro dia e pra história do Armando Albano."
+
+[[fontes]]
+nome = "Wikipédia em inglês: History of Botafogo FR"
+url = "https://en.wikipedia.org/wiki/History_of_Botafogo_FR"
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/futebol-nacional/nome-botafogo-historia-origem.html"
