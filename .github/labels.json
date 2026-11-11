@@ -1,0 +1,67 @@
+[
+  {
+    "name": "épico",
+    "color": "7f007f",
+    "description": "Uma fase inteira, com as tarefas como sub-issues"
+  },
+  {
+    "name": "fase-0",
+    "color": "00d9ff",
+    "description": "Fase 0 · Fundação (Nilton Santos)"
+  },
+  {
+    "name": "fase-1",
+    "color": "00d9ff",
+    "description": "Fase 1 · Núcleo e migração (Didi)"
+  },
+  {
+    "name": "fase-2",
+    "color": "00d9ff",
+    "description": "Fase 2 · TUI (Garrincha)"
+  },
+  {
+    "name": "fase-3",
+    "color": "00d9ff",
+    "description": "Fase 3 · Agenda (Zagallo)"
+  },
+  {
+    "name": "fase-4",
+    "color": "00d9ff",
+    "description": "Fase 4 · Barra, lembretes e dia de jogo (Jairzinho)"
+  },
+  {
+    "name": "fase-5",
+    "color": "00d9ff",
+    "description": "Fase 5 · Resumo e sincronia (Gérson)"
+  },
+  {
+    "name": "fase-6",
+    "color": "00d9ff",
+    "description": "Fase 6 · MCP (Túlio)"
+  },
+  {
+    "name": "fase-7",
+    "color": "00d9ff",
+    "description": "Fase 7 · Pra torcida (Loco Abreu)"
+  },
+  {
+    "name": "extra",
+    "color": "c586c0",
+    "description": "Extra · Monumental"
+  },
+  {
+    "name": "acervo",
+    "color": "ffffff",
+    "description": "O museu de bolso: fatos da história do Botafogo"
+  },
+  {
+    "name": "bug",
+    "color": "ffff00",
+    "description": "Algo não funciona como deveria"
+  },
+  {
+    "name": "dependências",
+    "color": "00008c",
+    "description": "Atualização de dependência pelo Dependabot"
+  }
+]

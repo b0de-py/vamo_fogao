@@ -1,0 +1,38 @@
+# Labels como código: o .github/labels.json é a fonte da verdade. Quando ele
+# muda na main, este workflow cria ou atualiza cada label (cor e descrição)
+# com o `gh` que já vem no runner, sem action de terceiros. Label que sai do
+# arquivo não é apagada aqui: isso fica manual, pra não sumir com label que
+# ainda está em uso.
+name: Labels
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/labels.json
+      - .github/workflows/labels.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  sync:
+    name: Sincronizar
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Criar ou atualizar as labels
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          jq -c '.[]' .github/labels.json | while read -r label; do
+            gh label create "$(jq -r '.name' <<< "$label")" \
+              --repo "$GITHUB_REPOSITORY" \
+              --color "$(jq -r '.color' <<< "$label")" \
+              --description "$(jq -r '.description' <<< "$label")" \
+              --force
+          done
