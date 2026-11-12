@@ -23,3 +23,28 @@ pub(crate) fn config() -> Result<PathBuf> {
         .wrap_err("não achei a pasta pessoal: a variável HOME está definida?")?;
     Ok(base.config_dir().join(APP_DIR).join("config.toml"))
 }
+
+/// A cópia local da agenda, na pasta de cache:
+/// `$XDG_CACHE_HOME/vamo_fogao/agenda.ics`, que na maioria das máquinas é
+/// `~/.cache/vamo_fogao/agenda.ics`. Dá pra apagar: o `vamo sync` baixa de
+/// novo.
+pub(crate) fn agenda_cache() -> Result<PathBuf> {
+    let base = etcetera::choose_base_strategy()
+        .wrap_err("não achei a pasta pessoal: a variável HOME está definida?")?;
+    Ok(base.cache_dir().join(APP_DIR).join("agenda.ics"))
+}
+
+#[cfg(feature = "google")]
+/// A cópia local da agenda do Google, ao lado da do ICS:
+/// `$XDG_CACHE_HOME/vamo_fogao/agenda-google.json`.
+pub(crate) fn google_cache() -> Result<PathBuf> {
+    Ok(agenda_cache()?.with_file_name("agenda-google.json"))
+}
+
+#[cfg(feature = "google")]
+/// O token do Google, na pasta da config e só com permissão pra quem usa:
+/// `$XDG_CONFIG_HOME/vamo_fogao/google-token.json`. Apagar o arquivo
+/// desconecta.
+pub(crate) fn google_token() -> Result<PathBuf> {
+    Ok(config()?.with_file_name("google-token.json"))
+}

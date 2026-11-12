@@ -6,14 +6,14 @@
 
 | Tecla | Tela | O que mostra |
 |-------|------|--------------|
-| `1` | Hoje | A escalação do dia, as atrasadas e as fixas, com o placar e a curiosidade do dia. |
+| `1` | Hoje | A escalação do dia, as atrasadas e as fixas (as do banco e as da agenda), com o placar, a agenda do dia, as brechas e a curiosidade do dia. |
 | `2` | Caderno | As mesmas tarefas como linhas curtas, do jeito de copiar pro caderno de papel. |
 | `3` | Banco | Todas as tarefas em jogo, com filtro. `enter` abre a Ficha da tarefa, com os campos e a súmula. |
 | `4` | Museu | O acervo inteiro, por data ou por tema, e a resenha separada dos fatos. |
 
 `tab` e `shift+tab` andam entre as telas, `?` mostra as teclas da tela aberta e `q` sai. Nas listas, `j` e `k` (ou as setas) sobem e descem.
 
-Na Hoje e no Banco, o espaço conclui a tarefa (gol!) e, numa tarefa já concluída, desfaz (o VAR anulou). Numa fixa, o espaço marca o dia. No Banco, `e` escala pra hoje, `b` devolve pro banco, `x` descarta, `n` cria e `/` filtra por área, status, encaixe ou pedaço do título.
+Na Hoje e no Banco, o espaço conclui a tarefa (gol!) e, numa tarefa já concluída, desfaz (o VAR anulou). Numa fixa, o espaço marca o dia, e numa fixa da agenda também (veja [A agenda](a-agenda.md)). No Banco, `e` escala pra hoje, `b` devolve pro banco, `x` descarta, `n` cria e `/` filtra por área, status, encaixe ou pedaço do título.
 
 ## O fogo alvinegro
 

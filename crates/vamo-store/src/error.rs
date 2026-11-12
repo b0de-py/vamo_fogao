@@ -73,6 +73,16 @@ pub enum Error {
         source: jiff::Error,
     },
 
+    /// O dia de uma marcação da agenda não é um dia válido.
+    #[error("a marcação da agenda do dia `{day}` não tem um dia válido")]
+    InvalidCheckDay {
+        /// O texto guardado.
+        day: String,
+        /// O erro do jiff.
+        #[source]
+        source: jiff::Error,
+    },
+
     /// Uma linha do log é de um tipo de mudança que esta versão não conhece.
     #[error(
         "a linha {seq} do log de eventos é do tipo `{kind}`, que esta versão do vamo não conhece"

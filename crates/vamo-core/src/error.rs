@@ -60,6 +60,20 @@ pub enum Error {
         input: String,
     },
 
+    /// O texto não é uma hora do dia.
+    #[error("`{input}` não é uma hora: escreva como 22:00 ou 22h")]
+    InvalidTime {
+        /// O texto recebido.
+        input: String,
+    },
+
+    /// O texto não é um horário de começo a fim.
+    #[error("`{input}` não é um horário: escreva como 09:00-18:00, com o fim depois do começo")]
+    InvalidTimeRange {
+        /// O texto recebido.
+        input: String,
+    },
+
     /// Não existe tarefa com esse ID.
     #[error("não tem nenhuma tarefa {id}")]
     UnknownTask {

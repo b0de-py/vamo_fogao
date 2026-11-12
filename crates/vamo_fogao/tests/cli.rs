@@ -29,6 +29,7 @@ impl Vamo {
             .env("HOME", self.home.path())
             .env("XDG_DATA_HOME", self.home.path().join("dados"))
             .env("XDG_CONFIG_HOME", self.home.path().join("config"))
+            .env("XDG_CACHE_HOME", self.home.path().join("cache"))
             .env("VAMO_MAQUINA", "notebook")
             .env("TZ", "America/Sao_Paulo")
             .env_remove("VAMO_LINGUAGEM")
@@ -700,5 +701,192 @@ mod curiosidade {
         let vamo = Vamo::new();
         vamo.ok(&["curiosidade"]);
         assert!(!vamo.database().exists());
+    }
+}
+
+mod agenda {
+    use super::*;
+
+    /// Uma agenda de exemplo num arquivo da pasta temporária, ligada na
+    /// config como se fosse o link.
+    fn with_agenda(vamo: &Vamo) {
+        let ics = "BEGIN:VCALENDAR\r\n\
+BEGIN:VEVENT\r\n\
+UID:caminhada@exemplo\r\n\
+DTSTART;TZID=America/Sao_Paulo:20261112T070000\r\n\
+DTEND;TZID=America/Sao_Paulo:20261112T074500\r\n\
+RRULE:FREQ=DAILY\r\n\
+SUMMARY:Caminhada\r\n\
+END:VEVENT\r\n\
+BEGIN:VEVENT\r\n\
+UID:dentista@exemplo\r\n\
+DTSTART:20261112T133000Z\r\n\
+DTEND:20261112T143000Z\r\n\
+SUMMARY:Dentista\r\n\
+END:VEVENT\r\n\
+END:VCALENDAR\r\n";
+        let file = vamo.home.path().join("agenda.ics");
+        std::fs::write(&file, ics).expect("a agenda de exemplo deveria ser gravada");
+        vamo.configure(&format!("[agenda]\nics = \"{}\"\n", file.display()));
+    }
+
+    #[test]
+    fn shows_the_day_in_the_local_time() {
+        let vamo = Vamo::new();
+        with_agenda(&vamo);
+        assert_eq!(
+            vamo.ok(&["agenda", "--data", "2026-11-12"]),
+            "07:00–07:45  Caminhada ↻\n10:30–11:30  Dentista\n"
+        );
+        assert_eq!(
+            vamo.ok(&["agenda", "--data", "2026-11-13"]),
+            "07:00–07:45  Caminhada ↻\n"
+        );
+        // A cópia ficou na pasta de cache.
+        assert!(
+            vamo.home
+                .path()
+                .join("cache/vamo_fogao/agenda.ics")
+                .exists()
+        );
+    }
+
+    #[test]
+    fn the_gaps_of_the_workday_come_with_the_tasks_that_fit() {
+        let vamo = Vamo::new();
+        with_agenda(&vamo);
+        let config =
+            std::fs::read_to_string(vamo.home.path().join("config/vamo_fogao/config.toml"))
+                .expect("a config do teste deveria existir");
+        vamo.configure(&format!("{config}[tempo]\nexpediente = \"06:00-12:00\"\n"));
+        vamo.ok(&["add", "Ligar pro síndico", "--encaixe", "brecha"]);
+        vamo.ok(&["add", "Escrever o relatório", "--encaixe", "foco"]);
+        // Dia 19 é quinta, longe de hoje: a hora de agora não corta brecha.
+        assert_eq!(
+            vamo.ok(&["agenda", "--data", "2026-11-19"]),
+            "07:00–07:45  Caminhada ↻\n\nBrechas:\n\
+             06:00–07:00  T-001 Ligar pro síndico\n\
+             07:45–12:00  T-001 Ligar pro síndico\n"
+        );
+    }
+
+    #[test]
+    fn the_inbox_lists_ready_tasks_without_a_day() {
+        let vamo = Vamo::new();
+        vamo.ok(&[
+            "add",
+            "Ligar pro síndico",
+            "--area",
+            "casa",
+            "--notas",
+            "~20 min",
+        ]);
+        vamo.ok(&["add", "Pensar na viagem", "--status", "ideia"]);
+        insta::assert_snapshot!(vamo.ok(&["caixa"]));
+        insta::assert_snapshot!("caixa_neutra", vamo.ok(&["--linguagem", "neutra", "caixa"]));
+    }
+
+    #[cfg(not(feature = "google"))]
+    #[test]
+    fn the_google_source_needs_the_feature() {
+        let vamo = Vamo::new();
+        vamo.configure("[agenda]\nfonte = \"google\"\n");
+        let error = vamo.fails(&["agenda"], 1);
+        assert!(error.contains("--features google"), "{error}");
+        let error = vamo.fails(&["conectar-google"], 1);
+        assert!(error.contains("--features google"), "{error}");
+    }
+
+    #[cfg(feature = "google")]
+    #[test]
+    fn the_google_source_asks_for_the_client_and_the_login() {
+        let vamo = Vamo::new();
+        vamo.configure("[agenda]\nfonte = \"google\"\n");
+        let error = vamo.fails(&["agenda"], 1);
+        assert!(error.contains("google_cliente"), "{error}");
+        vamo.configure(
+            "[agenda]\nfonte = \"google\"\ngoogle_cliente = \"123.apps.googleusercontent.com\"\n\
+             google_segredo = \"segredo-de-exemplo\"\n",
+        );
+        let error = vamo.fails(&["agenda"], 1);
+        assert!(error.contains("vamo conectar-google"), "{error}");
+        assert!(!error.contains("segredo-de-exemplo"), "{error}");
+    }
+
+    #[test]
+    fn without_the_link_it_says_how_to_configure() {
+        let vamo = Vamo::new();
+        let error = vamo.fails(&["agenda"], 1);
+        assert!(error.contains("[agenda]"), "{error}");
+    }
+
+    #[test]
+    fn sync_schedules_the_task_of_the_footer() {
+        let vamo = Vamo::new();
+        vamo.ok(&["add", "Trocar o filtro da água", "--area", "casa"]);
+        let day = jiff::Zoned::now().date().tomorrow().expect("amanhã existe");
+        let ics = format!(
+            "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:filtro@exemplo\r\n\
+             DTSTART;VALUE=DATE:{}\r\nSUMMARY:Filtro\r\n\
+             DESCRIPTION:Comprar o refil antes.\\nvamo: T-001 | Trocar o filtro da água | casa | brecha\r\n\
+             END:VEVENT\r\n\
+             BEGIN:VEVENT\r\nUID:fantasma@exemplo\r\n\
+             DTSTART;VALUE=DATE:{}\r\nSUMMARY:Fantasma\r\n\
+             DESCRIPTION:vamo: T-099\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+            day.strftime("%Y%m%d"),
+            day.strftime("%Y%m%d"),
+        );
+        let file = vamo.home.path().join("agenda.ics");
+        std::fs::write(&file, ics).expect("a agenda de exemplo deveria ser gravada");
+        vamo.configure(&format!("[agenda]\nics = \"{}\"\n", file.display()));
+
+        // Antes do sync, a tarefa espera na caixa, com o rodapé que foi
+        // colado no evento.
+        assert!(
+            vamo.ok(&["caixa"])
+                .contains("\n       vamo: T-001 | Trocar o filtro da água | casa | brecha\n")
+        );
+        let first = vamo.ok(&["sync"]);
+        assert_eq!(
+            first,
+            format!(
+                "aviso: um evento aponta pra T-099, que não existe no banco\n\
+                 T-001 Trocar o filtro da água: status: agendada, escalada pra {}\n\
+                 Agenda lida: 2 compromissos, 1 tarefa escalada pela agenda.\n",
+                day.strftime("%d/%m/%Y")
+            )
+        );
+        assert!(vamo.ok(&["list"]).contains("agendada"));
+        // Agendada pelo rodapé, ela sai da caixa.
+        assert_eq!(
+            vamo.ok(&["caixa"]),
+            "Ninguém no aquecimento: toda tarefa pronta já tem dia.\n"
+        );
+        // De novo, nada muda.
+        assert!(
+            vamo.ok(&["sync"])
+                .ends_with("Agenda lida: 2 compromissos, 0 tarefas escaladas pela agenda.\n")
+        );
+    }
+
+    #[test]
+    fn a_task_against_the_time_rules_is_flagged() {
+        let vamo = Vamo::new();
+        vamo.ok(&["add", "Escrever o relatório", "--encaixe", "foco"]);
+        let ics = "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:relatorio@exemplo\r\n\
+                   DTSTART;TZID=America/Sao_Paulo:20261112T213000\r\n\
+                   DTEND;TZID=America/Sao_Paulo:20261112T230000\r\n\
+                   SUMMARY:Relatório\r\nDESCRIPTION:vamo: T-001\r\n\
+                   END:VEVENT\r\nEND:VCALENDAR\r\n";
+        let file = vamo.home.path().join("agenda.ics");
+        std::fs::write(&file, ics).expect("a agenda de exemplo deveria ser gravada");
+        vamo.configure(&format!(
+            "[agenda]\nics = \"{}\"\n[tempo]\nteto_da_noite = \"22:00\"\n",
+            file.display()
+        ));
+        assert_eq!(
+            vamo.ok(&["agenda", "--data", "2026-11-12"]),
+            "21:30–23:00  Relatório\n             ⚠ T-001: foco depois do teto da noite (22:00)\n"
+        );
     }
 }

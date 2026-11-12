@@ -36,6 +36,18 @@
 //! - [`Lineup`]: a escalação de um dia, com o atraso e as fixas.
 //! - [`Score`]: o placar do dia.
 //!
+//! # A agenda
+//!
+//! - [`Appointment`]: um compromisso da agenda, já no horário local.
+//! - [`LinkPlan`]: o que o sync faz com as tarefas ligadas a eventos pelo
+//!   rodapé `vamo:` (sai de [`Projection::link`]).
+//! - [`gaps`]: as brechas do dia, e [`fitting`]: as tarefas que cabem
+//!   em cada uma.
+//! - [`fixed_activities`]: os compromissos recorrentes, que viram itens
+//!   de marcar na tela Hoje.
+//! - [`TimeRules`]: as regras do tempo (expediente, teto da noite e blocos
+//!   protegidos) e as [`Violation`]s de um horário marcado.
+//!
 //! Todos esses tipos validam na construção, então um valor que existe é um
 //! valor válido. Quando algo dá errado, o erro é um [`Error`].
 //!
@@ -45,29 +57,41 @@
 //! implementa.
 //!
 //! - [`EventStore`]: onde o log de eventos fica guardado.
+//! - [`Agenda`]: de onde vêm os compromissos da agenda, os
+//!   [`Appointment`]s.
 
+mod appointment;
 mod area;
 mod error;
 mod event;
 mod fit;
+mod fixed;
+mod gaps;
 mod id;
 mod lineup;
+mod link;
 mod machine;
 mod port;
 mod projection;
+mod rules;
 mod status;
 mod task;
 mod title;
 
+pub use appointment::{Agenda, Appointment, When};
 pub use area::Area;
 pub use error::Error;
 pub use event::{Change, Event, EventId};
 pub use fit::Fit;
+pub use fixed::{FixedActivity, fixed_activities};
+pub use gaps::{DEFAULT_MIN_GAP, Gap, fitting, gaps};
 pub use id::TaskId;
 pub use lineup::{Lineup, Score};
+pub use link::{LinkPlan, Skipped};
 pub use machine::Machine;
 pub use port::EventStore;
 pub use projection::Projection;
+pub use rules::{Block, TimeRange, TimeRules, Violation, time_of_day};
 pub use status::Status;
 pub use task::Task;
 pub use title::NotebookTitle;

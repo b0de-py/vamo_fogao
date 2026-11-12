@@ -1,5 +1,7 @@
 //! A tela Hoje: o placar, a escalação do dia e a curiosidade num canto.
 
+use std::collections::BTreeSet;
+
 use jiff::civil::Date;
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
@@ -7,10 +9,11 @@ use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
-use vamo_core::{Lineup, Projection, Status, Task};
+use vamo_core::{FixedActivity, Lineup, Projection, Score, Status, Task};
 
 use crate::app::{Action, Feedback, record};
 use crate::curiosity::{self, Acervo};
+use crate::schedule::{self, Schedule};
 use crate::{Ledger, Voice, theme};
 
 /// Onde está o cursor na escalação.
@@ -28,14 +31,55 @@ pub(crate) enum Group {
     Late,
     /// Recorrente, de marcar todo dia.
     Fixed,
+    /// Compromisso recorrente da agenda, de marcar sem virar tarefa.
+    Agenda,
 }
 
-/// As linhas da escalação, na ordem da tela: o dia, o atraso e as fixas.
-fn rows(lineup: &Lineup) -> Vec<(Group, &Task)> {
-    let planned = lineup.planned.iter().map(|task| (Group::Planned, task));
-    let late = lineup.late.iter().map(|task| (Group::Late, task));
-    let fixed = lineup.fixed.iter().map(|task| (Group::Fixed, task));
-    planned.chain(late).chain(fixed).collect()
+/// Uma linha da escalação: uma tarefa ou uma atividade fixa da agenda.
+#[derive(Debug, Clone, Copy)]
+enum Row<'a> {
+    Task(Group, &'a Task),
+    Activity(&'a FixedActivity),
+}
+
+impl Row<'_> {
+    fn group(self) -> Group {
+        match self {
+            Self::Task(group, _) => group,
+            Self::Activity(_) => Group::Agenda,
+        }
+    }
+}
+
+/// As linhas da escalação, na ordem da tela: o dia, o atraso, as fixas e as
+/// fixas da agenda.
+fn rows<'a>(lineup: &'a Lineup, schedule: &'a Schedule) -> Vec<Row<'a>> {
+    let planned = lineup
+        .planned
+        .iter()
+        .map(|task| Row::Task(Group::Planned, task));
+    let late = lineup.late.iter().map(|task| Row::Task(Group::Late, task));
+    let fixed = lineup
+        .fixed
+        .iter()
+        .map(|task| Row::Task(Group::Fixed, task));
+    let agenda = schedule.fixed.iter().map(Row::Activity);
+    planned.chain(late).chain(fixed).chain(agenda).collect()
+}
+
+/// O placar do dia, com as atividades fixas da agenda marcadas.
+pub(crate) fn score(
+    lineup: &Lineup,
+    schedule: &Schedule,
+    checks: &BTreeSet<(Date, String)>,
+) -> Score {
+    let today = lineup.today();
+    let checked = schedule
+        .fixed
+        .iter()
+        .filter(|activity| checks.contains(&(today, activity.uid.clone())))
+        .count();
+    lineup.score().plus(checked, schedule.fixed.len())
 }
 
 impl Today {
@@ -45,8 +89,10 @@ impl Today {
         key: KeyEvent,
         ledger: &mut L,
         today: Date,
+        schedule: &Schedule,
     ) -> Option<Action> {
-        self.feedback(key, ledger, today).map(Action::Feedback)
+        self.feedback(key, ledger, today, schedule)
+            .map(Action::Feedback)
     }
 
     fn feedback<L: Ledger>(
@@ -54,9 +100,10 @@ impl Today {
         key: KeyEvent,
         ledger: &mut L,
         today: Date,
+        schedule: &Schedule,
     ) -> Option<Feedback> {
         let lineup = Lineup::new(ledger.projection(), today);
-        let rows = rows(&lineup);
+        let rows = rows(&lineup, schedule);
         self.cursor = self.cursor.min(rows.len().saturating_sub(1));
         match key.code {
             KeyCode::Down | KeyCode::Char('j') => {
@@ -67,12 +114,14 @@ impl Today {
                 self.cursor = self.cursor.saturating_sub(1);
                 None
             }
-            KeyCode::Char(' ') | KeyCode::Enter => {
-                let &(group, task) = rows.get(self.cursor)?;
-                Some(toggle(ledger, group, task, today))
-            }
+            KeyCode::Char(' ') | KeyCode::Enter => match *rows.get(self.cursor)? {
+                Row::Task(group, task) => Some(toggle(ledger, group, task, today)),
+                Row::Activity(activity) => Some(toggle_activity(ledger, activity, today)),
+            },
             KeyCode::Char('a') => {
-                let &(group, task) = rows.get(self.cursor)?;
+                let Row::Task(group, task) = *rows.get(self.cursor)? else {
+                    return None;
+                };
                 (group != Group::Fixed).then(|| {
                     let changes = ledger
                         .projection()
@@ -81,7 +130,9 @@ impl Today {
                 })
             }
             KeyCode::Char('b') => {
-                let &(group, task) = rows.get(self.cursor)?;
+                let Row::Task(group, task) = *rows.get(self.cursor)? else {
+                    return None;
+                };
                 (group != Group::Fixed).then(|| {
                     let changes = ledger.projection().unschedule(task.id());
                     record(ledger, task.id(), changes)
@@ -103,18 +154,21 @@ impl Today {
         projection: &Projection,
         today: Date,
         acervo: &Acervo,
+        schedule: &Schedule,
+        checks: &BTreeSet<(Date, String)>,
         banter: bool,
         voice: Voice,
     ) {
         let lineup = Lineup::new(projection, today);
         let [top, rest] =
             Layout::vertical([Constraint::Length(2), Constraint::Fill(1)]).areas(area);
-        render_scoreboard(frame, top, &lineup, voice);
+        render_scoreboard(frame, top, &lineup, score(&lineup, schedule, checks), voice);
 
         // Com espaço, a curiosidade vai do lado; sem, embaixo, no que sobrar
         // da escalação. Se sobrar pouco, a escalação fica com a tela toda:
         // ela é o que importa, e a curiosidade continua no Museu.
-        let lines = self.lines(&lineup, voice);
+        let mut lines = self.lines(&lineup, schedule, checks, voice);
+        lines.extend(schedule.lines(projection, today, voice));
         let needed = u16::try_from(lines.len()).unwrap_or(u16::MAX);
         let spare = rest.height.saturating_sub(needed.saturating_add(1));
         let (list, corner) = if rest.width >= 90 {
@@ -138,15 +192,22 @@ impl Today {
     }
 
     /// As linhas da escalação, com o cursor marcado.
-    fn lines(&self, lineup: &Lineup, voice: Voice) -> Vec<Line<'static>> {
-        let rows = rows(lineup);
+    fn lines(
+        &self,
+        lineup: &Lineup,
+        schedule: &Schedule,
+        checks: &BTreeSet<(Date, String)>,
+        voice: Voice,
+    ) -> Vec<Line<'static>> {
+        let rows = rows(lineup, schedule);
         if rows.is_empty() {
             return vec![Line::styled(voice.empty_lineup(), theme::muted())];
         }
         let cursor = self.cursor.min(rows.len() - 1);
         let mut lines = Vec::new();
         let mut current = None;
-        for (index, &(group, task)) in rows.iter().enumerate() {
+        for (index, &row) in rows.iter().enumerate() {
+            let group = row.group();
             if current != Some(group) {
                 if current.is_some() {
                     lines.push(Line::default());
@@ -154,12 +215,19 @@ impl Today {
                 let heading = match group {
                     Group::Planned => theme::heading(),
                     Group::Late => theme::warning(),
-                    Group::Fixed => theme::soft(),
+                    Group::Fixed | Group::Agenda => theme::soft(),
                 };
                 lines.push(Line::styled(voice.group(group), heading));
                 current = Some(group);
             }
-            lines.push(row(group, task, lineup.today(), index == cursor, voice));
+            let cursor = index == cursor;
+            lines.push(match row {
+                Row::Task(group, task) => task_line(group, task, lineup.today(), cursor, voice),
+                Row::Activity(activity) => {
+                    let done = checks.contains(&(lineup.today(), activity.uid.clone()));
+                    activity_line(activity, lineup.today(), done, cursor)
+                }
+            });
         }
         lines
     }
@@ -189,8 +257,43 @@ fn toggle<L: Ledger>(ledger: &mut L, group: Group, task: &Task, today: Date) -> 
     }
 }
 
+/// Marca ou desmarca a atividade fixa da agenda no dia. Não é gol: a
+/// atividade conta no placar, mas não vira tarefa.
+fn toggle_activity<L: Ledger>(ledger: &mut L, activity: &FixedActivity, today: Date) -> Feedback {
+    let done = !ledger
+        .agenda_checks()
+        .contains(&(today, activity.uid.clone()));
+    match ledger.check_agenda(today, &activity.uid, done) {
+        Ok(()) => Feedback::Done,
+        Err(error) => Feedback::Refused(error.to_string()),
+    }
+}
+
+/// Uma atividade fixa: a marca, o horário e o título curto.
+fn activity_line(activity: &FixedActivity, today: Date, done: bool, cursor: bool) -> Line<'static> {
+    let mark = if done { "[x]" } else { "[ ]" };
+    let base = if done {
+        theme::success()
+    } else {
+        theme::text()
+    };
+    let line = Line::from(vec![
+        Span::styled(format!(" {mark} "), base),
+        Span::styled(
+            format!("{:<11}  ", schedule::when(activity.when, today)),
+            theme::muted(),
+        ),
+        Span::styled(activity.title.clone(), base),
+    ]);
+    if cursor {
+        line.style(theme::cursor())
+    } else {
+        line
+    }
+}
+
 /// Uma linha: a marca, o ID, o título e o detalhe do lado.
-fn row(group: Group, task: &Task, today: Date, cursor: bool, voice: Voice) -> Line<'static> {
+fn task_line(group: Group, task: &Task, today: Date, cursor: bool, voice: Voice) -> Line<'static> {
     let done = match group {
         Group::Fixed => task.is_checked(today),
         _ => task.status() == Status::Done,
@@ -219,9 +322,14 @@ fn row(group: Group, task: &Task, today: Date, cursor: bool, voice: Voice) -> Li
 }
 
 /// A linha de cima: o dia da semana, a data e o placar.
-fn render_scoreboard(frame: &mut Frame<'_>, area: Rect, lineup: &Lineup, voice: Voice) {
+fn render_scoreboard(
+    frame: &mut Frame<'_>,
+    area: Rect,
+    lineup: &Lineup,
+    score: Score,
+    voice: Voice,
+) {
     let today = lineup.today();
-    let score = lineup.score();
     let date = format!(
         "{}, {}",
         voice.weekday(today.weekday()),

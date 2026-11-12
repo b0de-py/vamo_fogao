@@ -9,6 +9,25 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+# Aqui o jiff precisa dos fusos pelo nome (`America/Sao_Paulo`), que vêm da
+# base do sistema.
+jiff = { workspace = true, features = ["tz-system", "tzdb-bundle-platform", "tzdb-zoneinfo"] }
+# Só com a feature `google`: a resposta da API é JSON.
+serde_json = { workspace = true, optional = true }
+thiserror.workspace = true
+tracing.workspace = true
+ureq.workspace = true
+vamo-core.workspace = true
+
+[features]
+# A segunda porta: o Google Agenda pela API, com OAuth. Desligada por padrão,
+# porque pede um cliente OAuth criado no Google Cloud.
+google = ["dep:serde_json"]
+
+[dev-dependencies]
+insta.workspace = true
+proptest.workspace = true
+tempfile.workspace = true
 
 [lints]
 workspace = true

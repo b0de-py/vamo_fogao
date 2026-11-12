@@ -13,6 +13,11 @@ publish.workspace = true
 name = "vamo"
 path = "src/main.rs"
 
+[features]
+# O Google Agenda como fonte da agenda, pela API e com login. Desligada por
+# padrão: o link ICS não pede nada disso.
+google = ["vamo-agenda/google"]
+
 [dependencies]
 clap.workspace = true
 color-eyre.workspace = true
@@ -26,6 +31,7 @@ tracing-subscriber.workspace = true
 # O `v7` traz o gerador de UUID v7, com relógio e sorteio.
 uuid = { workspace = true, features = ["v7"] }
 vamo-acervo.workspace = true
+vamo-agenda.workspace = true
 vamo-core.workspace = true
 vamo-store.workspace = true
 vamo-tui.workspace = true

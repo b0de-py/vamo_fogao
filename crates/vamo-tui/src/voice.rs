@@ -132,6 +132,7 @@ impl Voice {
             (Self::Neutral, Group::Planned) => "Pra hoje",
             (_, Group::Late) => "Atrasadas",
             (_, Group::Fixed) => "Fixas",
+            (_, Group::Agenda) => "Fixas da agenda",
         }
     }
 
@@ -148,6 +149,43 @@ impl Voice {
         match self {
             Self::Game => "Ninguém escalado hoje. No Banco, o e escala uma tarefa pro dia.",
             Self::Neutral => "Nada pra hoje. Em Tarefas, o e marca uma tarefa pro dia.",
+        }
+    }
+
+    /// O título do `vamo caixa`.
+    pub fn inbox(self, count: usize) -> String {
+        let tasks = if count == 1 { "tarefa" } else { "tarefas" };
+        match self {
+            Self::Game => format!(
+                "A marcar: {count} {tasks} no aquecimento, esperando horário. Cole o rodapé na descrição do evento."
+            ),
+            Self::Neutral => format!(
+                "A marcar: {count} {tasks} esperando horário. Cole o rodapé na descrição do evento."
+            ),
+        }
+    }
+
+    /// O `vamo caixa` vazio.
+    pub fn empty_inbox(self) -> &'static str {
+        match self {
+            Self::Game => "Ninguém no aquecimento: toda tarefa pronta já tem dia.",
+            Self::Neutral => "Nada a marcar: toda tarefa pronta já tem dia.",
+        }
+    }
+
+    /// O título das brechas do dia na tela Hoje.
+    pub(crate) fn gaps(self) -> &'static str {
+        match self {
+            Self::Game => "Contra-ataques (brechas)",
+            Self::Neutral => "Brechas",
+        }
+    }
+
+    /// Quando o expediente de hoje não tem brecha nenhuma.
+    pub(crate) fn no_gaps(self) -> &'static str {
+        match self {
+            Self::Game => "Sem espaço pra contra-atacar hoje.",
+            Self::Neutral => "Nenhuma brecha hoje.",
         }
     }
 
@@ -272,6 +310,22 @@ impl Voice {
                 format!("notas: {}", notes.lines().collect::<Vec<_>>().join(" · "))
             }
         }
+    }
+
+    /// O resumo do `vamo sync`: quantos compromissos a agenda tem na janela
+    /// e quantas tarefas mudaram por causa do rodapé `vamo:`.
+    pub fn synced(self, appointments: usize, changed: usize) -> String {
+        let appointments = match appointments {
+            1 => "1 compromisso".to_owned(),
+            n => format!("{n} compromissos"),
+        };
+        let moved = match (self, changed) {
+            (Self::Game, 1) => "1 tarefa escalada".to_owned(),
+            (Self::Game, n) => format!("{n} tarefas escaladas"),
+            (Self::Neutral, 1) => "1 tarefa marcada".to_owned(),
+            (Self::Neutral, n) => format!("{n} tarefas marcadas"),
+        };
+        format!("Agenda lida: {appointments}, {moved} pela agenda.")
     }
 
     /// Quando a lista do `vamo list` não tem nenhuma tarefa.

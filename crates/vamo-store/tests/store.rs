@@ -62,7 +62,7 @@ fn a_new_database_is_created_and_migrated_from_zero() {
     let store = Store::open(&path).unwrap();
 
     assert!(path.exists());
-    assert_eq!(store.schema_version().unwrap(), 2);
+    assert_eq!(store.schema_version().unwrap(), 3);
     assert_eq!(store.events().unwrap(), []);
 }
 
@@ -158,7 +158,7 @@ fn a_database_from_a_newer_version_is_refused_and_left_alone() {
         result,
         Err(Error::NewerSchema {
             found: 99,
-            known: 2
+            known: 3
         })
     ));
     let version: u32 = Connection::open(&path)
@@ -236,7 +236,7 @@ fn a_database_from_the_first_version_is_migrated_with_its_events() {
         .unwrap();
     }
     let mut store = Store::open(&path).unwrap();
-    assert_eq!(store.schema_version().unwrap(), 2);
+    assert_eq!(store.schema_version().unwrap(), 3);
     let old = store.events().unwrap();
     assert_eq!(old.len(), 1);
     assert_eq!(old[0].change, Change::Status(Status::Ready));
@@ -250,4 +250,32 @@ fn a_database_from_the_first_version_is_migrated_with_its_events() {
         )])
         .unwrap();
     assert_eq!(store.events().unwrap().len(), 2);
+}
+
+#[test]
+fn agenda_checks_are_kept_per_day_and_event() {
+    let mut store = Store::in_memory().unwrap();
+    let day = jiff::civil::date(2026, 11, 12);
+    store
+        .set_agenda_check(day, "caminhada@exemplo", true)
+        .unwrap();
+    // Marcar de novo não duplica.
+    store
+        .set_agenda_check(day, "caminhada@exemplo", true)
+        .unwrap();
+    store
+        .set_agenda_check(day.tomorrow().unwrap(), "caminhada@exemplo", true)
+        .unwrap();
+    assert_eq!(store.agenda_checks().unwrap().len(), 2);
+    store
+        .set_agenda_check(day, "caminhada@exemplo", false)
+        .unwrap();
+    assert_eq!(
+        store
+            .agenda_checks()
+            .unwrap()
+            .into_iter()
+            .collect::<Vec<_>>(),
+        [(day.tomorrow().unwrap(), "caminhada@exemplo".to_owned())]
+    );
 }

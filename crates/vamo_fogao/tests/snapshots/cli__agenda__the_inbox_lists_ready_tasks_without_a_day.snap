@@ -1,0 +1,8 @@
+---
+source: crates/vamo_fogao/tests/cli.rs
+expression: "vamo.ok(&[\"caixa\"])"
+---
+A marcar: 1 tarefa no aquecimento, esperando horário. Cole o rodapé na descrição do evento.
+
+T-001  Ligar pro síndico · casa · brecha · ~20 min
+       vamo: T-001 | Ligar pro síndico | casa | brecha

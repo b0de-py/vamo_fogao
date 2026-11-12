@@ -1,6 +1,9 @@
 //! A porta da TUI pras tarefas.
 
+use std::collections::BTreeSet;
 use std::fmt::Display;
+
+use jiff::civil::Date;
 
 use vamo_core::{Change, Event, Projection, TaskId};
 
@@ -26,13 +29,26 @@ pub trait Ledger {
     ///
     /// Quando a gravação falha. Nesse caso nada muda.
     fn record(&mut self, task: TaskId, changes: Vec<Change>) -> Result<(), Self::Error>;
+
+    /// As atividades fixas da agenda marcadas, como `(dia, UID do evento)`.
+    fn agenda_checks(&self) -> &BTreeSet<(Date, String)>;
+
+    /// Marca (`done`) ou desmarca a atividade fixa `uid` em `day`.
+    ///
+    /// # Errors
+    ///
+    /// Quando a gravação falha. Nesse caso nada muda.
+    fn check_agenda(&mut self, day: Date, uid: &str, done: bool) -> Result<(), Self::Error>;
 }
 
 #[cfg(test)]
 pub(crate) mod memory {
     //! Um log em memória pros testes, com IDs e instantes previsíveis.
 
+    use std::collections::BTreeSet;
     use std::convert::Infallible;
+
+    use jiff::civil::Date;
 
     use jiff::Timestamp;
     use uuid::Builder;
@@ -47,6 +63,7 @@ pub(crate) mod memory {
         events: Vec<Event>,
         projection: Projection,
         start: Timestamp,
+        checks: BTreeSet<(Date, String)>,
     }
 
     impl MemoryLedger {
@@ -55,6 +72,7 @@ pub(crate) mod memory {
                 events: Vec::new(),
                 projection: Projection::new(),
                 start,
+                checks: BTreeSet::new(),
             }
         }
 
@@ -96,6 +114,19 @@ pub(crate) mod memory {
                 };
                 self.projection.apply(&event);
                 self.events.push(event);
+            }
+            Ok(())
+        }
+
+        fn agenda_checks(&self) -> &BTreeSet<(Date, String)> {
+            &self.checks
+        }
+
+        fn check_agenda(&mut self, day: Date, uid: &str, done: bool) -> Result<(), Infallible> {
+            if done {
+                self.checks.insert((day, uid.to_owned()));
+            } else {
+                self.checks.remove(&(day, uid.to_owned()));
             }
             Ok(())
         }

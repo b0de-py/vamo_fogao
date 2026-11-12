@@ -49,12 +49,18 @@ ratatui = { version = "0.30", default-features = false, features = ["crossterm",
 # instalada no sistema. Sem as features padrão, que só trazem o cache de
 # comandos preparados (e três dependências a mais) e o suporte a WebAssembly.
 rusqlite = { version = "0.42", default-features = false, features = ["bundled"] }
+# A resposta da API do Google Agenda (feature `google` do vamo-agenda). Sem
+# o serde derive: os campos são lidos na mão, como no TOML.
+serde_json = "1.0"
 tempfile = "3.27"
 thiserror = "2.0"
 # Só o leitor de TOML, sem o serde: o acervo lê cada campo na mão, com a
 # linha de cada um, pra apontar o problema em português.
 toml = { version = "1.2", default-features = false, features = ["parse", "std"] }
 tracing = "0.1"
+# O download da agenda. Sem as features padrão, que trazem o rustls (e o
+# ring, com licença fora do `deny.toml`): a TLS é a do sistema.
+ureq = { version = "3.4", default-features = false, features = ["native-tls-no-default"] }
 tracing-subscriber = { version = "0.3", default-features = false, features = ["env-filter", "fmt", "std"] }
 uuid = "1.29"
 

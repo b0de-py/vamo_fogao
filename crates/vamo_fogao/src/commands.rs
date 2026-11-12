@@ -1,27 +1,30 @@
 //! Os comandos do `vamo`. Os de tarefa abrem o banco, pedem a regra pro
 //! core e devolvem o texto pra mostrar; quem imprime é o `main`.
 
+use std::collections::BTreeSet;
 use std::path::Path;
 
 use color_eyre::eyre::{Result, WrapErr, bail, eyre};
 use jiff::Timestamp;
+use jiff::civil::Date;
 use jiff::tz::TimeZone;
 use uuid::Uuid;
+use vamo_agenda::{Footer, Freshness};
 use vamo_core::{
-    Area, Change, Event, EventId, EventStore, Fit, Machine, NotebookTitle, Projection, Status,
-    Task, TaskId,
+    Area, Change, Event, EventId, EventStore, Fit, Machine, NotebookTitle, Projection, Skipped,
+    Status, Task, TaskId,
 };
 use vamo_store::Store;
 
-use crate::acervo;
 use crate::cli::{AcervoCommand, Command};
+use crate::config::Config;
 use crate::import::{self, Plan};
 use crate::paths;
-use vamo_tui::{Animation, Voice};
+use crate::{acervo, agenda};
+use vamo_tui::Voice;
 
-/// Roda um comando e devolve o que mostrar na saída. A animação só vale
-/// pra TUI.
-pub(crate) fn run(command: Command, voice: Voice, animation: Animation) -> Result<String> {
+/// Roda um comando e devolve o que mostrar na saída.
+pub(crate) fn run(command: Command, voice: Voice, config: &Config) -> Result<String> {
     match command {
         Command::Add {
             title,
@@ -40,6 +43,13 @@ pub(crate) fn run(command: Command, voice: Voice, animation: Animation) -> Resul
             let date = date.unwrap_or_else(|| jiff::Zoned::now().date());
             acervo::curiosity(date, banter, voice)
         }
+        Command::Agenda { date } => {
+            let day = date.unwrap_or_else(|| jiff::Zoned::now().date());
+            Session::open(voice)?.agenda(config, day)
+        }
+        Command::Sync => Session::open(voice)?.sync(config),
+        Command::Inbox => Ok(Session::open(voice)?.inbox()),
+        Command::ConnectGoogle => agenda::google::connect(&config.agenda),
         Command::Tui => {
             let mut session = Session::open(voice)?;
             let acervo::Bundled { facts, banter } = acervo::bundled();
@@ -47,7 +57,8 @@ pub(crate) fn run(command: Command, voice: Voice, animation: Animation) -> Resul
                 voice,
                 acervo: vamo_tui::Acervo { facts, banter },
                 time_zone: TimeZone::system(),
-                animation,
+                animation: config.animation.unwrap_or_default(),
+                schedule: agenda::schedule(config, &jiff::Zoned::now()),
             };
             vamo_tui::run(&mut session, setup).wrap_err("a TUI não conseguiu usar o terminal")?;
             Ok(String::new())
@@ -65,6 +76,9 @@ struct Session {
     events: Vec<Event>,
     projection: Projection,
     voice: Voice,
+    /// As atividades fixas da agenda marcadas: a tabela inteira cabe na
+    /// memória, e a TUI lê a cada quadro.
+    agenda_checks: BTreeSet<(Date, String)>,
 }
 
 impl Session {
@@ -75,11 +89,13 @@ impl Session {
             .wrap_err_with(|| format!("não deu pra abrir o banco em {}", path.display()))?;
         let events = store.events()?;
         let projection = events.iter().collect();
+        let agenda_checks = store.agenda_checks()?;
         Ok(Self {
             store,
             events,
             projection,
             voice,
+            agenda_checks,
         })
     }
 
@@ -139,6 +155,103 @@ impl Session {
         self.record(id, changes)?;
         let task = self.task(id)?;
         Ok(self.voice.goal(task.id(), task.title()))
+    }
+
+    /// `vamo caixa`: as tarefas prontas sem dia, cada uma com o encaixe, a
+    /// estimativa (se tiver) e o rodapé pra colar na descrição do evento.
+    fn inbox(&self) -> String {
+        let tasks = self.projection.inbox();
+        if tasks.is_empty() {
+            return self.voice.empty_inbox().to_owned();
+        }
+        let mut lines = vec![self.voice.inbox(tasks.len())];
+        for task in &tasks {
+            let estimate = task
+                .estimate()
+                .map(|estimate| format!(" · ~{}", agenda::length(estimate)))
+                .unwrap_or_default();
+            lines.push(String::new());
+            lines.push(format!(
+                "{}  {} · {} · {}{estimate}",
+                task.id(),
+                task.title(),
+                task.area(),
+                task.fit()
+            ));
+            lines.push(format!("       {}", Footer::of(task)));
+        }
+        lines.join("\n")
+    }
+
+    /// `vamo agenda`: os compromissos do dia, baixados agora, com o aviso
+    /// das tarefas marcadas fora das regras do tempo.
+    fn agenda(&self, config: &Config, day: jiff::civil::Date) -> Result<String> {
+        let loaded = agenda::load(&config.agenda, day, day)?.ok_or_else(agenda::not_configured)?;
+        let (appointments, warnings) = loaded.calendar.read(day, day);
+        let mut lines: Vec<String> = warnings.iter().map(|w| format!("aviso: {w}")).collect();
+        if loaded.freshness == Freshness::Cached {
+            lines.push("aviso: a agenda não baixou agora; esta é a cópia local".to_owned());
+        }
+        if appointments.is_empty() {
+            lines.push(format!("Nada na agenda em {}.", day.strftime("%d/%m")));
+        }
+        for appointment in &appointments {
+            lines.push(agenda::line(appointment, day));
+            for violation in agenda::violations(appointment, &self.projection, &config.rules) {
+                lines.push(format!("             ⚠ {violation}"));
+            }
+        }
+        lines.extend(agenda::gap_lines(
+            config,
+            &appointments,
+            &self.projection,
+            day,
+        ));
+        Ok(lines.join("\n"))
+    }
+
+    /// `vamo sync`: baixa a agenda e liga cada evento com rodapé `vamo:` à
+    /// tarefa dele, que fica agendada no dia do evento.
+    fn sync(&mut self, config: &Config) -> Result<String> {
+        let today = jiff::Zoned::now().date();
+        let (from, to) = agenda::sync_window(today)?;
+        let loaded = agenda::load(&config.agenda, from, to)?.ok_or_else(agenda::not_configured)?;
+        let (appointments, warnings) = loaded.calendar.read(from, to);
+
+        let mut lines: Vec<String> = warnings.iter().map(|w| format!("aviso: {w}")).collect();
+        if loaded.freshness == Freshness::Cached {
+            lines.push("aviso: a agenda não baixou agora; esta é a cópia local".to_owned());
+        }
+        let plan = self.projection.link(&appointments, today);
+        for skipped in &plan.skipped {
+            lines.push(match skipped {
+                Skipped::Unknown(id) => {
+                    format!("aviso: um evento aponta pra {id}, que não existe no banco")
+                }
+                Skipped::NotReady(id, status) => format!(
+                    "aviso: {id} está como {status} e não dá pra agendar: deixe ela pronta antes"
+                ),
+            });
+        }
+        let changed = plan.changes.len();
+        for (id, changes) in plan.changes {
+            let what: Vec<String> = changes.iter().map(|c| self.voice.change(c)).collect();
+            self.record(id, changes)?;
+            let task = self.task(id)?;
+            lines.push(format!("{id} {}: {}", task.title(), what.join(", ")));
+        }
+        // As tarefas marcadas fora das regras, de hoje em diante.
+        for appointment in appointments.iter().filter(|a| a.day() >= today) {
+            for violation in agenda::violations(appointment, &self.projection, &config.rules) {
+                lines.push(format!(
+                    "⚠ {} ({}): {violation}",
+                    appointment.title,
+                    appointment.day().strftime("%d/%m")
+                ));
+            }
+        }
+        lines.push(self.voice.synced(appointments.len(), changed));
+        Ok(lines.join("\n"))
     }
 
     /// `vamo show`: a ficha da tarefa e o histórico dela.
@@ -258,6 +371,20 @@ impl vamo_tui::Ledger for Session {
 
     fn record(&mut self, task: TaskId, changes: Vec<Change>) -> Result<()> {
         Session::record(self, task, changes)
+    }
+
+    fn agenda_checks(&self) -> &BTreeSet<(Date, String)> {
+        &self.agenda_checks
+    }
+
+    fn check_agenda(&mut self, day: Date, uid: &str, done: bool) -> Result<()> {
+        self.store.set_agenda_check(day, uid, done)?;
+        if done {
+            self.agenda_checks.insert((day, uid.to_owned()));
+        } else {
+            self.agenda_checks.remove(&(day, uid.to_owned()));
+        }
+        Ok(())
     }
 }
 

@@ -36,13 +36,16 @@ const AFTER_HELP: &str = "\
 Config:
   ~/.config/vamo_fogao/config.toml, com linguagem = \"neutra\" pra trocar o
   padrão e animacao = false pra apagar o fogo da TUI. A --linguagem e a
-  VAMO_LINGUAGEM ganham da config.
+  VAMO_LINGUAGEM ganham da config. Na seção [agenda], ics = \"https://...\"
+  é o link secreto da agenda (ou fonte = \"google\", com o vamo compilado
+  com a feature google).
 
 Variáveis de ambiente:
   VAMO_LINGUAGEM   jogo ou neutra, o mesmo que --linguagem
   VAMO_MAQUINA     o nome desta máquina nos eventos (sem ela, vale o hostname)
   VAMO_LOG         o nível dos logs na saída de erro, como debug (padrão: warn)
   XDG_CONFIG_HOME  onde fica a pasta da config (padrão: ~/.config)
+  XDG_CACHE_HOME   onde fica a cópia da agenda (padrão: ~/.cache)
   XDG_DATA_HOME    onde fica a pasta do banco (padrão: ~/.local/share)";
 
 /// vamo, o app de tarefas do vamo_fogao
@@ -216,6 +219,44 @@ pub(crate) enum Command {
         #[arg(long = "resenha")]
         banter: bool,
     },
+
+    /// Mostra os compromissos do dia, lidos da agenda
+    #[command(
+        override_usage = "vamo agenda [OPÇÕES]",
+        help_template = SUBCOMMAND_HELP_TEMPLATE,
+        next_help_heading = "Opções"
+    )]
+    Agenda {
+        /// O dia, como 2026-11-11 (sem ela, hoje)
+        #[arg(long = "data", value_name = "DATA", value_parser = parse_date)]
+        date: Option<jiff::civil::Date>,
+    },
+
+    /// Lê a agenda e liga os eventos com rodapé vamo: às tarefas
+    #[command(
+        override_usage = "vamo sync",
+        help_template = SUBCOMMAND_HELP_TEMPLATE,
+        next_help_heading = "Opções"
+    )]
+    Sync,
+
+    /// Lista as tarefas prontas esperando horário, com o rodapé pra agenda
+    #[command(
+        name = "caixa",
+        override_usage = "vamo caixa",
+        help_template = SUBCOMMAND_HELP_TEMPLATE,
+        next_help_heading = "Opções"
+    )]
+    Inbox,
+
+    /// Conecta o vamo ao Google Agenda, pelo navegador
+    #[command(
+        name = "conectar-google",
+        override_usage = "vamo conectar-google",
+        help_template = SUBCOMMAND_HELP_TEMPLATE,
+        next_help_heading = "Opções"
+    )]
+    ConnectGoogle,
 
     /// Abre a interface de terminal, com as telas do dia
     #[command(

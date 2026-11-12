@@ -25,8 +25,9 @@ use crate::curiosity::Acervo;
 use crate::fire::{self, Fire};
 use crate::museum::Museum;
 use crate::prompt::{Prompt, Purpose, Step};
+use crate::schedule::Schedule;
 use crate::star::Star;
-use crate::today::Today;
+use crate::today::{self, Today};
 use crate::when::parse_day;
 use crate::{Animation, Ledger, Setup, Voice, card, notebook, theme};
 
@@ -123,6 +124,7 @@ pub(crate) struct App {
     voice: Voice,
     acervo: Acervo,
     zone: TimeZone,
+    schedule: Schedule,
     /// O dia de hoje, na hora local. Quem roda a TUI atualiza a cada quadro.
     today: Date,
     tab: Tab,
@@ -187,6 +189,7 @@ impl App {
             voice: setup.voice,
             acervo: setup.acervo,
             zone: setup.time_zone,
+            schedule: setup.schedule,
             today,
             tab: Tab::Today,
             banter: false,
@@ -255,7 +258,8 @@ impl App {
             self.flash -= 1;
             1.0
         } else {
-            let score = Lineup::new(ledger.projection(), self.today).score();
+            let lineup = Lineup::new(ledger.projection(), self.today);
+            let score = today::score(&lineup, &self.schedule, ledger.agenda_checks());
             if score.planned == 0 {
                 0.0
             } else {
@@ -322,7 +326,10 @@ impl App {
                         None => Some(Action::Close),
                     },
                     (Tab::Bench, None) => self.bench.on_key(key, ledger, self.today),
-                    (Tab::Today, _) => self.today_screen.on_key(key, ledger, self.today),
+                    (Tab::Today, _) => {
+                        self.today_screen
+                            .on_key(key, ledger, self.today, &self.schedule)
+                    }
                     (Tab::Museum, _) => {
                         self.museum.on_key(key, &self.acervo, self.voice);
                         None
@@ -544,6 +551,8 @@ impl App {
                 projection,
                 self.today,
                 &self.acervo,
+                &self.schedule,
+                ledger.agenda_checks(),
                 self.banter,
                 self.voice,
             ),
@@ -677,6 +686,7 @@ pub(crate) mod tests {
                 // Os snapshots das telas não mostram o fogo; os testes do
                 // fogo ligam a animação.
                 animation: Animation::Off,
+                schedule: Schedule::default(),
             },
             today(),
         )
@@ -945,6 +955,82 @@ pub(crate) mod tests {
         let screen = draw(&app, &ledger, 60, 14);
         assert!(screen.contains("é zoeira, não é fato"), "{screen}");
         assert_snapshot!("banter", screen);
+    }
+
+    #[test]
+    fn today_shows_the_agenda_the_broken_rules_and_the_gaps() {
+        use vamo_core::{Appointment, Block, TimeRules, When};
+
+        let mut app = new_app(Voice::Game);
+        let mut ledger = ledger();
+        let errand = ledger.add("Comprar o gesso", "casa", Fit::Gap, Status::Ready);
+        ledger.add("Ligar pro síndico", "casa", Fit::Gap, Status::Ready);
+        ledger.add("Escrever o relatório", "trampo", Fit::Focus, Status::Ready);
+        let day = today();
+        let at = |hour, minute| day.at(hour, minute, 0, 0);
+        let lunch = Block {
+            name: "Almoço".to_owned(),
+            hours: "12:00-13:00".parse().unwrap(),
+            days: vec![],
+        };
+        let appointments = vec![
+            Appointment {
+                uid: "reuniao@exemplo".to_owned(),
+                title: "Reunião da equipe".to_owned(),
+                when: When::Timed {
+                    start: at(10, 0),
+                    end: at(11, 0),
+                },
+                recurring: true,
+                task: None,
+            },
+            Appointment {
+                uid: "gesso@exemplo".to_owned(),
+                title: "Comprar o gesso".to_owned(),
+                when: When::Timed {
+                    start: at(12, 30),
+                    end: at(13, 0),
+                },
+                recurring: false,
+                task: Some(errand),
+            },
+        ];
+        app.schedule = Schedule {
+            fixed: vamo_core::fixed_activities(&appointments, &std::collections::BTreeMap::new()),
+            appointments,
+            rules: TimeRules {
+                workday: Some(Block {
+                    name: "expediente".to_owned(),
+                    hours: "09:00-18:00".parse().unwrap(),
+                    days: vec![],
+                }),
+                night_cap: None,
+                protected: vec![lunch],
+            },
+            min_gap: vamo_core::DEFAULT_MIN_GAP,
+            now: None,
+        };
+        let screen = draw(&app, &ledger, 80, 24);
+        assert!(
+            screen.contains("⚠ T-001: em cima do bloco protegido Almoço"),
+            "{screen}"
+        );
+        assert!(screen.contains("Placar: 0 de 1"), "{screen}");
+        assert_snapshot!(screen);
+
+        // A reunião recorrente é a fixa da agenda: marcar conta no placar
+        // e não cria tarefa.
+        app.on_key(key(KeyCode::Char(' ')), &mut ledger);
+        let screen = draw(&app, &ledger, 80, 24);
+        assert!(
+            screen.contains("[x] 10:00–11:00  Reunião da equipe"),
+            "{screen}"
+        );
+        assert!(screen.contains("Placar: 1 de 1"), "{screen}");
+        assert_eq!(ledger.projection().tasks().count(), 3);
+        assert_eq!(ledger.agenda_checks().len(), 1);
+        app.on_key(key(KeyCode::Char(' ')), &mut ledger);
+        assert!(draw(&app, &ledger, 80, 24).contains("Placar: 0 de 1"));
     }
 
     #[test]
