@@ -409,12 +409,12 @@ mod tests {
     #[test]
     fn an_unknown_rule_is_a_warning_not_an_error() {
         let text = "BEGIN:VEVENT\nUID:x\nDTSTART:20261112T090000\nSUMMARY:Estranho\n\
-                    RRULE:FREQ=MONTHLY;BYSETPOS=-1;BYDAY=MO,TU\nEND:VEVENT\n\
+                    RRULE:FREQ=DAILY;BYHOUR=9,17\nEND:VEVENT\n\
                     BEGIN:VEVENT\nUID:y\nDTSTART:20261112T100000\nSUMMARY:Normal\nEND:VEVENT\n";
         let calendar = Calendar::parse(text, TimeZone::UTC).unwrap();
         let (appointments, warnings) = calendar.read(date(2026, 11, 12), date(2026, 11, 12));
         assert_eq!(appointments.len(), 1);
         assert_eq!(warnings.len(), 1);
-        assert!(warnings[0].contains("BYSETPOS"), "{}", warnings[0]);
+        assert!(warnings[0].contains("BYHOUR"), "{}", warnings[0]);
     }
 }
