@@ -65,7 +65,9 @@ mod text;
 
 pub use banter::Banter;
 pub use date::FactDate;
-pub use draw::{Curiosity, Day, banter_of_the_day, curiosity_of_the_day, happened_on};
+pub use draw::{
+    Curiosity, Day, banter_of_the_day, curiosity_of_the_day, happened_on, matchup_fact,
+};
 pub use error::Error;
 pub use fact::{Fact, Kind, Verification};
 pub use slug::Slug;

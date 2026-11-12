@@ -194,7 +194,8 @@ impl Today {
         };
         frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), list);
         if !corner.is_empty() {
-            curiosity::render(frame, corner, acervo, today, banter, voice);
+            let opponent = schedule.game.as_ref().map(|g| g.game.opponent.as_str());
+            curiosity::render(frame, corner, acervo, today, opponent, banter, voice);
         }
     }
 

@@ -199,6 +199,11 @@ impl Voice {
         "⚽ Dia de jogo"
     }
 
+    /// O título do quadro com o fato do confronto, em dia de jogo.
+    pub(crate) fn matchup_title(self, opponent: &str) -> String {
+        format!("Histórico contra {opponent}")
+    }
+
     /// O jogo do dia no texto curto da barra.
     pub fn bar_game(self, kickoff: &str) -> String {
         format!("jogo às {kickoff}")

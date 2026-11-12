@@ -1090,6 +1090,41 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn on_a_game_day_the_corner_tells_the_story_of_the_matchup() {
+        let mut app = new_app(Voice::Game);
+        let ledger = ledger();
+        // O acervo dos testes tem um fato com adversario:time-de-teste.
+        app.schedule = Schedule {
+            game: Some(game_day()),
+            team: "Botafogo".to_owned(),
+            ..Schedule::default()
+        };
+        let screen = draw(&app, &ledger, 120, 16);
+        assert!(
+            screen.contains("Histórico contra Time de Teste"),
+            "{screen}"
+        );
+        assert!(
+            screen.contains("Uma goleada inventada pros testes."),
+            "{screen}"
+        );
+        assert_snapshot!(screen);
+
+        // Sem fato do confronto, o quadro fica com a curiosidade de sempre,
+        // sem buraco: no dia dos testes, ela também é a goleada.
+        let mut other = game_day();
+        other.game.opponent = "Outro Time".to_owned();
+        app.schedule.game = Some(other);
+        let screen = draw(&app, &ledger, 120, 16);
+        assert!(!screen.contains("Histórico contra"), "{screen}");
+        assert!(screen.contains("Neste dia, em 1950"), "{screen}");
+        assert!(
+            screen.contains("Uma goleada inventada pros testes."),
+            "{screen}"
+        );
+    }
+
+    #[test]
     fn agenda_titles_use_the_width_and_are_cut_only_when_they_do_not_fit() {
         use vamo_core::{Appointment, When};
 

@@ -185,3 +185,7 @@ O campo `jogo` do JSON da barra:
 | `tarefas_em_aberto` | Quantas tarefas do jogo ainda não saíram. |
 
 Sem jogo no dia (ou no modo neutro), `jogo` é `null`. O campo entrou depois da versão 1 do formato e não muda a versão: módulo velho só ignora.
+
+### O fato do confronto
+
+Em dia de jogo, o quadro da curiosidade na tela Hoje mostra a história contra o adversário do dia, quando o acervo tem um fato verificado com a tag `adversario:` dele. Sem fato do confronto, fica a curiosidade de sempre. O detalhe está no capítulo [O acervo](o-acervo.md#o-fato-do-confronto).

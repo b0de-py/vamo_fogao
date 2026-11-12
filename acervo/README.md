@@ -44,7 +44,7 @@ url = "https://en.wikipedia.org/wiki/Sport_Club_Mangueira"
 | `data` | no recorde | `AAAA`, `AAAA-MM` ou `AAAA-MM-DD`, com a precisão que as fontes dão. |
 | `ate` | não | O fim de um período, como `data = "1977"` com `ate = "1978"`. |
 | `tipo` | não | `fato` (o padrão) ou `recorde`. |
-| `tags` | não | `epoca:`, `idolo:`, `titulo:`, `adversario:` ou `esporte:` (quando não é futebol), seguido de um nome em minúsculas e com hífen, como `adversario:atletico-mg`. |
+| `tags` | não | `epoca:`, `idolo:`, `titulo:`, `adversario:` ou `esporte:` (quando não é futebol), seguido de um nome em minúsculas e com hífen, como `adversario:atletico-mg`. O `adversario:` é o campo do confronto: em dia de jogo contra esse time, o fato aparece no quadro da tela Hoje. Use o nome como as tabelas escrevem, sem acento (`sao-paulo`), ou o começo dele (`vasco` vale pro `Vasco da Gama`). |
 | `notas` | não | A divergência entre as fontes ou o que falta pra conferir. |
 | `[[fontes]]` | pelo menos uma | Cada fonte com `nome` e, se estiver na internet, `url`. Fonte sem link (livro, documento) conta pelo nome. |
 

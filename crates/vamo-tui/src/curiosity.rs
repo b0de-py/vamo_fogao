@@ -5,7 +5,9 @@ use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Paragraph, Wrap};
-use vamo_acervo::{Banter, Curiosity, Day, Fact, banter_of_the_day, curiosity_of_the_day};
+use vamo_acervo::{
+    Banter, Curiosity, Day, Fact, banter_of_the_day, curiosity_of_the_day, matchup_fact,
+};
 
 use crate::{Voice, theme};
 
@@ -26,18 +28,30 @@ pub(crate) fn day(date: Date) -> Option<Day> {
     Day::new(year, date.month().unsigned_abs(), date.day().unsigned_abs())
 }
 
-/// Desenha o quadro: a curiosidade do dia ou, com `banter`, a resenha.
+/// Desenha o quadro: a curiosidade do dia ou, com `banter`, a resenha. Em
+/// dia de jogo (`opponent`), a curiosidade é o fato do confronto, quando o
+/// acervo tem um; sem ele, fica a de sempre, no mesmo quadro.
+#[allow(
+    clippy::too_many_arguments,
+    reason = "cada parâmetro é uma peça do quadro, e juntar numa struct só esconderia isso"
+)]
 pub(crate) fn render(
     frame: &mut Frame<'_>,
     area: Rect,
     acervo: &Acervo,
     today: Date,
+    opponent: Option<&str>,
     banter: bool,
     voice: Voice,
 ) {
+    let matchup = |today| {
+        let opponent = opponent?;
+        let fact = matchup_fact(&acervo.facts, opponent, today)?;
+        Some((voice.matchup_title(opponent), fact_lines(fact, voice)))
+    };
     let (title, lines) = match day(today) {
         Some(today) if banter => banter_lines(acervo, today, voice),
-        Some(today) => curiosity_lines(acervo, today, voice),
+        Some(today) => matchup(today).unwrap_or_else(|| curiosity_lines(acervo, today, voice)),
         None => (voice.curiosity_title().to_owned(), Vec::new()),
     };
     // Uma caixa de vidro, como as do site: o fogo passa por trás dela mais
@@ -64,12 +78,17 @@ fn curiosity_lines(acervo: &Acervo, today: Day, voice: Voice) -> (String, Vec<Li
         (Curiosity::OnThisDay(_), Some(date)) => voice.on_this_day(date.year()),
         _ => voice.curiosity_title().to_owned(),
     };
+    (title, fact_lines(fact, voice))
+}
+
+/// O texto do fato, as fontes e o atalho da resenha.
+fn fact_lines(fact: &Fact, voice: Voice) -> Vec<Line<'static>> {
     let sources: Vec<&str> = fact
         .sources()
         .iter()
         .map(vamo_acervo::Source::name)
         .collect();
-    let lines = vec![
+    vec![
         Line::styled(fact.text().to_string(), theme::text()),
         Line::default(),
         Line::from(vec![
@@ -77,8 +96,7 @@ fn curiosity_lines(acervo: &Acervo, today: Day, voice: Voice) -> (String, Vec<Li
             Span::styled(sources.join(" · "), theme::soft()),
         ]),
         Line::styled(voice.banter_hint(), theme::muted()),
-    ];
-    (title, lines)
+    ]
 }
 
 fn banter_lines(acervo: &Acervo, today: Day, voice: Voice) -> (String, Vec<Line<'static>>) {
