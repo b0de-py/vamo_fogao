@@ -91,7 +91,7 @@ Marcar uma delas conta no placar do dia, mas não vira tarefa: a marcação mora
 
 O core conhece a agenda só pela porta `Agenda` e pelo tipo `Appointment`: um compromisso já no horário local, com a recorrência resolvida e a tarefa ligada, se tiver. Duas portas implementam isso no `vamo-agenda`:
 
-- **O link ICS** (`IcsLink` e `Calendar`), o padrão. O leitor do ICS e da regra de recorrência é feito aqui, no pedaço que as agendas usam. A recorrência é expandida no fuso do próprio evento e só depois levada pro fuso de quem usa: a reunião das 9h continua às 9h depois da virada do horário de verão. Regra com parte que o leitor não conhece não inventa ocorrência: o evento fica de fora, com um aviso.
+- **O link ICS** (`IcsLink` e `Calendar`), o padrão. O leitor do ICS e da regra de recorrência é feito aqui, no pedaço que as agendas usam. A recorrência é expandida no fuso do próprio evento e só depois levada pro fuso de quem usa: a reunião das 9h continua às 9h depois da virada do horário de verão. O `BYSETPOS` também entra, pra regras como "o último dia útil entre 28 e 30". Regra com parte que o leitor não conhece (como `BYHOUR`) não inventa ocorrência: o evento fica de fora, com um aviso.
 - **O Google Agenda** (`GoogleLink` e `GoogleCalendar`), atrás da feature `google`. A API já devolve a recorrência expandida, e a resposta vira o mesmo `Appointment`. Um teste lê uma resposta gravada da API e a mesma semana escrita em ICS, e as duas têm que dar os mesmos compromissos.
 
 As duas guardam uma cópia local em `~/.cache/vamo_fogao/`, e sem internet vale a cópia, com aviso. No binário, as duas viram um `Source` só (`crates/vamo_fogao/src/agenda.rs`), e o resto do app não sabe de qual veio.

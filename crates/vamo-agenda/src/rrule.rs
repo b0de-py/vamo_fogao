@@ -1,13 +1,14 @@
 //! A regra de recorrência do ICS (`RRULE`), no pedaço que as agendas usam
 //! no dia a dia: todo dia, toda semana (em certos dias), todo mês (num dia
 //! do mês ou no "segundo sábado") e todo ano, com intervalo, `COUNT` e
-//! `UNTIL`.
+//! `UNTIL`. O `BYSETPOS` escolhe entre as datas de cada período: "o último
+//! dia útil entre 28 e 30" ou "a primeira segunda ou quarta do mês".
 //!
 //! A expansão acontece no horário do próprio evento (a "parede" do fuso
 //! dele): uma reunião às 9h continua às 9h depois da virada do horário de
 //! verão, que é o que a RFC 5545 pede e o que as agendas fazem.
 //!
-//! Regra com parte que este leitor não conhece (`BYSETPOS`, `BYHOUR`,
+//! Regra com parte que este leitor não conhece (`BYHOUR`, `BYWEEKNO`,
 //! frequência de hora em hora...) é erro: melhor avisar do que inventar
 //! ocorrência.
 
@@ -43,6 +44,9 @@ pub(crate) struct Rule {
     by_day: Vec<(Option<i8>, Weekday)>,
     by_month_day: Vec<i8>,
     by_month: Vec<i8>,
+    /// `BYSETPOS`: quais das datas de cada período valem, contando do
+    /// começo (`1`) ou do fim (`-1`).
+    by_set_pos: Vec<i16>,
 }
 
 impl Rule {
@@ -61,6 +65,7 @@ impl Rule {
             by_day: Vec::new(),
             by_month_day: Vec::new(),
             by_month: Vec::new(),
+            by_set_pos: Vec::new(),
         };
         for part in text.split(';').filter(|part| !part.is_empty()) {
             let (key, value) = part.split_once('=').ok_or_else(|| unsupported(part))?;
@@ -105,6 +110,15 @@ impl Rule {
                             return Err(unsupported(part));
                         }
                         rule.by_month.push(month);
+                    }
+                }
+                "BYSETPOS" => {
+                    for position in value.split(',') {
+                        let position: i16 = position.parse().map_err(|_| unsupported(part))?;
+                        if position == 0 || !(-366..=366).contains(&position) {
+                            return Err(unsupported(part));
+                        }
+                        rule.by_set_pos.push(position);
                     }
                 }
                 // O começo da semana só muda o resultado em regra semanal
@@ -210,12 +224,39 @@ impl Rule {
         };
         days.sort_unstable();
         days.dedup();
-        days
+        self.pick(days)
+    }
+
+    /// O `BYSETPOS` aplicado às datas do período, já em ordem. Sem ele,
+    /// valem todas. A escolha é no período inteiro, antes de cortar o que
+    /// vem antes do começo, como manda a RFC.
+    fn pick(&self, days: Vec<Date>) -> Vec<Date> {
+        if self.by_set_pos.is_empty() {
+            return days;
+        }
+        let length = days.len();
+        let mut picked: Vec<Date> = self
+            .by_set_pos
+            .iter()
+            .filter_map(|&position| {
+                let index = if position > 0 {
+                    usize::try_from(position - 1).ok()?
+                } else {
+                    length.checked_sub(usize::try_from(-position).ok()?)?
+                };
+                days.get(index).copied()
+            })
+            .collect();
+        picked.sort_unstable();
+        picked.dedup();
+        picked
     }
 
     /// Os dias de um mês: pelo `BYMONTHDAY`, pelo `BYDAY` (com ou sem
-    /// posição) ou, sem nenhum dos dois, o mesmo dia do começo. Mês que não
-    /// tem o dia (31 em abril) fica sem ocorrência, como manda a RFC.
+    /// posição) ou, sem nenhum dos dois, o mesmo dia do começo. Com os dois,
+    /// o `BYDAY` filtra os dias do `BYMONTHDAY` ("dia 28, 29 ou 30, se for
+    /// dia útil"). Mês que não tem o dia (31 em abril) fica sem ocorrência,
+    /// como manda a RFC.
     fn days_in_month(&self, first: Date, start: Date) -> Vec<Date> {
         let length = first.days_in_month();
         if !self.by_month_day.is_empty() {
@@ -225,6 +266,13 @@ impl Rule {
                 .filter_map(|&day| {
                     let day = if day > 0 { day } else { length + 1 + day };
                     first.with().day(day).build().ok()
+                })
+                .filter(|day| {
+                    self.by_day.is_empty()
+                        || self
+                            .by_day
+                            .iter()
+                            .any(|&(_, weekday)| weekday == day.weekday())
                 })
                 .collect();
         }
@@ -347,10 +395,61 @@ mod tests {
     }
 
     #[test]
+    fn the_last_workday_between_28_and_30() {
+        // Em fevereiro de 2027 só tem o 28, e é domingo: o mês fica sem.
+        let start = date(2026, 11, 30).at(9, 0, 0, 0);
+        assert_eq!(
+            days(
+                "FREQ=MONTHLY;BYDAY=MO,TU,WE,TH,FR;BYMONTHDAY=28,29,30;BYSETPOS=-1",
+                start,
+                date(2027, 3, 31)
+            ),
+            ["2026-11-30", "2026-12-30", "2027-01-29", "2027-03-30"]
+        );
+        // Sem o BYDAY, é o último que existe dos três: em fevereiro, o 28.
+        assert_eq!(
+            days(
+                "FREQ=MONTHLY;BYMONTHDAY=28,29,30;BYSETPOS=-1",
+                start,
+                date(2027, 3, 31)
+            ),
+            [
+                "2026-11-30",
+                "2026-12-30",
+                "2027-01-30",
+                "2027-02-28",
+                "2027-03-30"
+            ]
+        );
+    }
+
+    #[test]
+    fn the_first_workday_and_more_than_one_position() {
+        let start = date(2026, 11, 2).at(9, 0, 0, 0);
+        assert_eq!(
+            days(
+                "FREQ=MONTHLY;BYDAY=MO,TU,WE,TH,FR;BYSETPOS=1",
+                start,
+                date(2027, 1, 31)
+            ),
+            ["2026-11-02", "2026-12-01", "2027-01-01"]
+        );
+        assert_eq!(
+            days(
+                "FREQ=MONTHLY;BYDAY=MO,TU,WE,TH,FR;BYSETPOS=1,-1;COUNT=4",
+                start,
+                date(2027, 12, 31)
+            ),
+            ["2026-11-02", "2026-11-30", "2026-12-01", "2026-12-31"]
+        );
+    }
+
+    #[test]
     fn unknown_parts_are_an_error() {
         for rule in [
             "FREQ=HOURLY",
-            "FREQ=MONTHLY;BYSETPOS=-1",
+            "FREQ=MONTHLY;BYSETPOS=0",
+            "FREQ=MONTHLY;BYSETPOS=último",
             "BYDAY=MO",
             "FREQ=DAILY;INTERVAL=0",
         ] {
