@@ -6,7 +6,9 @@
 //! passar batido.
 
 use color_eyre::eyre::{Result, WrapErr, bail, eyre};
+use jiff::civil::Weekday;
 use toml::de::{DeTable, DeValue};
+use vamo_core::{Block, TimeRange, TimeRules};
 use vamo_tui::{Animation, Voice};
 
 /// O que a config escolhe. Cada campo é `None` quando o arquivo não fala
@@ -19,6 +21,8 @@ pub(crate) struct Config {
     pub(crate) animation: Option<Animation>,
     /// A seção `[agenda]`.
     pub(crate) agenda: AgendaConfig,
+    /// A seção `[tempo]`: as regras do tempo.
+    pub(crate) rules: TimeRules,
 }
 
 /// A seção `[agenda]`: de onde a agenda vem.
@@ -61,9 +65,10 @@ fn parse(text: &str) -> Result<Config> {
                 config.animation = Some(if *on { Animation::On } else { Animation::Off });
             }
             "agenda" => config.agenda = agenda(value.get_ref())?,
+            "tempo" => config.rules = rules(value.get_ref())?,
             other => bail!(
                 "`{other}` não é um campo da config: os campos que existem são linguagem, \
-                 animacao e a seção [agenda]"
+                 animacao e as seções [agenda] e [tempo]"
             ),
         }
     }
@@ -88,6 +93,155 @@ fn agenda(value: &DeValue<'_>) -> Result<AgendaConfig> {
         }
     }
     Ok(agenda)
+}
+
+/// Os dias do expediente quando a config não diz: de segunda a sexta.
+const WEEKDAYS: [Weekday; 5] = [
+    Weekday::Monday,
+    Weekday::Tuesday,
+    Weekday::Wednesday,
+    Weekday::Thursday,
+    Weekday::Friday,
+];
+
+/// Lê a seção `[tempo]`:
+///
+/// ```toml
+/// [tempo]
+/// expediente = "09:00-18:00"
+/// dias_de_expediente = ["seg", "ter", "qua", "qui", "sex"]
+/// teto_da_noite = "22:00"
+///
+/// [[tempo.protegido]]
+/// nome = "Almoço"
+/// horario = "12:00-13:00"
+/// dias = ["seg", "ter", "qua", "qui", "sex"]
+/// ```
+fn rules(value: &DeValue<'_>) -> Result<TimeRules> {
+    let DeValue::Table(table) = value else {
+        bail!("`tempo` é uma seção: escreva [tempo] numa linha e os campos embaixo");
+    };
+    let mut rules = TimeRules::default();
+    let mut hours = None;
+    let mut days = None;
+    for (key, value) in table {
+        let value = value.get_ref();
+        match key.get_ref().as_ref() {
+            "expediente" => hours = Some(range("expediente", value)?),
+            "dias_de_expediente" => days = Some(weekdays("dias_de_expediente", value)?),
+            "teto_da_noite" => {
+                let DeValue::String(text) = value else {
+                    bail!("`teto_da_noite` é uma hora entre aspas, como teto_da_noite = \"22:00\"");
+                };
+                rules.night_cap = Some(vamo_core::time_of_day(text)?);
+            }
+            "protegido" => {
+                let DeValue::Array(blocks) = value else {
+                    bail!("cada bloco protegido é uma seção [[tempo.protegido]]");
+                };
+                for block in blocks {
+                    rules.protected.push(protected(block.get_ref())?);
+                }
+            }
+            other => bail!(
+                "`{other}` não é um campo da seção [tempo]: os campos que existem são \
+                 expediente, dias_de_expediente, teto_da_noite e [[tempo.protegido]]"
+            ),
+        }
+    }
+    match (hours, days) {
+        (Some(hours), days) => {
+            rules.workday = Some(Block {
+                name: "expediente".to_owned(),
+                hours,
+                days: days.unwrap_or_else(|| WEEKDAYS.to_vec()),
+            });
+        }
+        (None, Some(_)) => {
+            bail!("`dias_de_expediente` precisa do `expediente`, como \"09:00-18:00\"")
+        }
+        (None, None) => {}
+    }
+    Ok(rules)
+}
+
+/// Um `[[tempo.protegido]]`.
+fn protected(value: &DeValue<'_>) -> Result<Block> {
+    let DeValue::Table(table) = value else {
+        bail!("cada bloco protegido é uma seção [[tempo.protegido]]");
+    };
+    let mut name = None;
+    let mut hours = None;
+    let mut days = Vec::new();
+    for (key, value) in table {
+        let value = value.get_ref();
+        match key.get_ref().as_ref() {
+            "nome" => {
+                let DeValue::String(text) = value else {
+                    bail!(
+                        "`nome` do bloco protegido é um texto entre aspas, como nome = \"Almoço\""
+                    );
+                };
+                name = Some(text.trim().to_owned());
+            }
+            "horario" => hours = Some(range("horario", value)?),
+            "dias" => days = weekdays("dias", value)?,
+            other => bail!(
+                "`{other}` não é um campo do bloco protegido: os campos são nome, horario e dias"
+            ),
+        }
+    }
+    let hours = hours
+        .ok_or_else(|| eyre!("todo bloco protegido precisa do `horario`, como \"12:00-13:00\""))?;
+    Ok(Block {
+        name: name.unwrap_or_else(|| "bloco protegido".to_owned()),
+        hours,
+        days,
+    })
+}
+
+/// Um horário como `"09:00-18:00"`.
+fn range(field: &str, value: &DeValue<'_>) -> Result<TimeRange> {
+    let DeValue::String(text) = value else {
+        bail!("`{field}` é um horário entre aspas, como {field} = \"09:00-18:00\"");
+    };
+    Ok(text.parse()?)
+}
+
+/// Uma lista de dias como `["seg", "qua"]`.
+fn weekdays(field: &str, value: &DeValue<'_>) -> Result<Vec<Weekday>> {
+    let wrong = || {
+        eyre!(
+            "`{field}` é uma lista de dias, como {field} = [\"seg\", \"qua\", \"sex\"] (os dias \
+             são seg, ter, qua, qui, sex, sab e dom)"
+        )
+    };
+    let DeValue::Array(items) = value else {
+        return Err(wrong());
+    };
+    items
+        .iter()
+        .map(|item| match item.get_ref() {
+            DeValue::String(day) => weekday(day).ok_or_else(wrong),
+            _ => Err(wrong()),
+        })
+        .collect()
+}
+
+/// `seg`, `segunda`, `segunda-feira`, `sáb`, `sabado`...
+fn weekday(text: &str) -> Option<Weekday> {
+    let text = text.trim().to_lowercase();
+    let name = text.strip_suffix("-feira").unwrap_or(&text);
+    Some(match name {
+        "seg" | "segunda" => Weekday::Monday,
+        "ter" | "terça" | "terca" => Weekday::Tuesday,
+        "qua" | "quarta" => Weekday::Wednesday,
+        "qui" | "quinta" => Weekday::Thursday,
+        "sex" | "sexta" => Weekday::Friday,
+        "sab" | "sáb" | "sábado" | "sabado" => Weekday::Saturday,
+        "dom" | "domingo" => Weekday::Sunday,
+        _ => return None,
+    })
 }
 
 #[cfg(test)]
@@ -135,6 +289,48 @@ mod tests {
         );
         assert!(parse("agenda = 1").is_err());
         assert!(parse("[agenda]\nlink = \"x\"").is_err());
+    }
+
+    #[test]
+    fn the_time_rules_come_in_their_section() {
+        let config = parse(
+            "[tempo]\n\
+             expediente = \"9h-18h\"\n\
+             teto_da_noite = \"22:00\"\n\
+             [[tempo.protegido]]\n\
+             nome = \"Almoço\"\n\
+             horario = \"12:00-13:00\"\n\
+             [[tempo.protegido]]\n\
+             nome = \"Escola\"\n\
+             horario = \"17:00-17:40\"\n\
+             dias = [\"seg\", \"quarta\"]\n",
+        )
+        .unwrap();
+        let rules = config.rules;
+        let workday = rules.workday.unwrap();
+        assert_eq!(workday.hours.to_string(), "09:00–18:00");
+        assert_eq!(workday.days, WEEKDAYS);
+        assert_eq!(rules.night_cap, Some(jiff::civil::time(22, 0, 0, 0)));
+        assert_eq!(rules.protected.len(), 2);
+        assert_eq!(rules.protected[0].days, []);
+        assert_eq!(
+            rules.protected[1].days,
+            [Weekday::Monday, Weekday::Wednesday]
+        );
+    }
+
+    #[test]
+    fn broken_time_rules_say_what_is_wrong() {
+        for text in [
+            "[tempo]\nexpediente = \"18:00-09:00\"",
+            "[tempo]\nteto_da_noite = 22",
+            "[tempo]\ndias_de_expediente = [\"seg\"]",
+            "[tempo]\nexpediente = \"09:00-18:00\"\ndias_de_expediente = [\"segundou\"]",
+            "[[tempo.protegido]]\nnome = \"Almoço\"",
+            "[tempo]\nalmoco = \"12:00-13:00\"",
+        ] {
+            assert!(parse(text).is_err(), "{text}");
+        }
     }
 
     #[test]

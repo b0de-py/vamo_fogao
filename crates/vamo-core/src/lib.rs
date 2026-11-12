@@ -41,6 +41,8 @@
 //! - [`Appointment`]: um compromisso da agenda, já no horário local.
 //! - [`LinkPlan`]: o que o sync faz com as tarefas ligadas a eventos pelo
 //!   rodapé `vamo:` (sai de [`Projection::link`]).
+//! - [`TimeRules`]: as regras do tempo (expediente, teto da noite e blocos
+//!   protegidos) e as [`Violation`]s de um horário marcado.
 //!
 //! Todos esses tipos validam na construção, então um valor que existe é um
 //! valor válido. Quando algo dá errado, o erro é um [`Error`].
@@ -65,6 +67,7 @@ mod link;
 mod machine;
 mod port;
 mod projection;
+mod rules;
 mod status;
 mod task;
 mod title;
@@ -80,6 +83,7 @@ pub use link::{LinkPlan, Skipped};
 pub use machine::Machine;
 pub use port::EventStore;
 pub use projection::Projection;
+pub use rules::{Block, TimeRange, TimeRules, Violation, time_of_day};
 pub use status::Status;
 pub use task::Task;
 pub use title::NotebookTitle;

@@ -6,7 +6,7 @@ use jiff::ToSpan;
 use jiff::civil::Date;
 use jiff::tz::TimeZone;
 use vamo_agenda::{Calendar, Freshness, IcsLink};
-use vamo_core::{Appointment, When};
+use vamo_core::{Appointment, Projection, TimeRules, When};
 
 use crate::config::AgendaConfig;
 use crate::paths;
@@ -33,6 +33,26 @@ pub(crate) fn load(config: &AgendaConfig) -> Result<Option<Loaded>> {
     }))
 }
 
+/// As regras do tempo que uma tarefa marcada na agenda fere, com o ID na
+/// frente: `T-041: foco depois do teto da noite (22:00)`.
+pub(crate) fn violations(
+    appointment: &Appointment,
+    projection: &Projection,
+    rules: &TimeRules,
+) -> Vec<String> {
+    let (Some(id), Some((start, end))) = (appointment.task, appointment.span()) else {
+        return Vec::new();
+    };
+    let Some(task) = projection.task(id) else {
+        return Vec::new();
+    };
+    rules
+        .check(&task, start, end)
+        .iter()
+        .map(|violation| format!("{id}: {violation}"))
+        .collect()
+}
+
 /// O erro de quando a config não tem o link da agenda.
 pub(crate) fn not_configured() -> color_eyre::Report {
     eyre!(
@@ -47,22 +67,6 @@ pub(crate) fn sync_window(today: Date) -> Result<(Date, Date)> {
     let from = today.checked_sub(14.days())?;
     let to = today.checked_add(3.months())?;
     Ok((from, to))
-}
-
-/// `vamo agenda`: os compromissos do dia, baixados agora.
-pub(crate) fn show(config: &AgendaConfig, day: Date) -> Result<String> {
-    let loaded = load(config)?.ok_or_else(not_configured)?;
-    let (appointments, warnings) = loaded.calendar.read(day, day);
-    let mut lines: Vec<String> = warnings.iter().map(|w| format!("aviso: {w}")).collect();
-    if loaded.freshness == Freshness::Cached {
-        lines.push("aviso: a agenda não baixou agora; esta é a cópia local".to_owned());
-    }
-    if appointments.is_empty() {
-        lines.push(format!("Nada na agenda em {}.", day.strftime("%d/%m")));
-    } else {
-        lines.extend(appointments.iter().map(|a| line(a, day)));
-    }
-    Ok(lines.join("\n"))
 }
 
 /// Uma linha da agenda: `09:00–09:30  Reunião`, com `↻` nos recorrentes.

@@ -795,4 +795,25 @@ END:VCALENDAR\r\n";
                 .ends_with("Agenda lida: 2 compromissos, 0 tarefas escaladas pela agenda.\n")
         );
     }
+
+    #[test]
+    fn a_task_against_the_time_rules_is_flagged() {
+        let vamo = Vamo::new();
+        vamo.ok(&["add", "Escrever o relatório", "--encaixe", "foco"]);
+        let ics = "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:relatorio@exemplo\r\n\
+                   DTSTART;TZID=America/Sao_Paulo:20261112T213000\r\n\
+                   DTEND;TZID=America/Sao_Paulo:20261112T230000\r\n\
+                   SUMMARY:Relatório\r\nDESCRIPTION:vamo: T-001\r\n\
+                   END:VEVENT\r\nEND:VCALENDAR\r\n";
+        let file = vamo.home.path().join("agenda.ics");
+        std::fs::write(&file, ics).expect("a agenda de exemplo deveria ser gravada");
+        vamo.configure(&format!(
+            "[agenda]\nics = \"{}\"\n[tempo]\nteto_da_noite = \"22:00\"\n",
+            file.display()
+        ));
+        assert_eq!(
+            vamo.ok(&["agenda", "--data", "2026-11-12"]),
+            "21:30–23:00  Relatório\n             ⚠ T-001: foco depois do teto da noite (22:00)\n"
+        );
+    }
 }

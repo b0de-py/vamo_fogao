@@ -15,7 +15,7 @@ use vamo_core::{
 use vamo_store::Store;
 
 use crate::cli::{AcervoCommand, Command};
-use crate::config::{AgendaConfig, Config};
+use crate::config::Config;
 use crate::import::{self, Plan};
 use crate::paths;
 use crate::{acervo, agenda};
@@ -43,9 +43,9 @@ pub(crate) fn run(command: Command, voice: Voice, config: &Config) -> Result<Str
         }
         Command::Agenda { date } => {
             let day = date.unwrap_or_else(|| jiff::Zoned::now().date());
-            agenda::show(&config.agenda, day)
+            Session::open(voice)?.agenda(config, day)
         }
-        Command::Sync => Session::open(voice)?.sync(&config.agenda),
+        Command::Sync => Session::open(voice)?.sync(config),
         Command::Tui => {
             let mut session = Session::open(voice)?;
             let acervo::Bundled { facts, banter } = acervo::bundled();
@@ -147,10 +147,31 @@ impl Session {
         Ok(self.voice.goal(task.id(), task.title()))
     }
 
+    /// `vamo agenda`: os compromissos do dia, baixados agora, com o aviso
+    /// das tarefas marcadas fora das regras do tempo.
+    fn agenda(&self, config: &Config, day: jiff::civil::Date) -> Result<String> {
+        let loaded = agenda::load(&config.agenda)?.ok_or_else(agenda::not_configured)?;
+        let (appointments, warnings) = loaded.calendar.read(day, day);
+        let mut lines: Vec<String> = warnings.iter().map(|w| format!("aviso: {w}")).collect();
+        if loaded.freshness == Freshness::Cached {
+            lines.push("aviso: a agenda não baixou agora; esta é a cópia local".to_owned());
+        }
+        if appointments.is_empty() {
+            lines.push(format!("Nada na agenda em {}.", day.strftime("%d/%m")));
+        }
+        for appointment in &appointments {
+            lines.push(agenda::line(appointment, day));
+            for violation in agenda::violations(appointment, &self.projection, &config.rules) {
+                lines.push(format!("             ⚠ {violation}"));
+            }
+        }
+        Ok(lines.join("\n"))
+    }
+
     /// `vamo sync`: baixa a agenda e liga cada evento com rodapé `vamo:` à
     /// tarefa dele, que fica agendada no dia do evento.
-    fn sync(&mut self, config: &AgendaConfig) -> Result<String> {
-        let loaded = agenda::load(config)?.ok_or_else(agenda::not_configured)?;
+    fn sync(&mut self, config: &Config) -> Result<String> {
+        let loaded = agenda::load(&config.agenda)?.ok_or_else(agenda::not_configured)?;
         let today = jiff::Zoned::now().date();
         let (from, to) = agenda::sync_window(today)?;
         let (appointments, warnings) = loaded.calendar.read(from, to);
@@ -176,6 +197,16 @@ impl Session {
             self.record(id, changes)?;
             let task = self.task(id)?;
             lines.push(format!("{id} {}: {}", task.title(), what.join(", ")));
+        }
+        // As tarefas marcadas fora das regras, de hoje em diante.
+        for appointment in appointments.iter().filter(|a| a.day() >= today) {
+            for violation in agenda::violations(appointment, &self.projection, &config.rules) {
+                lines.push(format!(
+                    "⚠ {} ({}): {violation}",
+                    appointment.title,
+                    appointment.day().strftime("%d/%m")
+                ));
+            }
         }
         lines.push(self.voice.synced(appointments.len(), changed));
         Ok(lines.join("\n"))
