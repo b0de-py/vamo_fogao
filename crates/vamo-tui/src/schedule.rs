@@ -43,6 +43,7 @@ impl Schedule {
         &self,
         projection: &Projection,
         today: Date,
+        width: usize,
         voice: Voice,
     ) -> Vec<Line<'static>> {
         if self.is_empty() {
@@ -63,7 +64,11 @@ impl Schedule {
                     format!("{:<11}  ", when(appointment.when, today)),
                     theme::soft(),
                 ),
-                Span::styled(appointment.title.clone(), theme::text()),
+                // O horário ocupa 13 colunas; o título fica com o resto.
+                Span::styled(
+                    fit(&appointment.title, width.saturating_sub(13)),
+                    theme::text(),
+                ),
             ]));
             for warning in self.violations(appointment, projection) {
                 lines.push(Line::styled(
@@ -162,6 +167,17 @@ fn hm(at: DateTime) -> String {
     at.strftime("%H:%M").to_string()
 }
 
+/// O texto inteiro se couber em `width` colunas; se não, cortado com `…`
+/// no fim. Conta caracteres, que é o que o terminal mostra numa coluna cada
+/// (emoji ocupa duas, e aí o corte sobra uma coluna, sem estragar a linha).
+pub(crate) fn fit(text: &str, width: usize) -> String {
+    if text.chars().count() <= width {
+        return text.to_owned();
+    }
+    let kept: String = text.chars().take(width.saturating_sub(1)).collect();
+    format!("{}…", kept.trim_end())
+}
+
 /// `45 min`, `2h`, `1h30`.
 fn length(span: SignedDuration) -> String {
     let minutes = span.as_mins();
@@ -182,5 +198,13 @@ mod tests {
         assert_eq!(length(SignedDuration::from_mins(120)), "2h");
         assert_eq!(length(SignedDuration::from_mins(90)), "1h30");
         assert_eq!(length(SignedDuration::from_mins(65)), "1h05");
+    }
+
+    #[test]
+    fn titles_are_cut_only_when_they_do_not_fit() {
+        assert_eq!(fit("Caminhada no parque", 30), "Caminhada no parque");
+        assert_eq!(fit("Caminhada no parque", 19), "Caminhada no parque");
+        assert_eq!(fit("Caminhada no parque", 12), "Caminhada n…");
+        assert_eq!(fit("Caminhada", 0), "…");
     }
 }

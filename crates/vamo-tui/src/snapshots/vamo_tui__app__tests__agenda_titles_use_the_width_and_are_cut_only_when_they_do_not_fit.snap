@@ -1,0 +1,20 @@
+---
+source: crates/vamo-tui/src/app.rs
+expression: narrow
+---
+" vamo_fogao   1 Hoje  2 Caderno  3 Banco  4 Museu "
+"──────────────────────────────────────────────────"
+"                                                  "
+" Hoje · quarta, 11/11              Placar: 0 de 1 "
+"                                                  "
+" Fixas da agenda                                  "
+"  [ ] 07:00–07:45  Caminhada no parque (levar ga… "
+"                                                  "
+" Agenda                                           "
+" nada marcado além das fixas                      "
+"                                                  "
+"                                                  "
+"                                                  "
+"                                                  "
+"                                                  "
+"tab troca de tela · ? ajuda · q encerra a partida "

@@ -3,7 +3,6 @@
 
 use std::collections::BTreeMap;
 
-use crate::title::shorten;
 use crate::{Appointment, Score, When};
 
 /// Um compromisso recorrente do dia, com o título curto pra escalação.
@@ -11,8 +10,8 @@ use crate::{Appointment, Score, When};
 pub struct FixedActivity {
     /// O UID do evento na agenda. Com o dia, é a chave da marcação.
     pub uid: String,
-    /// O título curto: o apelido da config ou o título do evento cortado
-    /// no tamanho do caderno.
+    /// O título: o apelido da config ou o título inteiro do evento. A fixa
+    /// não vai pro caderno, então a regra das cinco palavras não vale aqui.
     pub title: String,
     /// Quando.
     pub when: When,
@@ -40,7 +39,10 @@ pub struct FixedActivity {
 ///     "treino de musculação na academia do bairro".to_owned(),
 ///     "Academia".to_owned(),
 /// )]);
-/// assert_eq!(fixed_activities(&[gym.clone()], &BTreeMap::new())[0].title, "Treino de musculação na academia");
+/// assert_eq!(
+///     fixed_activities(&[gym.clone()], &BTreeMap::new())[0].title,
+///     "Treino de musculação na academia do bairro"
+/// );
 /// assert_eq!(fixed_activities(&[gym], &aliases)[0].title, "Academia");
 /// ```
 pub fn fixed_activities(
@@ -53,10 +55,13 @@ pub fn fixed_activities(
             continue;
         }
         let key = appointment.title.trim().to_lowercase();
-        let title = aliases
-            .get(&key)
-            .cloned()
-            .unwrap_or_else(|| shorten(&appointment.title));
+        let title = aliases.get(&key).cloned().unwrap_or_else(|| {
+            appointment
+                .title
+                .split_whitespace()
+                .collect::<Vec<_>>()
+                .join(" ")
+        });
         found.push(FixedActivity {
             uid: appointment.uid.clone(),
             title,
