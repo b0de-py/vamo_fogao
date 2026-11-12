@@ -27,7 +27,7 @@ dias = ["seg", "ter", "qua", "qui", "sex"]
 ```
 
 - **`[agenda]`:** de onde a agenda vem. Sem a seção, os comandos da agenda dizem como configurar.
-- **`[tempo]`:** as regras do tempo. O expediente é onde as brechas são procuradas; sem os dias, vale de segunda a sexta. O teto da noite vale pra tarefa de foco. A brecha mínima é em minutos, e o padrão é 15.
+- **`[tempo]`:** as regras do tempo. O expediente é onde as brechas são procuradas; sem os dias, vale de segunda a sexta. O teto da noite vale pra tarefa de foco e pode ser de madrugada, como `01:30`. A brecha mínima é em minutos, e o padrão é 15.
 - **`[[tempo.protegido]]`:** horários que não são de tarefa. Sem `dias`, vale todo dia.
 - **`[apelidos]`:** um título mais curto pra um evento recorrente, pela chave do título do evento (sem ligar pra maiúscula).
 
@@ -78,7 +78,7 @@ Os testes de propriedade garantem as três regras que não podem falhar: a brech
 
 `TimeRules::check` diz que regra uma tarefa fere se for feita num horário. São duas, as duas marcadas em amarelo plasma (é impedimento, não é proibido: o app marca, você decide se segue o lance):
 
-- **Teto da noite:** tarefa de foco que termina depois do teto, ou passa da meia-noite.
+- **Teto da noite:** tarefa de foco que termina depois do teto. Teto à noite (`22:00`) é do mesmo dia, e passar da meia-noite é passar dele. Teto antes do meio-dia (`01:30`) é da madrugada seguinte: foco das 23h à 1h não fere, das 23h às 2h fere, e começar entre o teto e as 6h já fere.
 - **Bloco protegido:** qualquer tarefa que encosta por dentro num bloco protegido do dia. Encostar na borda não conta.
 
 ## As atividades fixas
