@@ -4,7 +4,9 @@
 use jiff::SignedDuration;
 use jiff::civil::{Date, DateTime, Time};
 use ratatui::text::{Line, Span};
-use vamo_core::{Appointment, Gap, Projection, Task, TimeRules, When, fitting, gaps};
+use vamo_core::{
+    Appointment, FixedActivity, Gap, Projection, Task, TimeRules, When, fitting, gaps,
+};
 
 use crate::{Voice, theme};
 
@@ -12,8 +14,12 @@ use crate::{Voice, theme};
 /// liga o leitor é o binário, que entrega só os compromissos.
 #[derive(Debug, Clone, Default)]
 pub struct Schedule {
-    /// Os compromissos do dia, já no fuso de quem usa.
+    /// Os compromissos do dia, já no fuso de quem usa. Os recorrentes
+    /// ocupam as brechas, mas na tela aparecem como atividades fixas.
     pub appointments: Vec<Appointment>,
+    /// As atividades fixas do dia, com o título curto: itens de marcar na
+    /// escalação, que contam no placar sem virar tarefa.
+    pub fixed: Vec<FixedActivity>,
     /// As regras do tempo da config.
     pub rules: TimeRules,
     /// O tamanho mínimo de uma brecha.
@@ -43,17 +49,21 @@ impl Schedule {
             return Vec::new();
         }
         let mut lines = vec![Line::default(), Line::styled("Agenda", theme::heading())];
-        if self.appointments.is_empty() {
-            lines.push(Line::styled("nada marcado", theme::muted()));
+        let once: Vec<&Appointment> = self
+            .appointments
+            .iter()
+            .filter(|appointment| !appointment.recurring)
+            .collect();
+        if once.is_empty() {
+            lines.push(Line::styled("nada marcado além das fixas", theme::muted()));
         }
-        for appointment in &self.appointments {
+        for appointment in once {
             lines.push(Line::from(vec![
-                Span::styled(format!("{:<11}  ", when(appointment, today)), theme::soft()),
-                Span::styled(appointment.title.clone(), theme::text()),
                 Span::styled(
-                    if appointment.recurring { " ↻" } else { "" },
-                    theme::muted(),
+                    format!("{:<11}  ", when(appointment.when, today)),
+                    theme::soft(),
                 ),
+                Span::styled(appointment.title.clone(), theme::text()),
             ]));
             for warning in self.violations(appointment, projection) {
                 lines.push(Line::styled(
@@ -127,8 +137,8 @@ fn gap_line(gap: Gap, today: Date, tasks: &[Task], agenda: &[Appointment]) -> Li
 }
 
 /// O horário do compromisso no dia: `09:00–09:30`, ou `dia inteiro`.
-fn when(appointment: &Appointment, today: Date) -> String {
-    match appointment.when {
+pub(crate) fn when(when: When, today: Date) -> String {
+    match when {
         When::AllDay(_) => "dia inteiro".to_owned(),
         When::Timed { start, end } => {
             // O que começou ontem aparece desde 00:00; o que vai até amanhã,

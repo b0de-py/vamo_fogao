@@ -22,10 +22,12 @@
 mod error;
 mod migrations;
 
+use std::collections::BTreeSet;
 use std::path::Path;
 use std::str::FromStr;
 use std::time::Duration;
 
+use jiff::civil::Date;
 use rusqlite::{Connection, Row, params};
 use vamo_core::{Change, Event, EventStore};
 
@@ -88,6 +90,49 @@ impl Store {
         conn.busy_timeout(Duration::from_secs(5))?;
         migrations::run(&mut conn)?;
         Ok(Self { conn })
+    }
+}
+
+impl Store {
+    /// As atividades fixas da agenda marcadas, como `(dia, UID do evento)`.
+    ///
+    /// # Errors
+    ///
+    /// Quando o SQLite falha, ou um dia guardado não é um dia válido.
+    pub fn agenda_checks(&self) -> Result<BTreeSet<(Date, String)>, Error> {
+        let mut select = self.conn.prepare("SELECT day, uid FROM agenda_checks")?;
+        let mut rows = select.query([])?;
+        let mut checks = BTreeSet::new();
+        while let Some(row) = rows.next()? {
+            let day: String = row.get(0)?;
+            let day = day
+                .parse()
+                .map_err(|source| Error::InvalidCheckDay { day, source })?;
+            checks.insert((day, row.get(1)?));
+        }
+        Ok(checks)
+    }
+
+    /// Marca (`done`) ou desmarca a atividade fixa `uid` em `day`. Marcar o
+    /// que já está marcado não muda nada.
+    ///
+    /// # Errors
+    ///
+    /// Quando o SQLite falha.
+    pub fn set_agenda_check(&mut self, day: Date, uid: &str, done: bool) -> Result<(), Error> {
+        let day = day.to_string();
+        if done {
+            self.conn.execute(
+                "INSERT OR IGNORE INTO agenda_checks (day, uid) VALUES (?1, ?2)",
+                params![day, uid],
+            )?;
+        } else {
+            self.conn.execute(
+                "DELETE FROM agenda_checks WHERE day = ?1 AND uid = ?2",
+                params![day, uid],
+            )?;
+        }
+        Ok(())
     }
 }
 

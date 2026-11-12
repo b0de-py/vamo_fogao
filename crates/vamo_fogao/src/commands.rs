@@ -1,10 +1,12 @@
 //! Os comandos do `vamo`. Os de tarefa abrem o banco, pedem a regra pro
 //! core e devolvem o texto pra mostrar; quem imprime é o `main`.
 
+use std::collections::BTreeSet;
 use std::path::Path;
 
 use color_eyre::eyre::{Result, WrapErr, bail, eyre};
 use jiff::Timestamp;
+use jiff::civil::Date;
 use jiff::tz::TimeZone;
 use uuid::Uuid;
 use vamo_agenda::{Footer, Freshness};
@@ -73,6 +75,9 @@ struct Session {
     events: Vec<Event>,
     projection: Projection,
     voice: Voice,
+    /// As atividades fixas da agenda marcadas: a tabela inteira cabe na
+    /// memória, e a TUI lê a cada quadro.
+    agenda_checks: BTreeSet<(Date, String)>,
 }
 
 impl Session {
@@ -83,11 +88,13 @@ impl Session {
             .wrap_err_with(|| format!("não deu pra abrir o banco em {}", path.display()))?;
         let events = store.events()?;
         let projection = events.iter().collect();
+        let agenda_checks = store.agenda_checks()?;
         Ok(Self {
             store,
             events,
             projection,
             voice,
+            agenda_checks,
         })
     }
 
@@ -363,6 +370,20 @@ impl vamo_tui::Ledger for Session {
 
     fn record(&mut self, task: TaskId, changes: Vec<Change>) -> Result<()> {
         Session::record(self, task, changes)
+    }
+
+    fn agenda_checks(&self) -> &BTreeSet<(Date, String)> {
+        &self.agenda_checks
+    }
+
+    fn check_agenda(&mut self, day: Date, uid: &str, done: bool) -> Result<()> {
+        self.store.set_agenda_check(day, uid, done)?;
+        if done {
+            self.agenda_checks.insert((day, uid.to_owned()));
+        } else {
+            self.agenda_checks.remove(&(day, uid.to_owned()));
+        }
+        Ok(())
     }
 }
 

@@ -5,6 +5,8 @@
 //! o `vamo` não conhece é erro, não silêncio, pra um erro de digitação não
 //! passar batido.
 
+use std::collections::BTreeMap;
+
 use color_eyre::eyre::{Result, WrapErr, bail, eyre};
 use jiff::SignedDuration;
 use jiff::civil::Weekday;
@@ -27,6 +29,9 @@ pub(crate) struct Config {
     /// `brecha_minima = 20`, na seção `[tempo]`: a menor brecha que vale
     /// mostrar, em minutos.
     pub(crate) min_gap: Option<SignedDuration>,
+    /// A seção `[apelidos]`: o título curto de cada evento recorrente da
+    /// agenda, pela chave do título do evento em minúsculas.
+    pub(crate) aliases: BTreeMap<String, String>,
 }
 
 /// A seção `[agenda]`: de onde a agenda vem.
@@ -70,9 +75,10 @@ fn parse(text: &str) -> Result<Config> {
             }
             "agenda" => config.agenda = agenda(value.get_ref())?,
             "tempo" => (config.rules, config.min_gap) = rules(value.get_ref())?,
+            "apelidos" => config.aliases = aliases(value.get_ref())?,
             other => bail!(
                 "`{other}` não é um campo da config: os campos que existem são linguagem, \
-                 animacao e as seções [agenda] e [tempo]"
+                 animacao e as seções [agenda], [tempo] e [apelidos]"
             ),
         }
     }
@@ -97,6 +103,35 @@ fn agenda(value: &DeValue<'_>) -> Result<AgendaConfig> {
         }
     }
     Ok(agenda)
+}
+
+/// Lê a seção `[apelidos]`, o título curto dos eventos recorrentes:
+///
+/// ```toml
+/// [apelidos]
+/// "Reunião diária da equipe de produto" = "Daily"
+/// ```
+fn aliases(value: &DeValue<'_>) -> Result<BTreeMap<String, String>> {
+    let DeValue::Table(table) = value else {
+        bail!("`apelidos` é uma seção: escreva [apelidos] numa linha e os apelidos embaixo");
+    };
+    let mut aliases = BTreeMap::new();
+    for (key, value) in table {
+        let title = key.get_ref().trim();
+        let DeValue::String(alias) = value.get_ref() else {
+            bail!("o apelido de \"{title}\" é um texto entre aspas, como \"{title}\" = \"Daily\"");
+        };
+        let words = alias.split_whitespace().count();
+        if words == 0 || words > vamo_core::NotebookTitle::MAX_WORDS {
+            bail!(
+                "o apelido de \"{title}\" precisa ter de 1 a {} palavras, como uma linha do caderno",
+                vamo_core::NotebookTitle::MAX_WORDS
+            );
+        }
+        let alias = alias.split_whitespace().collect::<Vec<_>>().join(" ");
+        aliases.insert(title.to_lowercase(), alias);
+    }
+    Ok(aliases)
 }
 
 /// Os dias do expediente quando a config não diz: de segunda a sexta.
@@ -310,6 +345,21 @@ mod tests {
         );
         assert!(parse("agenda = 1").is_err());
         assert!(parse("[agenda]\nlink = \"x\"").is_err());
+    }
+
+    #[test]
+    fn aliases_are_keyed_by_the_lowercase_title() {
+        let config =
+            parse("[apelidos]\n\"Reunião Diária da Equipe\" = \"Daily  da equipe\"\n").unwrap();
+        assert_eq!(
+            config
+                .aliases
+                .get("reunião diária da equipe")
+                .map(String::as_str),
+            Some("Daily da equipe")
+        );
+        assert!(parse("[apelidos]\nAcademia = 1\n").is_err());
+        assert!(parse("[apelidos]\nAcademia = \"um dois três quatro cinco seis\"\n").is_err());
     }
 
     #[test]

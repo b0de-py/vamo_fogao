@@ -27,7 +27,7 @@ use crate::museum::Museum;
 use crate::prompt::{Prompt, Purpose, Step};
 use crate::schedule::Schedule;
 use crate::star::Star;
-use crate::today::Today;
+use crate::today::{self, Today};
 use crate::when::parse_day;
 use crate::{Animation, Ledger, Setup, Voice, card, notebook, theme};
 
@@ -258,7 +258,8 @@ impl App {
             self.flash -= 1;
             1.0
         } else {
-            let score = Lineup::new(ledger.projection(), self.today).score();
+            let lineup = Lineup::new(ledger.projection(), self.today);
+            let score = today::score(&lineup, &self.schedule, ledger.agenda_checks());
             if score.planned == 0 {
                 0.0
             } else {
@@ -325,7 +326,10 @@ impl App {
                         None => Some(Action::Close),
                     },
                     (Tab::Bench, None) => self.bench.on_key(key, ledger, self.today),
-                    (Tab::Today, _) => self.today_screen.on_key(key, ledger, self.today),
+                    (Tab::Today, _) => {
+                        self.today_screen
+                            .on_key(key, ledger, self.today, &self.schedule)
+                    }
                     (Tab::Museum, _) => {
                         self.museum.on_key(key, &self.acervo, self.voice);
                         None
@@ -548,6 +552,7 @@ impl App {
                 self.today,
                 &self.acervo,
                 &self.schedule,
+                ledger.agenda_checks(),
                 self.banter,
                 self.voice,
             ),
@@ -968,29 +973,31 @@ pub(crate) mod tests {
             hours: "12:00-13:00".parse().unwrap(),
             days: vec![],
         };
+        let appointments = vec![
+            Appointment {
+                uid: "reuniao@exemplo".to_owned(),
+                title: "Reunião da equipe".to_owned(),
+                when: When::Timed {
+                    start: at(10, 0),
+                    end: at(11, 0),
+                },
+                recurring: true,
+                task: None,
+            },
+            Appointment {
+                uid: "gesso@exemplo".to_owned(),
+                title: "Comprar o gesso".to_owned(),
+                when: When::Timed {
+                    start: at(12, 30),
+                    end: at(13, 0),
+                },
+                recurring: false,
+                task: Some(errand),
+            },
+        ];
         app.schedule = Schedule {
-            appointments: vec![
-                Appointment {
-                    uid: "reuniao@exemplo".to_owned(),
-                    title: "Reunião da equipe".to_owned(),
-                    when: When::Timed {
-                        start: at(10, 0),
-                        end: at(11, 0),
-                    },
-                    recurring: true,
-                    task: None,
-                },
-                Appointment {
-                    uid: "gesso@exemplo".to_owned(),
-                    title: "Comprar o gesso".to_owned(),
-                    when: When::Timed {
-                        start: at(12, 30),
-                        end: at(13, 0),
-                    },
-                    recurring: false,
-                    task: Some(errand),
-                },
-            ],
+            fixed: vamo_core::fixed_activities(&appointments, &std::collections::BTreeMap::new()),
+            appointments,
             rules: TimeRules {
                 workday: Some(Block {
                     name: "expediente".to_owned(),
@@ -1008,7 +1015,22 @@ pub(crate) mod tests {
             screen.contains("⚠ T-001: em cima do bloco protegido Almoço"),
             "{screen}"
         );
+        assert!(screen.contains("Placar: 0 de 1"), "{screen}");
         assert_snapshot!(screen);
+
+        // A reunião recorrente é a fixa da agenda: marcar conta no placar
+        // e não cria tarefa.
+        app.on_key(key(KeyCode::Char(' ')), &mut ledger);
+        let screen = draw(&app, &ledger, 80, 24);
+        assert!(
+            screen.contains("[x] 10:00–11:00  Reunião da equipe"),
+            "{screen}"
+        );
+        assert!(screen.contains("Placar: 1 de 1"), "{screen}");
+        assert_eq!(ledger.projection().tasks().count(), 3);
+        assert_eq!(ledger.agenda_checks().len(), 1);
+        app.on_key(key(KeyCode::Char(' ')), &mut ledger);
+        assert!(draw(&app, &ledger, 80, 24).contains("Placar: 0 de 1"));
     }
 
     #[test]

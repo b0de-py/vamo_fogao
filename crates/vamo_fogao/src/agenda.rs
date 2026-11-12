@@ -68,6 +68,7 @@ pub(crate) fn schedule(config: &Config, now: &jiff::Zoned) -> vamo_tui::Schedule
         )
         .unwrap_or_default();
     vamo_tui::Schedule {
+        fixed: vamo_core::fixed_activities(&appointments, &config.aliases),
         appointments,
         rules: config.rules.clone(),
         min_gap: config.min_gap.unwrap_or(vamo_core::DEFAULT_MIN_GAP),

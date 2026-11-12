@@ -132,6 +132,7 @@ impl Voice {
             (Self::Neutral, Group::Planned) => "Pra hoje",
             (_, Group::Late) => "Atrasadas",
             (_, Group::Fixed) => "Fixas",
+            (_, Group::Agenda) => "Fixas da agenda",
         }
     }
 

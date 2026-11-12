@@ -43,6 +43,8 @@
 //!   rodapé `vamo:` (sai de [`Projection::link`]).
 //! - [`gaps`]: as brechas do dia, e [`fitting`]: as tarefas que cabem
 //!   em cada uma.
+//! - [`fixed_activities`]: os compromissos recorrentes, que viram itens
+//!   de marcar na tela Hoje.
 //! - [`TimeRules`]: as regras do tempo (expediente, teto da noite e blocos
 //!   protegidos) e as [`Violation`]s de um horário marcado.
 //!
@@ -63,6 +65,7 @@ mod area;
 mod error;
 mod event;
 mod fit;
+mod fixed;
 mod gaps;
 mod id;
 mod lineup;
@@ -80,6 +83,7 @@ pub use area::Area;
 pub use error::Error;
 pub use event::{Change, Event, EventId};
 pub use fit::Fit;
+pub use fixed::{FixedActivity, fixed_activities};
 pub use gaps::{DEFAULT_MIN_GAP, Gap, fitting, gaps};
 pub use id::TaskId;
 pub use lineup::{Lineup, Score};
