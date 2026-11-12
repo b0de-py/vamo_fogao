@@ -1,0 +1,15 @@
+# Roda o vamo-lembrar.service no começo de cada minuto, com a TUI aberta ou
+# não. Pra ligar:
+#
+#   systemctl --user enable --now vamo-lembrar.timer
+[Unit]
+Description=Lembretes do vamo_fogao, de minuto em minuto
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+# Sem isto, o systemd pode atrasar a rodada em até um minuto pra juntar
+# com outros timers, e o aviso das 14:50 chegaria às 14:51.
+AccuracySec=1s
+
+[Install]
+WantedBy=timers.target

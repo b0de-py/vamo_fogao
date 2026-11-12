@@ -11,8 +11,8 @@ use jiff::tz::TimeZone;
 use uuid::Uuid;
 use vamo_agenda::{Footer, Freshness};
 use vamo_core::{
-    Area, Change, Event, EventId, EventStore, Fit, Machine, NotebookTitle, Projection, Skipped,
-    Status, Task, TaskId,
+    Area, Change, Event, EventId, EventStore, Fit, Machine, NotebookTitle, Notifier, Projection,
+    ReminderWindow, Skipped, Status, Task, TaskId,
 };
 use vamo_store::Store;
 
@@ -20,7 +20,7 @@ use crate::cli::{AcervoCommand, Command};
 use crate::config::Config;
 use crate::import::{self, Plan};
 use crate::paths;
-use crate::{acervo, agenda, bar};
+use crate::{acervo, agenda, bar, remind};
 use vamo_tui::Voice;
 
 /// Roda um comando e devolve o que mostrar na saída.
@@ -50,6 +50,7 @@ pub(crate) fn run(command: Command, voice: Voice, config: &Config) -> Result<Str
         Command::Sync => Session::open(voice)?.sync(config),
         Command::Inbox => Ok(Session::open(voice)?.inbox()),
         Command::Bar { json } => Ok(Session::open(voice)?.bar(config, json)),
+        Command::Remind { test } => Session::open(voice)?.remind(config, test),
         Command::ConnectGoogle => agenda::google::connect(&config.agenda),
         Command::Tui => {
             let mut session = Session::open(voice)?;
@@ -202,6 +203,49 @@ impl Session {
         } else {
             bar.text(self.voice)
         }
+    }
+
+    /// `vamo lembrar`: uma rodada dos lembretes. Olha da última rodada até
+    /// agora, manda o que venceu e guarda até onde olhou. Sem nada pra
+    /// avisar, não escreve nada: o timer roda de minuto em minuto, e o
+    /// diário do systemd não precisa de uma linha por minuto.
+    fn remind(&self, config: &Config, test: bool) -> Result<String> {
+        let mut notifier = remind::NotifySend;
+        if test {
+            let (summary, body) = self.voice.test_reminder();
+            notifier
+                .notify(summary, body)
+                .wrap_err("a notificação de teste não saiu: o notify-send está instalado?")?;
+            return Ok(self.voice.reminders_sent(1));
+        }
+        let zone = TimeZone::system();
+        let now = Timestamp::now();
+        let path = paths::reminders_state()?;
+        let window = ReminderWindow::since(
+            remind::last_round(&path, &zone),
+            now.to_zoned(zone.clone()).datetime(),
+        );
+        let lead = config.reminder_lead.unwrap_or(vamo_core::DEFAULT_LEAD);
+        // O aviso das 23:55 pode ser de um compromisso de amanhã cedo.
+        let last_day = window.until.saturating_add(lead).date();
+        let appointments = agenda::cached_appointments(config, zone, window.after.date(), last_day);
+        let sent = remind::round(
+            &mut notifier,
+            &appointments,
+            &self.projection,
+            lead,
+            window,
+            self.voice,
+        );
+        // A rodada fica guardada mesmo com aviso que falhou: repetir a
+        // janela mandaria de novo os que saíram.
+        remind::save_round(&path, now)?;
+        let sent = sent.wrap_err("um lembrete não saiu: o notify-send está instalado?")?;
+        Ok(if sent == 0 {
+            String::new()
+        } else {
+            self.voice.reminders_sent(sent)
+        })
     }
 
     /// `vamo agenda`: os compromissos do dia, baixados agora, com o aviso

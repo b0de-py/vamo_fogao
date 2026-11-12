@@ -79,20 +79,32 @@ fn cached(config: &AgendaConfig, zone: TimeZone) -> Result<Option<Source>> {
     }
 }
 
+/// Os compromissos de `from` a `to`, lidos só da cópia local, como na
+/// [`schedule`]. Sem agenda, sem cópia ou com a cópia ilegível, nenhum, e o
+/// motivo vai pro log.
+pub(crate) fn cached_appointments(
+    config: &Config,
+    zone: TimeZone,
+    from: Date,
+    to: Date,
+) -> Vec<Appointment> {
+    match cached(&config.agenda, zone) {
+        Ok(Some(source)) => source.read(from, to).0,
+        Ok(None) => Vec::new(),
+        Err(error) => {
+            tracing::warn!("a cópia local da agenda não deu pra ler: {error:#}");
+            Vec::new()
+        }
+    }
+}
+
 /// A agenda de hoje pra tela Hoje, lida só da cópia local: a TUI abre na
 /// hora, sem esperar a internet. Quem atualiza a cópia é o `vamo sync` (e o
 /// `vamo agenda`). Sem agenda na config, sem cópia ou com a cópia ilegível,
 /// a tela mostra só as brechas do expediente, e o motivo vai pro log.
 pub(crate) fn schedule(config: &Config, now: &jiff::Zoned) -> vamo_tui::Schedule {
     let today = now.date();
-    let appointments = match cached(&config.agenda, now.time_zone().clone()) {
-        Ok(Some(source)) => source.read(today, today).0,
-        Ok(None) => Vec::new(),
-        Err(error) => {
-            tracing::warn!("a cópia local da agenda não deu pra ler: {error:#}");
-            Vec::new()
-        }
-    };
+    let appointments = cached_appointments(config, now.time_zone().clone(), today, today);
     vamo_tui::Schedule {
         fixed: vamo_core::fixed_activities(&appointments, &config.aliases),
         appointments,

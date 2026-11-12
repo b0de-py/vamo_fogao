@@ -45,6 +45,8 @@
 //!   em cada uma.
 //! - [`fixed_activities`]: os compromissos recorrentes, que viram itens
 //!   de marcar na tela Hoje.
+//! - [`reminders`]: os lembretes que vencem numa [`ReminderWindow`], a
+//!   janela de uma rodada do timer.
 //! - [`TimeRules`]: as regras do tempo (expediente, teto da noite e blocos
 //!   protegidos) e as [`Violation`]s de um horário marcado.
 //!
@@ -59,6 +61,7 @@
 //! - [`EventStore`]: onde o log de eventos fica guardado.
 //! - [`Agenda`]: de onde vêm os compromissos da agenda, os
 //!   [`Appointment`]s.
+//! - [`Notifier`]: pra onde vão os avisos, as notificações do desktop.
 
 mod appointment;
 mod area;
@@ -73,6 +76,7 @@ mod link;
 mod machine;
 mod port;
 mod projection;
+mod reminder;
 mod rules;
 mod status;
 mod task;
@@ -89,8 +93,9 @@ pub use id::TaskId;
 pub use lineup::{Lineup, Score};
 pub use link::{LinkPlan, Skipped};
 pub use machine::Machine;
-pub use port::EventStore;
+pub use port::{EventStore, Notifier};
 pub use projection::Projection;
+pub use reminder::{DEFAULT_LEAD, MAX_CATCH_UP, Reminder, ReminderWindow, reminders};
 pub use rules::{Block, TimeRange, TimeRules, Violation, time_of_day};
 pub use status::Status;
 pub use task::Task;

@@ -1,4 +1,4 @@
-# A barra
+# A barra e os lembretes
 
 A fase 4 tira o `vamo` do terminal. O primeiro passo é o placar do dia sempre à vista, num módulo da barra do Omarchy: `⚽ 3 x 2` quer dizer três feitas e duas em aberto. Com o mouse em cima, a dica mostra o dia, o placar, o atraso, o próximo compromisso da agenda e o que ainda está em campo. O clique esquerdo mostra e esconde a TUI; o direito relê o placar na hora.
 
@@ -76,3 +76,43 @@ A entrada aceita, tudo opcional:
 O clique abre a TUI só se o workspace especial estiver configurado como no capítulo da TUI. Sem ele, troque o `onClick` por algo como `alacritty -e vamo tui`.
 
 Se a barra mostrar `vamo !`, o comando deu erro: a dica traz a mensagem. O mais comum é o `vamo` fora do PATH da barra.
+
+## Os lembretes
+
+O segundo passo é o aviso na hora certa, nas notificações do desktop, com a TUI aberta ou não. Dez minutos antes de cada compromisso com horário da agenda, chega uma notificação com o título e a hora: `A bola rola às 15:00` (no modo neutro, `Começa às 15:00`). Se o evento está ligado a uma tarefa pelo rodapé `vamo:`, o título é o da tarefa, com o ID; tarefa concluída ou descartada não tem aviso. A decisão está na [ADR 0011](https://github.com/b0de-py/vamo_fogao/blob/main/docs/adr/0011-lembretes-por-timer-e-notify-send.md).
+
+```sh
+vamo lembrar          # uma rodada: avisa o que venceu desde a última
+vamo lembrar --teste  # manda uma notificação de teste
+```
+
+A antecedência fica na config, em minutos:
+
+```toml
+[lembretes]
+antecedencia = 15
+```
+
+### Como funciona
+
+O `vamo` não fica de pé esperando a hora: um timer do systemd roda o `vamo lembrar` no começo de cada minuto, e cada rodada pergunta ao core "o que venceu entre a última vez que eu olhei e agora?". A última vez fica em `~/.local/state/vamo_fogao/lembretes`.
+
+- **A janela** (`ReminderWindow::since`, em `crates/vamo-core/src/reminder.rs`) vai da última rodada, sem incluir, até agora. Sem incluir o começo, o aviso que caiu bem no fim da rodada anterior não sai de novo. Um teste de propriedade roda um dia inteiro de rodadas e confere que cada compromisso é avisado uma vez só, com qualquer hora e antecedência.
+- **A máquina que dormiu** não despeja os avisos da noite de manhã: a janela nunca volta mais de 15 minutos.
+- **O envio** passa pela porta `Notifier` do core. O binário manda pelo `notify-send`, que fala com o serviço de notificações do desktop pelo D-Bus; nos testes, um falso guarda os avisos.
+
+A agenda vem da cópia local, a mesma da barra. Quem a mantém em dia é o `vamo sync`, então vale ligar o segundo timer, que sincroniza a cada meia hora.
+
+### Instalar os timers
+
+Os arquivos estão em [`extras/systemd/`](https://github.com/b0de-py/vamo_fogao/tree/main/extras/systemd). Eles chamam o `vamo` em `~/.cargo/bin`, que é onde o `cargo install` põe; se o seu estiver em outro lugar, troque o `ExecStart`.
+
+```sh
+vamo lembrar --teste
+mkdir -p ~/.config/systemd/user
+cp extras/systemd/vamo-* ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now vamo-lembrar.timer vamo-sync.timer
+```
+
+Pra conferir: `systemctl --user list-timers 'vamo-*'` mostra a próxima rodada, e `journalctl --user -u vamo-lembrar` mostra os avisos mandados e os erros.

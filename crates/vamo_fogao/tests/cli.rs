@@ -30,6 +30,7 @@ impl Vamo {
             .env("XDG_DATA_HOME", self.home.path().join("dados"))
             .env("XDG_CONFIG_HOME", self.home.path().join("config"))
             .env("XDG_CACHE_HOME", self.home.path().join("cache"))
+            .env("XDG_STATE_HOME", self.home.path().join("estado"))
             .env("VAMO_MAQUINA", "notebook")
             .env("TZ", "America/Sao_Paulo")
             .env_remove("VAMO_LINGUAGEM")
@@ -908,5 +909,18 @@ mod bar {
         let vamo = Vamo::new();
         assert_eq!(vamo.ok(&["barra"]), "⚽ 0 x 0\n");
         assert_eq!(vamo.ok(&["barra", "--linguagem", "neutra"]), "0/0\n");
+    }
+}
+
+mod reminders {
+    use super::*;
+
+    #[test]
+    fn a_round_without_agenda_is_quiet_and_remembers_where_it_stopped() {
+        let vamo = Vamo::new();
+        assert_eq!(vamo.ok(&["lembrar"]), "");
+        let state = vamo.home.path().join("estado/vamo_fogao/lembretes");
+        let saved = std::fs::read_to_string(state).expect("a rodada deveria ficar guardada");
+        assert!(saved.trim().ends_with('Z'), "{saved}");
     }
 }

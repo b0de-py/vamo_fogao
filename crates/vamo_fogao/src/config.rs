@@ -32,6 +32,9 @@ pub(crate) struct Config {
     /// A seção `[apelidos]`: o título curto de cada evento recorrente da
     /// agenda, pela chave do título do evento em minúsculas.
     pub(crate) aliases: BTreeMap<String, String>,
+    /// `antecedencia = 15`, na seção `[lembretes]`: quantos minutos antes
+    /// do compromisso o aviso chega.
+    pub(crate) reminder_lead: Option<SignedDuration>,
 }
 
 /// A seção `[agenda]`: de onde a agenda vem.
@@ -107,9 +110,10 @@ fn parse(text: &str) -> Result<Config> {
             "agenda" => config.agenda = agenda(value.get_ref())?,
             "tempo" => (config.rules, config.min_gap) = rules(value.get_ref())?,
             "apelidos" => config.aliases = aliases(value.get_ref())?,
+            "lembretes" => config.reminder_lead = reminders(value.get_ref())?,
             other => bail!(
                 "`{other}` não é um campo da config: os campos que existem são linguagem, \
-                 animacao e as seções [agenda], [tempo] e [apelidos]"
+                 animacao e as seções [agenda], [tempo], [apelidos] e [lembretes]"
             ),
         }
     }
@@ -155,6 +159,28 @@ fn agenda(value: &DeValue<'_>) -> Result<AgendaConfig> {
         }
     }
     Ok(agenda)
+}
+
+/// Lê a seção `[lembretes]`:
+///
+/// ```toml
+/// [lembretes]
+/// antecedencia = 15
+/// ```
+fn reminders(value: &DeValue<'_>) -> Result<Option<SignedDuration>> {
+    let DeValue::Table(table) = value else {
+        bail!("`lembretes` é uma seção: escreva [lembretes] numa linha e os campos embaixo");
+    };
+    let mut lead = None;
+    for (key, value) in table {
+        match key.get_ref().as_ref() {
+            "antecedencia" => lead = Some(minutes("antecedencia", value.get_ref())?),
+            other => bail!(
+                "`{other}` não é um campo da seção [lembretes]: o campo que existe é antecedencia"
+            ),
+        }
+    }
+    Ok(lead)
 }
 
 /// Lê a seção `[apelidos]`, o título curto dos eventos recorrentes:
@@ -474,6 +500,20 @@ mod tests {
             "[tempo]\nalmoco = \"12:00-13:00\"",
         ] {
             assert!(parse(text).is_err(), "{text}");
+        }
+    }
+
+    #[test]
+    fn the_reminder_lead_is_in_minutes() {
+        let config = parse("[lembretes]\nantecedencia = 15").unwrap();
+        assert_eq!(config.reminder_lead, Some(SignedDuration::from_mins(15)));
+        for wrong in [
+            "[lembretes]\nantecedencia = \"15\"",
+            "[lembretes]\nantecedencia = 0",
+            "[lembretes]\nquando = 15",
+            "lembretes = 15",
+        ] {
+            assert!(parse(wrong).is_err(), "{wrong}");
         }
     }
 

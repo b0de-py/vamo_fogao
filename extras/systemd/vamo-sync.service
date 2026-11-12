@@ -1,0 +1,10 @@
+# Baixa a agenda e liga os eventos às tarefas (vamo sync). Os lembretes e a
+# barra leem a cópia local da agenda, e é este serviço que a mantém em dia.
+[Unit]
+Description=Sincronia da agenda do vamo_fogao
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.cargo/bin/vamo sync

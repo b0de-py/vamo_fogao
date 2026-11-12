@@ -155,6 +155,44 @@ impl Voice {
         }
     }
 
+    /// O texto do lembrete de um compromisso que ainda vai começar.
+    pub fn reminder_ahead(self, time: &str) -> String {
+        match self {
+            Self::Game => format!("A bola rola às {time}"),
+            Self::Neutral => format!("Começa às {time}"),
+        }
+    }
+
+    /// O texto do lembrete de um compromisso que já começou.
+    pub fn reminder_started(self, time: &str) -> String {
+        match self {
+            Self::Game => format!("A bola rolou às {time}"),
+            Self::Neutral => format!("Começou às {time}"),
+        }
+    }
+
+    /// Quantos lembretes uma rodada do `vamo lembrar` mandou.
+    pub fn reminders_sent(self, count: usize) -> String {
+        match count {
+            1 => "1 lembrete enviado".to_owned(),
+            count => format!("{count} lembretes enviados"),
+        }
+    }
+
+    /// A notificação de teste do `vamo lembrar --teste`: o título e o texto.
+    pub fn test_reminder(self) -> (&'static str, &'static str) {
+        match self {
+            Self::Game => (
+                "vamo_fogao",
+                "Teste de lembrete: se você está lendo isto, o aviso chega na hora do jogo.",
+            ),
+            Self::Neutral => (
+                "vamo_fogao",
+                "Teste de lembrete: se você está lendo isto, os avisos estão funcionando.",
+            ),
+        }
+    }
+
     /// O título de um grupo da escalação.
     pub(crate) fn group(self, group: Group) -> &'static str {
         match (self, group) {

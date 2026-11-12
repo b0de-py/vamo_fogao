@@ -9,6 +9,6 @@
 - [O acervo](o-acervo.md)
 - [A TUI](a-tui.md)
 - [A agenda](a-agenda.md)
-- [A barra](a-barra.md)
+- [A barra e os lembretes](a-barra.md)
 - [O Rust que aparece aqui](rust-que-aparece-aqui.md)
 - [Glossário](glossario.md)

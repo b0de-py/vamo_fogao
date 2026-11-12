@@ -17,6 +17,7 @@ Comandos:
   sync             Lê a agenda e liga os eventos com rodapé vamo: às tarefas
   caixa            Lista as tarefas prontas esperando horário, com o rodapé pra agenda
   barra            Mostra o placar do dia numa linha, pra barra do desktop
+  lembrar          Avisa, nas notificações do desktop, dos compromissos que vão começar
   conectar-google  Conecta o vamo ao Google Agenda, pelo navegador
   tui              Abre a interface de terminal, com as telas do dia
   acervo           Cuida do acervo, o museu de bolso com a história do Botafogo
@@ -40,3 +41,4 @@ Variáveis de ambiente:
   XDG_CONFIG_HOME  onde fica a pasta da config (padrão: ~/.config)
   XDG_CACHE_HOME   onde fica a cópia da agenda (padrão: ~/.cache)
   XDG_DATA_HOME    onde fica a pasta do banco (padrão: ~/.local/share)
+  XDG_STATE_HOME   onde fica a última rodada dos lembretes (padrão: ~/.local/state)

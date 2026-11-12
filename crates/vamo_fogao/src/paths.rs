@@ -48,3 +48,15 @@ pub(crate) fn google_cache() -> Result<PathBuf> {
 pub(crate) fn google_token() -> Result<PathBuf> {
     Ok(config()?.with_file_name("google-token.json"))
 }
+
+/// Até onde o `vamo lembrar` já olhou, na pasta de estado:
+/// `$XDG_STATE_HOME/vamo_fogao/lembretes`, que na maioria das máquinas é
+/// `~/.local/state/vamo_fogao/lembretes`. Apagar só faz a próxima rodada
+/// olhar os últimos minutos de novo.
+pub(crate) fn reminders_state() -> Result<PathBuf> {
+    let base = etcetera::choose_base_strategy()
+        .wrap_err("não achei a pasta pessoal: a variável HOME está definida?")?;
+    // Sem pasta de estado (fora do Linux), fica junto do banco.
+    let dir = base.state_dir().unwrap_or_else(|| base.data_dir());
+    Ok(dir.join(APP_DIR).join("lembretes"))
+}

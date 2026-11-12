@@ -12,6 +12,7 @@ mod commands;
 mod config;
 mod import;
 mod paths;
+mod remind;
 
 use std::io::IsTerminal;
 use std::process::ExitCode;
