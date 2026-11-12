@@ -37,7 +37,8 @@ Config:
   ~/.config/vamo_fogao/config.toml, com linguagem = \"neutra\" pra trocar o
   padrão e animacao = false pra apagar o fogo da TUI. A --linguagem e a
   VAMO_LINGUAGEM ganham da config. Na seção [agenda], ics = \"https://...\"
-  é o link secreto da agenda.
+  é o link secreto da agenda (ou fonte = \"google\", com o vamo compilado
+  com a feature google).
 
 Variáveis de ambiente:
   VAMO_LINGUAGEM   jogo ou neutra, o mesmo que --linguagem
@@ -247,6 +248,15 @@ pub(crate) enum Command {
         next_help_heading = "Opções"
     )]
     Inbox,
+
+    /// Conecta o vamo ao Google Agenda, pelo navegador
+    #[command(
+        name = "conectar-google",
+        override_usage = "vamo conectar-google",
+        help_template = SUBCOMMAND_HELP_TEMPLATE,
+        next_help_heading = "Opções"
+    )]
+    ConnectGoogle,
 
     /// Abre a interface de terminal, com as telas do dia
     #[command(

@@ -13,6 +13,11 @@ publish.workspace = true
 name = "vamo"
 path = "src/main.rs"
 
+[features]
+# O Google Agenda como fonte da agenda, pela API e com login. Desligada por
+# padrão: o link ICS não pede nada disso.
+google = ["vamo-agenda/google"]
+
 [dependencies]
 clap.workspace = true
 color-eyre.workspace = true

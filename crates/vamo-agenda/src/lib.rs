@@ -13,12 +13,18 @@
 //! vamo: T-041 | Trocar o filtro da água | casa | brecha
 //! ```
 //!
+//! Com a feature `google` (desligada por padrão), o Google Agenda também
+//! entra, pela API e com login: [`GoogleLink`] e [`GoogleCalendar`]. O
+//! resto do app não sabe de qual porta a agenda veio.
+//!
 //! O leitor do ICS e da regra de recorrência são feitos aqui, no pedaço que
 //! as agendas usam. A decisão está na ADR 0008.
 
 mod calendar;
 mod error;
 mod footer;
+#[cfg(feature = "google")]
+mod google;
 mod ics;
 mod link;
 mod rrule;
@@ -26,4 +32,6 @@ mod rrule;
 pub use calendar::Calendar;
 pub use error::Error;
 pub use footer::Footer;
+#[cfg(feature = "google")]
+pub use google::{GoogleCalendar, GoogleLink, OAuthClient};
 pub use link::{Freshness, IcsLink};

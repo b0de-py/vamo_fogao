@@ -786,6 +786,33 @@ END:VCALENDAR\r\n";
         insta::assert_snapshot!("caixa_neutra", vamo.ok(&["--linguagem", "neutra", "caixa"]));
     }
 
+    #[cfg(not(feature = "google"))]
+    #[test]
+    fn the_google_source_needs_the_feature() {
+        let vamo = Vamo::new();
+        vamo.configure("[agenda]\nfonte = \"google\"\n");
+        let error = vamo.fails(&["agenda"], 1);
+        assert!(error.contains("--features google"), "{error}");
+        let error = vamo.fails(&["conectar-google"], 1);
+        assert!(error.contains("--features google"), "{error}");
+    }
+
+    #[cfg(feature = "google")]
+    #[test]
+    fn the_google_source_asks_for_the_client_and_the_login() {
+        let vamo = Vamo::new();
+        vamo.configure("[agenda]\nfonte = \"google\"\n");
+        let error = vamo.fails(&["agenda"], 1);
+        assert!(error.contains("google_cliente"), "{error}");
+        vamo.configure(
+            "[agenda]\nfonte = \"google\"\ngoogle_cliente = \"123.apps.googleusercontent.com\"\n\
+             google_segredo = \"segredo-de-exemplo\"\n",
+        );
+        let error = vamo.fails(&["agenda"], 1);
+        assert!(error.contains("vamo conectar-google"), "{error}");
+        assert!(!error.contains("segredo-de-exemplo"), "{error}");
+    }
+
     #[test]
     fn without_the_link_it_says_how_to_configure() {
         let vamo = Vamo::new();

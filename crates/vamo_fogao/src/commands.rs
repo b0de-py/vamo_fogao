@@ -49,6 +49,7 @@ pub(crate) fn run(command: Command, voice: Voice, config: &Config) -> Result<Str
         }
         Command::Sync => Session::open(voice)?.sync(config),
         Command::Inbox => Ok(Session::open(voice)?.inbox()),
+        Command::ConnectGoogle => agenda::google::connect(&config.agenda),
         Command::Tui => {
             let mut session = Session::open(voice)?;
             let acervo::Bundled { facts, banter } = acervo::bundled();
@@ -185,7 +186,7 @@ impl Session {
     /// `vamo agenda`: os compromissos do dia, baixados agora, com o aviso
     /// das tarefas marcadas fora das regras do tempo.
     fn agenda(&self, config: &Config, day: jiff::civil::Date) -> Result<String> {
-        let loaded = agenda::load(&config.agenda)?.ok_or_else(agenda::not_configured)?;
+        let loaded = agenda::load(&config.agenda, day, day)?.ok_or_else(agenda::not_configured)?;
         let (appointments, warnings) = loaded.calendar.read(day, day);
         let mut lines: Vec<String> = warnings.iter().map(|w| format!("aviso: {w}")).collect();
         if loaded.freshness == Freshness::Cached {
@@ -212,9 +213,9 @@ impl Session {
     /// `vamo sync`: baixa a agenda e liga cada evento com rodapé `vamo:` à
     /// tarefa dele, que fica agendada no dia do evento.
     fn sync(&mut self, config: &Config) -> Result<String> {
-        let loaded = agenda::load(&config.agenda)?.ok_or_else(agenda::not_configured)?;
         let today = jiff::Zoned::now().date();
         let (from, to) = agenda::sync_window(today)?;
+        let loaded = agenda::load(&config.agenda, from, to)?.ok_or_else(agenda::not_configured)?;
         let (appointments, warnings) = loaded.calendar.read(from, to);
 
         let mut lines: Vec<String> = warnings.iter().map(|w| format!("aviso: {w}")).collect();

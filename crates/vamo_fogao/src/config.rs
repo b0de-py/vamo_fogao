@@ -40,6 +40,37 @@ pub(crate) struct AgendaConfig {
     /// `ics = "https://..."`: o link secreto da agenda (ou o caminho de um
     /// arquivo `.ics`). É segredo: fica só na config, nunca no repositório.
     pub(crate) ics: Option<String>,
+    /// `fonte = "ics"` (o padrão) ou `"google"`: de qual porta a agenda vem.
+    pub(crate) source: AgendaSource,
+    /// `google_cliente`, `google_segredo` e `google_agenda`: o cliente OAuth
+    /// e a agenda lida, pra fonte `google`.
+    pub(crate) google: GoogleConfig,
+}
+
+/// De qual porta a agenda vem.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) enum AgendaSource {
+    /// O link ICS, sem login.
+    #[default]
+    Ics,
+    /// O Google Agenda pela API, com login (feature `google`).
+    Google,
+}
+
+/// O que a fonte `google` precisa. Sem a feature, a config é lida (pra
+/// valer nas duas versões do vamo), mas ninguém usa os campos.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[cfg_attr(
+    not(feature = "google"),
+    allow(dead_code, reason = "sem a feature google, só a leitura da config usa")
+)]
+pub(crate) struct GoogleConfig {
+    /// O ID do cliente OAuth.
+    pub(crate) client_id: Option<String>,
+    /// O segredo do cliente OAuth.
+    pub(crate) client_secret: Option<String>,
+    /// A agenda lida. Sem ela, a principal (`primary`).
+    pub(crate) calendar: Option<String>,
 }
 
 /// Lê a config do lugar padrão. Sem arquivo, devolve a config vazia.
@@ -99,7 +130,28 @@ fn agenda(value: &DeValue<'_>) -> Result<AgendaConfig> {
                 };
                 agenda.ics = Some(link.to_string());
             }
-            other => bail!("`{other}` não é um campo da seção [agenda]: o campo que existe é ics"),
+            "fonte" => {
+                agenda.source = match value.get_ref() {
+                    DeValue::String(name) if name.as_ref() == "ics" => AgendaSource::Ics,
+                    DeValue::String(name) if name.as_ref() == "google" => AgendaSource::Google,
+                    _ => bail!("`fonte` é \"ics\" ou \"google\", entre aspas"),
+                };
+            }
+            field @ ("google_cliente" | "google_segredo" | "google_agenda") => {
+                let DeValue::String(text) = value.get_ref() else {
+                    bail!("`{field}` é um texto entre aspas");
+                };
+                let text = Some(text.trim().to_owned());
+                match field {
+                    "google_cliente" => agenda.google.client_id = text,
+                    "google_segredo" => agenda.google.client_secret = text,
+                    _ => agenda.google.calendar = text,
+                }
+            }
+            other => bail!(
+                "`{other}` não é um campo da seção [agenda]: os campos que existem são ics, \
+                 fonte, google_cliente, google_segredo e google_agenda"
+            ),
         }
     }
     Ok(agenda)
@@ -343,7 +395,16 @@ mod tests {
             config.agenda.ics.as_deref(),
             Some("https://agenda.exemplo/basic.ics")
         );
+        assert_eq!(config.agenda.source, AgendaSource::Ics);
         assert!(parse("agenda = 1").is_err());
+        let google = parse(
+            "[agenda]\nfonte = \"google\"\ngoogle_cliente = \"123.apps.googleusercontent.com\"\n\
+             google_segredo = \"segredo-de-exemplo\"\n",
+        )
+        .unwrap();
+        assert_eq!(google.agenda.source, AgendaSource::Google);
+        assert_eq!(google.agenda.google.calendar, None);
+        assert!(parse("[agenda]\nfonte = \"outlook\"").is_err());
         assert!(parse("[agenda]\nlink = \"x\"").is_err());
     }
 

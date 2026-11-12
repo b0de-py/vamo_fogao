@@ -40,4 +40,25 @@ pub enum Error {
         #[source]
         source: std::io::Error,
     },
+
+    /// O Google Agenda recusou, falhou ou respondeu o que não se esperava.
+    #[error("Google Agenda: {problem}")]
+    Google {
+        /// O motivo, sem token nem URL.
+        problem: String,
+    },
+
+    /// O login no Google Agenda ainda não foi feito.
+    #[error("o vamo ainda não está conectado ao Google Agenda: rode vamo conectar-google")]
+    NotLoggedIn,
+
+    /// Não deu pra ler ou gravar o token do Google.
+    #[error("não deu pra usar o token do Google em {}", .path.display())]
+    GoogleToken {
+        /// O arquivo do token.
+        path: PathBuf,
+        /// O erro do sistema.
+        #[source]
+        source: std::io::Error,
+    },
 }

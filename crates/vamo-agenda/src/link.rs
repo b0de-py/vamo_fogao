@@ -49,7 +49,7 @@ impl IcsLink {
     pub fn fetch(&self) -> Result<(String, Freshness), Error> {
         match self.download() {
             Ok(text) => {
-                self.save(&text)?;
+                save_cache(&self.cache, &text)?;
                 Ok((text, Freshness::Fresh))
             }
             Err(error) => match self.cached()? {
@@ -68,14 +68,7 @@ impl IcsLink {
     ///
     /// [`Error::Cache`] quando a cópia existe mas não dá pra ler.
     pub fn cached(&self) -> Result<Option<String>, Error> {
-        match std::fs::read_to_string(&self.cache) {
-            Ok(text) => Ok(Some(text)),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
-            Err(source) => Err(Error::Cache {
-                path: self.cache.clone(),
-                source,
-            }),
-        }
+        read_cache(&self.cache)
     }
 
     fn download(&self) -> Result<String, Error> {
@@ -91,18 +84,7 @@ impl IcsLink {
             Some(rest) => format!("https://{rest}"),
             None => self.url.clone(),
         };
-        // A TLS do sistema (OpenSSL no Linux), com os certificados do
-        // sistema: é o que mantém as licenças dentro do `deny.toml`.
-        let tls = TlsConfig::builder()
-            .provider(TlsProvider::NativeTls)
-            .root_certs(RootCerts::PlatformVerifier)
-            .build();
-        let agent = ureq::Agent::config_builder()
-            .tls_config(tls)
-            .timeout_global(Some(TIMEOUT))
-            .build()
-            .new_agent();
-        let mut response = agent
+        let mut response = agent()
             .get(&url)
             .call()
             // O erro do ureq traz a URL, e a URL é secreta: fica só o tipo.
@@ -124,17 +106,45 @@ impl IcsLink {
         }
         (!self.url.contains("://")).then(|| Path::new(&self.url))
     }
+}
 
-    fn save(&self, text: &str) -> Result<(), Error> {
-        let failed = |source| Error::Cache {
-            path: self.cache.clone(),
+/// O cliente HTTP das duas portas: a TLS do sistema (OpenSSL no Linux),
+/// com os certificados do sistema, que é o que mantém as licenças dentro
+/// do `deny.toml`.
+pub(crate) fn agent() -> ureq::Agent {
+    let tls = TlsConfig::builder()
+        .provider(TlsProvider::NativeTls)
+        .root_certs(RootCerts::PlatformVerifier)
+        .build();
+    ureq::Agent::config_builder()
+        .tls_config(tls)
+        .timeout_global(Some(TIMEOUT))
+        .build()
+        .new_agent()
+}
+
+/// A cópia local em `path`, se já tiver uma.
+pub(crate) fn read_cache(path: &Path) -> Result<Option<String>, Error> {
+    match std::fs::read_to_string(path) {
+        Ok(text) => Ok(Some(text)),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
+        Err(source) => Err(Error::Cache {
+            path: path.to_owned(),
             source,
-        };
-        if let Some(folder) = self.cache.parent() {
-            std::fs::create_dir_all(folder).map_err(failed)?;
-        }
-        std::fs::write(&self.cache, text).map_err(failed)
+        }),
     }
+}
+
+/// Grava a cópia local, criando a pasta se faltar.
+pub(crate) fn save_cache(path: &Path, text: &str) -> Result<(), Error> {
+    let failed = |source| Error::Cache {
+        path: path.to_owned(),
+        source,
+    };
+    if let Some(folder) = path.parent() {
+        std::fs::create_dir_all(folder).map_err(failed)?;
+    }
+    std::fs::write(path, text).map_err(failed)
 }
 
 /// O motivo da falha, sem a URL (que tem o segredo da agenda).

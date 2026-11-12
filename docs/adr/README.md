@@ -13,6 +13,7 @@ Cada escolha que muda o jeito do projeto ganha um registro curto: o contexto, a 
 | [0007](0007-tui-com-ratatui-e-porta-propria.md) | Desenhar a TUI com o ratatui, recebendo as tarefas por uma porta própria | aceita |
 | [0008](0008-agenda-por-ics-com-leitor-proprio.md) | Ler a agenda pelo link ICS, com leitor próprio e cópia local | aceita |
 | [0009](0009-marcacao-da-agenda-fora-do-log.md) | Guardar a marcação das atividades fixas da agenda fora do log de eventos | aceita |
+| [0010](0010-google-agenda-por-oauth-atras-de-feature.md) | Ler o Google Agenda pela API, com OAuth e atrás de uma feature | aceita |
 
 ## Como escrever uma
 

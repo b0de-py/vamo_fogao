@@ -278,7 +278,7 @@ fn until(text: &str, frame: &TimeZone, line: usize) -> Result<DateTime, String> 
 
 /// A ordem dos compromissos: no dia, os de dia inteiro primeiro, depois
 /// pelo começo.
-fn sort_key(appointment: &Appointment) -> (Date, Option<DateTime>) {
+pub(crate) fn sort_key(appointment: &Appointment) -> (Date, Option<DateTime>) {
     match appointment.when {
         When::AllDay(day) => (day, None),
         When::Timed { start, .. } => (start.date(), Some(start)),

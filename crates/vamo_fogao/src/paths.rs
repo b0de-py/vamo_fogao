@@ -33,3 +33,18 @@ pub(crate) fn agenda_cache() -> Result<PathBuf> {
         .wrap_err("não achei a pasta pessoal: a variável HOME está definida?")?;
     Ok(base.cache_dir().join(APP_DIR).join("agenda.ics"))
 }
+
+#[cfg(feature = "google")]
+/// A cópia local da agenda do Google, ao lado da do ICS:
+/// `$XDG_CACHE_HOME/vamo_fogao/agenda-google.json`.
+pub(crate) fn google_cache() -> Result<PathBuf> {
+    Ok(agenda_cache()?.with_file_name("agenda-google.json"))
+}
+
+#[cfg(feature = "google")]
+/// O token do Google, na pasta da config e só com permissão pra quem usa:
+/// `$XDG_CONFIG_HOME/vamo_fogao/google-token.json`. Apagar o arquivo
+/// desconecta.
+pub(crate) fn google_token() -> Result<PathBuf> {
+    Ok(config()?.with_file_name("google-token.json"))
+}
