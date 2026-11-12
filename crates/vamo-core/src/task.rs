@@ -93,6 +93,12 @@ impl Task {
         &self.notes
     }
 
+    /// Quanto a tarefa deve levar, se as notas disserem: `~30 min`, `~1 h`,
+    /// `~1h30`. É o que decide se ela cabe numa brecha.
+    pub fn estimate(&self) -> Option<jiff::SignedDuration> {
+        crate::gaps::estimate(&self.notes)
+    }
+
     /// O dia em que a tarefa está escalada, se estiver.
     pub fn day(&self) -> Option<Date> {
         self.day

@@ -6,6 +6,7 @@
 //! passar batido.
 
 use color_eyre::eyre::{Result, WrapErr, bail, eyre};
+use jiff::SignedDuration;
 use jiff::civil::Weekday;
 use toml::de::{DeTable, DeValue};
 use vamo_core::{Block, TimeRange, TimeRules};
@@ -23,6 +24,9 @@ pub(crate) struct Config {
     pub(crate) agenda: AgendaConfig,
     /// A seção `[tempo]`: as regras do tempo.
     pub(crate) rules: TimeRules,
+    /// `brecha_minima = 20`, na seção `[tempo]`: a menor brecha que vale
+    /// mostrar, em minutos.
+    pub(crate) min_gap: Option<SignedDuration>,
 }
 
 /// A seção `[agenda]`: de onde a agenda vem.
@@ -65,7 +69,7 @@ fn parse(text: &str) -> Result<Config> {
                 config.animation = Some(if *on { Animation::On } else { Animation::Off });
             }
             "agenda" => config.agenda = agenda(value.get_ref())?,
-            "tempo" => config.rules = rules(value.get_ref())?,
+            "tempo" => (config.rules, config.min_gap) = rules(value.get_ref())?,
             other => bail!(
                 "`{other}` não é um campo da config: os campos que existem são linguagem, \
                  animacao e as seções [agenda] e [tempo]"
@@ -111,22 +115,25 @@ const WEEKDAYS: [Weekday; 5] = [
 /// expediente = "09:00-18:00"
 /// dias_de_expediente = ["seg", "ter", "qua", "qui", "sex"]
 /// teto_da_noite = "22:00"
+/// brecha_minima = 15
 ///
 /// [[tempo.protegido]]
 /// nome = "Almoço"
 /// horario = "12:00-13:00"
 /// dias = ["seg", "ter", "qua", "qui", "sex"]
 /// ```
-fn rules(value: &DeValue<'_>) -> Result<TimeRules> {
+fn rules(value: &DeValue<'_>) -> Result<(TimeRules, Option<SignedDuration>)> {
     let DeValue::Table(table) = value else {
         bail!("`tempo` é uma seção: escreva [tempo] numa linha e os campos embaixo");
     };
     let mut rules = TimeRules::default();
     let mut hours = None;
     let mut days = None;
+    let mut min_gap = None;
     for (key, value) in table {
         let value = value.get_ref();
         match key.get_ref().as_ref() {
+            "brecha_minima" => min_gap = Some(minutes("brecha_minima", value)?),
             "expediente" => hours = Some(range("expediente", value)?),
             "dias_de_expediente" => days = Some(weekdays("dias_de_expediente", value)?),
             "teto_da_noite" => {
@@ -145,7 +152,8 @@ fn rules(value: &DeValue<'_>) -> Result<TimeRules> {
             }
             other => bail!(
                 "`{other}` não é um campo da seção [tempo]: os campos que existem são \
-                 expediente, dias_de_expediente, teto_da_noite e [[tempo.protegido]]"
+                 expediente, dias_de_expediente, teto_da_noite, brecha_minima e \
+                 [[tempo.protegido]]"
             ),
         }
     }
@@ -162,7 +170,20 @@ fn rules(value: &DeValue<'_>) -> Result<TimeRules> {
         }
         (None, None) => {}
     }
-    Ok(rules)
+    Ok((rules, min_gap))
+}
+
+/// Um número de minutos, inteiro e maior que zero.
+fn minutes(field: &str, value: &DeValue<'_>) -> Result<SignedDuration> {
+    let wrong = || eyre!("`{field}` é um número de minutos, sem aspas, como {field} = 15");
+    let DeValue::Integer(number) = value else {
+        return Err(wrong());
+    };
+    let minutes: i64 = i64::from_str_radix(number.as_str(), number.radix()).map_err(|_| wrong())?;
+    if !(1..=24 * 60).contains(&minutes) {
+        return Err(wrong());
+    }
+    Ok(SignedDuration::from_mins(minutes))
 }
 
 /// Um `[[tempo.protegido]]`.
@@ -289,6 +310,18 @@ mod tests {
         );
         assert!(parse("agenda = 1").is_err());
         assert!(parse("[agenda]\nlink = \"x\"").is_err());
+    }
+
+    #[test]
+    fn the_minimum_gap_is_in_minutes() {
+        let config = parse("[tempo]\nbrecha_minima = 20\n").unwrap();
+        assert_eq!(config.min_gap, Some(SignedDuration::from_mins(20)));
+        for wrong in ["\"20\"", "0", "-5", "1.5"] {
+            assert!(
+                parse(&format!("[tempo]\nbrecha_minima = {wrong}\n")).is_err(),
+                "{wrong}"
+            );
+        }
     }
 
     #[test]

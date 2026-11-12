@@ -41,6 +41,8 @@
 //! - [`Appointment`]: um compromisso da agenda, já no horário local.
 //! - [`LinkPlan`]: o que o sync faz com as tarefas ligadas a eventos pelo
 //!   rodapé `vamo:` (sai de [`Projection::link`]).
+//! - [`gaps`]: as brechas do dia, e [`fitting`]: as tarefas que cabem
+//!   em cada uma.
 //! - [`TimeRules`]: as regras do tempo (expediente, teto da noite e blocos
 //!   protegidos) e as [`Violation`]s de um horário marcado.
 //!
@@ -61,6 +63,7 @@ mod area;
 mod error;
 mod event;
 mod fit;
+mod gaps;
 mod id;
 mod lineup;
 mod link;
@@ -77,6 +80,7 @@ pub use area::Area;
 pub use error::Error;
 pub use event::{Change, Event, EventId};
 pub use fit::Fit;
+pub use gaps::{DEFAULT_MIN_GAP, Gap, fitting, gaps};
 pub use id::TaskId;
 pub use lineup::{Lineup, Score};
 pub use link::{LinkPlan, Skipped};

@@ -752,6 +752,25 @@ END:VCALENDAR\r\n";
     }
 
     #[test]
+    fn the_gaps_of_the_workday_come_with_the_tasks_that_fit() {
+        let vamo = Vamo::new();
+        with_agenda(&vamo);
+        let config =
+            std::fs::read_to_string(vamo.home.path().join("config/vamo_fogao/config.toml"))
+                .expect("a config do teste deveria existir");
+        vamo.configure(&format!("{config}[tempo]\nexpediente = \"06:00-12:00\"\n"));
+        vamo.ok(&["add", "Ligar pro síndico", "--encaixe", "brecha"]);
+        vamo.ok(&["add", "Escrever o relatório", "--encaixe", "foco"]);
+        // Dia 19 é quinta, longe de hoje: a hora de agora não corta brecha.
+        assert_eq!(
+            vamo.ok(&["agenda", "--data", "2026-11-19"]),
+            "07:00–07:45  Caminhada ↻\n\nBrechas:\n\
+             06:00–07:00  T-001 Ligar pro síndico\n\
+             07:45–12:00  T-001 Ligar pro síndico\n"
+        );
+    }
+
+    #[test]
     fn without_the_link_it_says_how_to_configure() {
         let vamo = Vamo::new();
         let error = vamo.fails(&["agenda"], 1);

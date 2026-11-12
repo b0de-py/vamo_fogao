@@ -54,6 +54,7 @@ pub(crate) fn run(command: Command, voice: Voice, config: &Config) -> Result<Str
                 acervo: vamo_tui::Acervo { facts, banter },
                 time_zone: TimeZone::system(),
                 animation: config.animation.unwrap_or_default(),
+                schedule: agenda::schedule(config, &jiff::Zoned::now()),
             };
             vamo_tui::run(&mut session, setup).wrap_err("a TUI não conseguiu usar o terminal")?;
             Ok(String::new())
@@ -165,6 +166,12 @@ impl Session {
                 lines.push(format!("             ⚠ {violation}"));
             }
         }
+        lines.extend(agenda::gap_lines(
+            config,
+            &appointments,
+            &self.projection,
+            day,
+        ));
         Ok(lines.join("\n"))
     }
 

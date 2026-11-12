@@ -151,6 +151,22 @@ impl Voice {
         }
     }
 
+    /// O título das brechas do dia na tela Hoje.
+    pub(crate) fn gaps(self) -> &'static str {
+        match self {
+            Self::Game => "Contra-ataques (brechas)",
+            Self::Neutral => "Brechas",
+        }
+    }
+
+    /// Quando o expediente de hoje não tem brecha nenhuma.
+    pub(crate) fn no_gaps(self) -> &'static str {
+        match self {
+            Self::Game => "Sem espaço pra contra-atacar hoje.",
+            Self::Neutral => "Nenhuma brecha hoje.",
+        }
+    }
+
     /// O aviso do gol: depois do `vamo done` e no rodapé da TUI.
     pub fn goal(self, id: TaskId, title: &NotebookTitle) -> String {
         match self {

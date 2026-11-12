@@ -8,7 +8,7 @@ use jiff::tz::TimeZone;
 use vamo_agenda::{Calendar, Freshness, IcsLink};
 use vamo_core::{Appointment, Projection, TimeRules, When};
 
-use crate::config::AgendaConfig;
+use crate::config::{AgendaConfig, Config};
 use crate::paths;
 
 /// A agenda lida, e de onde ela veio.
@@ -33,6 +33,48 @@ pub(crate) fn load(config: &AgendaConfig) -> Result<Option<Loaded>> {
     }))
 }
 
+/// A agenda de hoje pra tela Hoje, lida só da cópia local: a TUI abre na
+/// hora, sem esperar a internet. Quem atualiza a cópia é o `vamo sync` (e o
+/// `vamo agenda`). Sem agenda na config, sem cópia ou com a cópia ilegível,
+/// a tela mostra só as brechas do expediente, e o motivo vai pro log.
+pub(crate) fn schedule(config: &Config, now: &jiff::Zoned) -> vamo_tui::Schedule {
+    let today = now.date();
+    let appointments = config
+        .agenda
+        .ics
+        .as_deref()
+        .and_then(|url| match paths::agenda_cache() {
+            Ok(cache) => Some(IcsLink::new(url, &cache)),
+            Err(error) => {
+                tracing::warn!("sem pasta de cache pra agenda: {error}");
+                None
+            }
+        })
+        .and_then(|link| match link.cached() {
+            Ok(text) => text,
+            Err(error) => {
+                tracing::warn!("a cópia local da agenda não abriu: {error}");
+                None
+            }
+        })
+        .and_then(
+            |text| match Calendar::parse(&text, now.time_zone().clone()) {
+                Ok(calendar) => Some(calendar.read(today, today).0),
+                Err(error) => {
+                    tracing::warn!("a cópia local da agenda não é um ICS legível: {error}");
+                    None
+                }
+            },
+        )
+        .unwrap_or_default();
+    vamo_tui::Schedule {
+        appointments,
+        rules: config.rules.clone(),
+        min_gap: config.min_gap.unwrap_or(vamo_core::DEFAULT_MIN_GAP),
+        now: Some(now.time()),
+    }
+}
+
 /// As regras do tempo que uma tarefa marcada na agenda fere, com o ID na
 /// frente: `T-041: foco depois do teto da noite (22:00)`.
 pub(crate) fn violations(
@@ -51,6 +93,45 @@ pub(crate) fn violations(
         .iter()
         .map(|violation| format!("{id}: {violation}"))
         .collect()
+}
+
+/// As brechas do dia no `vamo agenda`, com as tarefas que cabem em cada
+/// uma. Hoje, só as que ainda não passaram. Sem expediente na config, nada.
+pub(crate) fn gap_lines(
+    config: &Config,
+    appointments: &[Appointment],
+    projection: &Projection,
+    day: Date,
+) -> Vec<String> {
+    if config.rules.workday.is_none() {
+        return Vec::new();
+    }
+    let now = jiff::Zoned::now();
+    let not_before = (now.date() == day).then(|| now.time());
+    let min = config.min_gap.unwrap_or(vamo_core::DEFAULT_MIN_GAP);
+    let found = vamo_core::gaps(day, &config.rules, appointments, min, not_before);
+    let tasks: Vec<_> = projection.tasks().collect();
+    let mut lines = vec![String::new(), "Brechas:".to_owned()];
+    if found.is_empty() {
+        lines.push("nenhuma".to_owned());
+    }
+    for gap in found {
+        let fits: Vec<String> = vamo_core::fitting(gap, day, &tasks, appointments)
+            .iter()
+            .map(|task| format!("{} {}", task.id(), task.title()))
+            .collect();
+        let when = format!(
+            "{}–{}",
+            gap.start.strftime("%H:%M"),
+            gap.end.strftime("%H:%M")
+        );
+        if fits.is_empty() {
+            lines.push(when);
+        } else {
+            lines.push(format!("{when:<11}  {}", fits.join(" · ")));
+        }
+    }
+    lines
 }
 
 /// O erro de quando a config não tem o link da agenda.

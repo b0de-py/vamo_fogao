@@ -1,0 +1,28 @@
+---
+source: crates/vamo-tui/src/app.rs
+expression: screen
+---
+" vamo_fogao   1 Hoje  2 Caderno  3 Banco  4 Museu                               "
+"────────────────────────────────────────────────────────────────────────────────"
+"                                                                                "
+" Hoje · quarta, 11/11                                            Placar: 0 de 0 "
+"                                                                                "
+" Ninguém escalado hoje. No Banco, o e escala uma tarefa pro dia.                "
+"                                                                                "
+" Agenda                                                                         "
+" 10:00–11:00  Reunião da equipe ↻                                               "
+" 12:30–13:00  Comprar o gesso                                                   "
+"              ⚠ T-001: em cima do bloco protegido Almoço (12:00–13:00)          "
+"                                                                                "
+" Contra-ataques (brechas)                                                       "
+" 09:00–10:00  1h      T-002 Ligar pro síndico                                   "
+" 11:00–12:00  1h      T-002 Ligar pro síndico                                   "
+" 13:00–18:00  5h      T-002 Ligar pro síndico                                   "
+"                                                                                "
+" ┌ Neste dia, em 1950 ────────────────────────────────────────────────────────┐ "
+" │Uma goleada inventada pros testes.                                          │ "
+" │                                                                            │ "
+" │Fontes: Jornal · Revista                                                    │ "
+" └────────────────────────────────────────────────────────────────────────────┘ "
+"                                                                                "
+"tab troca de tela · ? ajuda · q encerra a partida                               "

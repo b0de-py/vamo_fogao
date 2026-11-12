@@ -1,6 +1,6 @@
 //! A interface de terminal do `vamo_fogao`.
 //!
-//! As telas Hoje, Caderno, Banco, Ficha e Museu, o tema com as cores do
+//! As telas Hoje (com a agenda e as brechas do dia), Caderno, Banco, Ficha e Museu, o tema com as cores do
 //! r4ul.com.br (sem vermelho), o fogo alvinegro queimando atrás de tudo e a
 //! Estrela Solitária no canto.
 //!
@@ -24,6 +24,7 @@ mod ledger;
 mod museum;
 mod notebook;
 mod prompt;
+mod schedule;
 mod star;
 mod theme;
 mod today;
@@ -42,6 +43,7 @@ use ratatui::crossterm::execute;
 
 pub use curiosity::Acervo;
 pub use ledger::Ledger;
+pub use schedule::Schedule;
 pub use voice::Voice;
 
 /// Se o fogo do fundo anima.
@@ -65,6 +67,8 @@ pub struct Setup {
     pub time_zone: jiff::tz::TimeZone,
     /// Se o fogo anima. Na config, `animacao = false` desliga.
     pub animation: Animation,
+    /// A agenda do dia e as regras do tempo. Sem agenda na config, vazia.
+    pub schedule: Schedule,
 }
 
 /// Abre a TUI no terminal e só volta quando quem usa sai.

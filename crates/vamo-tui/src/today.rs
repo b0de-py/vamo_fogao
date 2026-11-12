@@ -11,6 +11,7 @@ use vamo_core::{Lineup, Projection, Status, Task};
 
 use crate::app::{Action, Feedback, record};
 use crate::curiosity::{self, Acervo};
+use crate::schedule::Schedule;
 use crate::{Ledger, Voice, theme};
 
 /// Onde está o cursor na escalação.
@@ -103,6 +104,7 @@ impl Today {
         projection: &Projection,
         today: Date,
         acervo: &Acervo,
+        schedule: &Schedule,
         banter: bool,
         voice: Voice,
     ) {
@@ -114,7 +116,8 @@ impl Today {
         // Com espaço, a curiosidade vai do lado; sem, embaixo, no que sobrar
         // da escalação. Se sobrar pouco, a escalação fica com a tela toda:
         // ela é o que importa, e a curiosidade continua no Museu.
-        let lines = self.lines(&lineup, voice);
+        let mut lines = self.lines(&lineup, voice);
+        lines.extend(schedule.lines(projection, today, voice));
         let needed = u16::try_from(lines.len()).unwrap_or(u16::MAX);
         let spare = rest.height.saturating_sub(needed.saturating_add(1));
         let (list, corner) = if rest.width >= 90 {
