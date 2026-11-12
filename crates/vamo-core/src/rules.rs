@@ -2,7 +2,8 @@
 //! respeita.
 //!
 //! - **Expediente:** a janela do dia em que as brechas são procuradas.
-//! - **Teto da noite:** depois dele, nenhuma tarefa de foco.
+//! - **Teto da noite:** depois dele, nenhuma tarefa de foco. Pode ser à
+//!   noite (`22:00`) ou já de madrugada (`01:30`).
 //! - **Blocos protegidos:** horários que não são de tarefa (almoço, buscar
 //!   na escola, academia).
 //!
@@ -205,12 +206,9 @@ impl TimeRules {
         let mut found = Vec::new();
         if let Some(cap) = self.night_cap
             && task.fit() == Fit::Focus
+            && after_night_cap(cap, start, end)
         {
-            // Passar da meia-noite também é passar do teto.
-            let limit = start.date().to_datetime(cap);
-            if end > limit || end.date() > start.date() {
-                found.push(Violation::AfterNightCap { cap });
-            }
+            found.push(Violation::AfterNightCap { cap });
         }
         for block in &self.protected {
             if !block.applies_on(start.weekday()) {
@@ -228,6 +226,40 @@ impl TimeRules {
         }
         found
     }
+}
+
+/// O meio-dia, que separa o teto da noite (`22:00`, no mesmo dia) do teto
+/// da madrugada (`01:30`, já no dia seguinte).
+const NOON: Time = Time::constant(12, 0, 0, 0);
+
+/// Até quando a madrugada ainda é a noite anterior, pro teto da madrugada.
+const DAWN: Time = Time::constant(6, 0, 0, 0);
+
+/// Se o horário de `start` a `end` passa do teto da noite.
+///
+/// O teto à noite (`22:00`) é do dia em que a tarefa começa, e passar da
+/// meia-noite é passar dele. O teto antes do meio-dia (`01:30`) é da
+/// madrugada que fecha a noite: a tarefa que começa de manhã ou à noite
+/// tem até a 1h30 seguinte; a que começa de madrugada antes do teto tem
+/// até ele; e a que começa entre o teto e as 6h já passou.
+fn after_night_cap(cap: Time, start: DateTime, end: DateTime) -> bool {
+    let day = start.date();
+    if cap >= NOON {
+        return end > day.to_datetime(cap);
+    }
+    let time = start.time();
+    if time >= cap && time < DAWN {
+        // Começou de madrugada, depois do teto: ainda é a noite anterior, e
+        // já passou dela.
+        return true;
+    }
+    let limit = if time < cap {
+        day.to_datetime(cap)
+    } else {
+        day.tomorrow()
+            .map_or(DateTime::MAX, |next| next.to_datetime(cap))
+    };
+    end > limit
 }
 
 #[cfg(test)]
@@ -283,6 +315,25 @@ mod tests {
             date(2026, 11, 13).at(0, 30, 0, 0),
         );
         assert_eq!(found.len(), 1);
+    }
+
+    #[test]
+    fn a_cap_after_midnight_belongs_to_the_night_before() {
+        let rules = TimeRules {
+            night_cap: Some(time(1, 30, 0, 0)),
+            ..TimeRules::default()
+        };
+        let next = date(2026, 11, 13);
+        let focus = task(Fit::Focus);
+        let hurts = |start, end| !rules.check(&focus, start, end).is_empty();
+        assert!(!hurts(DAY.at(20, 0, 0, 0), DAY.at(23, 0, 0, 0)));
+        assert!(!hurts(DAY.at(23, 0, 0, 0), next.at(1, 30, 0, 0)));
+        assert!(hurts(DAY.at(23, 0, 0, 0), next.at(2, 0, 0, 0)));
+        assert!(!hurts(DAY.at(0, 30, 0, 0), DAY.at(1, 0, 0, 0)));
+        assert!(hurts(DAY.at(0, 30, 0, 0), DAY.at(2, 0, 0, 0)));
+        assert!(hurts(DAY.at(2, 0, 0, 0), DAY.at(3, 0, 0, 0)));
+        assert!(!hurts(DAY.at(9, 0, 0, 0), DAY.at(11, 0, 0, 0)));
+        assert!(hurts(DAY.at(9, 0, 0, 0), next.at(2, 0, 0, 0)));
     }
 
     #[test]
