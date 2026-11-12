@@ -1859,6 +1859,7 @@ name = "vamo-agenda"
 version = "0.1.0"
 dependencies = [
  "jiff",
+ "proptest",
  "tempfile",
  "thiserror",
  "tracing",

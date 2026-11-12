@@ -274,6 +274,22 @@ impl Voice {
         }
     }
 
+    /// O resumo do `vamo sync`: quantos compromissos a agenda tem na janela
+    /// e quantas tarefas mudaram por causa do rodapé `vamo:`.
+    pub fn synced(self, appointments: usize, changed: usize) -> String {
+        let appointments = match appointments {
+            1 => "1 compromisso".to_owned(),
+            n => format!("{n} compromissos"),
+        };
+        let moved = match (self, changed) {
+            (Self::Game, 1) => "1 tarefa escalada".to_owned(),
+            (Self::Game, n) => format!("{n} tarefas escaladas"),
+            (Self::Neutral, 1) => "1 tarefa marcada".to_owned(),
+            (Self::Neutral, n) => format!("{n} tarefas marcadas"),
+        };
+        format!("Agenda lida: {appointments}, {moved} pela agenda.")
+    }
+
     /// Quando a lista do `vamo list` não tem nenhuma tarefa.
     pub fn nothing_to_list(self) -> &'static str {
         match self {

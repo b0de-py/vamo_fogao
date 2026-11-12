@@ -231,6 +231,14 @@ pub(crate) enum Command {
         date: Option<jiff::civil::Date>,
     },
 
+    /// Lê a agenda e liga os eventos com rodapé vamo: às tarefas
+    #[command(
+        override_usage = "vamo sync",
+        help_template = SUBCOMMAND_HELP_TEMPLATE,
+        next_help_heading = "Opções"
+    )]
+    Sync,
+
     /// Abre a interface de terminal, com as telas do dia
     #[command(
         override_usage = "vamo tui",

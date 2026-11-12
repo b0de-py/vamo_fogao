@@ -7,16 +7,23 @@
 //! - [`IcsLink`]: baixa o ICS do link secreto da agenda e guarda uma cópia
 //!   local, pra funcionar sem internet.
 //! - [`Calendar`]: lê o texto do ICS e responde o que tem em cada dia.
+//! - [`Footer`]: o rodapé `vamo:` que liga um evento a uma tarefa:
+//!
+//! ```text
+//! vamo: T-041 | Trocar o filtro da água | casa | brecha
+//! ```
 //!
 //! O leitor do ICS e da regra de recorrência são feitos aqui, no pedaço que
 //! as agendas usam. A decisão está na ADR 0008.
 
 mod calendar;
 mod error;
+mod footer;
 mod ics;
 mod link;
 mod rrule;
 
 pub use calendar::Calendar;
 pub use error::Error;
+pub use footer::Footer;
 pub use link::{Freshness, IcsLink};

@@ -8,9 +8,9 @@ use jiff::tz::TimeZone;
 use jiff::{SignedDuration, Timestamp, ToSpan};
 use vamo_core::{Agenda, Appointment, When};
 
-use crate::Error;
 use crate::ics::{self, Moment, RawEvent};
 use crate::rrule::Rule;
+use crate::{Error, Footer};
 
 /// A agenda de um arquivo ICS, pronta pra responder o que tem em cada dia.
 ///
@@ -147,7 +147,7 @@ impl Calendar {
                         title: event.summary.trim().to_owned(),
                         when,
                         recurring: event.rrule.is_some() || is_exception,
-                        task: None,
+                        task: Footer::find(&event.description).map(|footer| footer.task),
                     });
                 }
             }

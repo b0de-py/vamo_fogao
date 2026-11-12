@@ -7,14 +7,15 @@ use color_eyre::eyre::{Result, WrapErr, bail, eyre};
 use jiff::Timestamp;
 use jiff::tz::TimeZone;
 use uuid::Uuid;
+use vamo_agenda::Freshness;
 use vamo_core::{
-    Area, Change, Event, EventId, EventStore, Fit, Machine, NotebookTitle, Projection, Status,
-    Task, TaskId,
+    Area, Change, Event, EventId, EventStore, Fit, Machine, NotebookTitle, Projection, Skipped,
+    Status, Task, TaskId,
 };
 use vamo_store::Store;
 
 use crate::cli::{AcervoCommand, Command};
-use crate::config::Config;
+use crate::config::{AgendaConfig, Config};
 use crate::import::{self, Plan};
 use crate::paths;
 use crate::{acervo, agenda};
@@ -44,6 +45,7 @@ pub(crate) fn run(command: Command, voice: Voice, config: &Config) -> Result<Str
             let day = date.unwrap_or_else(|| jiff::Zoned::now().date());
             agenda::show(&config.agenda, day)
         }
+        Command::Sync => Session::open(voice)?.sync(&config.agenda),
         Command::Tui => {
             let mut session = Session::open(voice)?;
             let acervo::Bundled { facts, banter } = acervo::bundled();
@@ -143,6 +145,40 @@ impl Session {
         self.record(id, changes)?;
         let task = self.task(id)?;
         Ok(self.voice.goal(task.id(), task.title()))
+    }
+
+    /// `vamo sync`: baixa a agenda e liga cada evento com rodapé `vamo:` à
+    /// tarefa dele, que fica agendada no dia do evento.
+    fn sync(&mut self, config: &AgendaConfig) -> Result<String> {
+        let loaded = agenda::load(config)?.ok_or_else(agenda::not_configured)?;
+        let today = jiff::Zoned::now().date();
+        let (from, to) = agenda::sync_window(today)?;
+        let (appointments, warnings) = loaded.calendar.read(from, to);
+
+        let mut lines: Vec<String> = warnings.iter().map(|w| format!("aviso: {w}")).collect();
+        if loaded.freshness == Freshness::Cached {
+            lines.push("aviso: a agenda não baixou agora; esta é a cópia local".to_owned());
+        }
+        let plan = self.projection.link(&appointments, today);
+        for skipped in &plan.skipped {
+            lines.push(match skipped {
+                Skipped::Unknown(id) => {
+                    format!("aviso: um evento aponta pra {id}, que não existe no banco")
+                }
+                Skipped::NotReady(id, status) => format!(
+                    "aviso: {id} está como {status} e não dá pra agendar: deixe ela pronta antes"
+                ),
+            });
+        }
+        let changed = plan.changes.len();
+        for (id, changes) in plan.changes {
+            let what: Vec<String> = changes.iter().map(|c| self.voice.change(c)).collect();
+            self.record(id, changes)?;
+            let task = self.task(id)?;
+            lines.push(format!("{id} {}: {}", task.title(), what.join(", ")));
+        }
+        lines.push(self.voice.synced(appointments.len(), changed));
+        Ok(lines.join("\n"))
     }
 
     /// `vamo show`: a ficha da tarefa e o histórico dela.

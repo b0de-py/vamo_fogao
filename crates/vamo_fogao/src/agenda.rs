@@ -2,6 +2,7 @@
 //! leitor do `vamo-agenda`.
 
 use color_eyre::eyre::{Result, WrapErr, eyre};
+use jiff::ToSpan;
 use jiff::civil::Date;
 use jiff::tz::TimeZone;
 use vamo_agenda::{Calendar, Freshness, IcsLink};
@@ -32,14 +33,25 @@ pub(crate) fn load(config: &AgendaConfig) -> Result<Option<Loaded>> {
     }))
 }
 
+/// O erro de quando a config não tem o link da agenda.
+pub(crate) fn not_configured() -> color_eyre::Report {
+    eyre!(
+        "a agenda não está configurada: ponha o link ICS na config, numa seção [agenda] com \
+         ics = \"https://...\""
+    )
+}
+
+/// Os dias que o `vamo sync` olha: duas semanas pra trás (pra pegar evento
+/// que mudou de dia) e três meses pra frente.
+pub(crate) fn sync_window(today: Date) -> Result<(Date, Date)> {
+    let from = today.checked_sub(14.days())?;
+    let to = today.checked_add(3.months())?;
+    Ok((from, to))
+}
+
 /// `vamo agenda`: os compromissos do dia, baixados agora.
 pub(crate) fn show(config: &AgendaConfig, day: Date) -> Result<String> {
-    let loaded = load(config)?.ok_or_else(|| {
-        eyre!(
-            "a agenda não está configurada: ponha o link ICS na config, numa seção \
-             [agenda] com ics = \"https://...\""
-        )
-    })?;
+    let loaded = load(config)?.ok_or_else(not_configured)?;
     let (appointments, warnings) = loaded.calendar.read(day, day);
     let mut lines: Vec<String> = warnings.iter().map(|w| format!("aviso: {w}")).collect();
     if loaded.freshness == Freshness::Cached {

@@ -757,4 +757,42 @@ END:VCALENDAR\r\n";
         let error = vamo.fails(&["agenda"], 1);
         assert!(error.contains("[agenda]"), "{error}");
     }
+
+    #[test]
+    fn sync_schedules_the_task_of_the_footer() {
+        let vamo = Vamo::new();
+        vamo.ok(&["add", "Trocar o filtro da água", "--area", "casa"]);
+        let day = jiff::Zoned::now().date().tomorrow().expect("amanhã existe");
+        let ics = format!(
+            "BEGIN:VCALENDAR\r\nBEGIN:VEVENT\r\nUID:filtro@exemplo\r\n\
+             DTSTART;VALUE=DATE:{}\r\nSUMMARY:Filtro\r\n\
+             DESCRIPTION:Comprar o refil antes.\\nvamo: T-001 | Trocar o filtro da água | casa | brecha\r\n\
+             END:VEVENT\r\n\
+             BEGIN:VEVENT\r\nUID:fantasma@exemplo\r\n\
+             DTSTART;VALUE=DATE:{}\r\nSUMMARY:Fantasma\r\n\
+             DESCRIPTION:vamo: T-099\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n",
+            day.strftime("%Y%m%d"),
+            day.strftime("%Y%m%d"),
+        );
+        let file = vamo.home.path().join("agenda.ics");
+        std::fs::write(&file, ics).expect("a agenda de exemplo deveria ser gravada");
+        vamo.configure(&format!("[agenda]\nics = \"{}\"\n", file.display()));
+
+        let first = vamo.ok(&["sync"]);
+        assert_eq!(
+            first,
+            format!(
+                "aviso: um evento aponta pra T-099, que não existe no banco\n\
+                 T-001 Trocar o filtro da água: status: agendada, escalada pra {}\n\
+                 Agenda lida: 2 compromissos, 1 tarefa escalada pela agenda.\n",
+                day.strftime("%d/%m/%Y")
+            )
+        );
+        assert!(vamo.ok(&["list"]).contains("agendada"));
+        // De novo, nada muda.
+        assert!(
+            vamo.ok(&["sync"])
+                .ends_with("Agenda lida: 2 compromissos, 0 tarefas escaladas pela agenda.\n")
+        );
+    }
 }

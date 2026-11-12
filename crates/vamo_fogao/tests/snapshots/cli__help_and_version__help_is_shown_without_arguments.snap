@@ -14,6 +14,7 @@ Comandos:
   show         Mostra a ficha de uma tarefa, com o histórico
   curiosidade  Conta a curiosidade do dia, uma história do Botafogo
   agenda       Mostra os compromissos do dia, lidos da agenda
+  sync         Lê a agenda e liga os eventos com rodapé vamo: às tarefas
   tui          Abre a interface de terminal, com as telas do dia
   acervo       Cuida do acervo, o museu de bolso com a história do Botafogo
 

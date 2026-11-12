@@ -36,6 +36,12 @@
 //! - [`Lineup`]: a escalação de um dia, com o atraso e as fixas.
 //! - [`Score`]: o placar do dia.
 //!
+//! # A agenda
+//!
+//! - [`Appointment`]: um compromisso da agenda, já no horário local.
+//! - [`LinkPlan`]: o que o sync faz com as tarefas ligadas a eventos pelo
+//!   rodapé `vamo:` (sai de [`Projection::link`]).
+//!
 //! Todos esses tipos validam na construção, então um valor que existe é um
 //! valor válido. Quando algo dá errado, o erro é um [`Error`].
 //!
@@ -55,6 +61,7 @@ mod event;
 mod fit;
 mod id;
 mod lineup;
+mod link;
 mod machine;
 mod port;
 mod projection;
@@ -69,6 +76,7 @@ pub use event::{Change, Event, EventId};
 pub use fit::Fit;
 pub use id::TaskId;
 pub use lineup::{Lineup, Score};
+pub use link::{LinkPlan, Skipped};
 pub use machine::Machine;
 pub use port::EventStore;
 pub use projection::Projection;
