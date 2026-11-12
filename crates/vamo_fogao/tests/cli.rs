@@ -29,6 +29,7 @@ impl Vamo {
             .env("HOME", self.home.path())
             .env("XDG_DATA_HOME", self.home.path().join("dados"))
             .env("XDG_CONFIG_HOME", self.home.path().join("config"))
+            .env("XDG_CACHE_HOME", self.home.path().join("cache"))
             .env("VAMO_MAQUINA", "notebook")
             .env("TZ", "America/Sao_Paulo")
             .env_remove("VAMO_LINGUAGEM")
@@ -700,5 +701,60 @@ mod curiosidade {
         let vamo = Vamo::new();
         vamo.ok(&["curiosidade"]);
         assert!(!vamo.database().exists());
+    }
+}
+
+mod agenda {
+    use super::*;
+
+    /// Uma agenda de exemplo num arquivo da pasta temporária, ligada na
+    /// config como se fosse o link.
+    fn with_agenda(vamo: &Vamo) {
+        let ics = "BEGIN:VCALENDAR\r\n\
+BEGIN:VEVENT\r\n\
+UID:caminhada@exemplo\r\n\
+DTSTART;TZID=America/Sao_Paulo:20261112T070000\r\n\
+DTEND;TZID=America/Sao_Paulo:20261112T074500\r\n\
+RRULE:FREQ=DAILY\r\n\
+SUMMARY:Caminhada\r\n\
+END:VEVENT\r\n\
+BEGIN:VEVENT\r\n\
+UID:dentista@exemplo\r\n\
+DTSTART:20261112T133000Z\r\n\
+DTEND:20261112T143000Z\r\n\
+SUMMARY:Dentista\r\n\
+END:VEVENT\r\n\
+END:VCALENDAR\r\n";
+        let file = vamo.home.path().join("agenda.ics");
+        std::fs::write(&file, ics).expect("a agenda de exemplo deveria ser gravada");
+        vamo.configure(&format!("[agenda]\nics = \"{}\"\n", file.display()));
+    }
+
+    #[test]
+    fn shows_the_day_in_the_local_time() {
+        let vamo = Vamo::new();
+        with_agenda(&vamo);
+        assert_eq!(
+            vamo.ok(&["agenda", "--data", "2026-11-12"]),
+            "07:00–07:45  Caminhada ↻\n10:30–11:30  Dentista\n"
+        );
+        assert_eq!(
+            vamo.ok(&["agenda", "--data", "2026-11-13"]),
+            "07:00–07:45  Caminhada ↻\n"
+        );
+        // A cópia ficou na pasta de cache.
+        assert!(
+            vamo.home
+                .path()
+                .join("cache/vamo_fogao/agenda.ics")
+                .exists()
+        );
+    }
+
+    #[test]
+    fn without_the_link_it_says_how_to_configure() {
+        let vamo = Vamo::new();
+        let error = vamo.fails(&["agenda"], 1);
+        assert!(error.contains("[agenda]"), "{error}");
     }
 }

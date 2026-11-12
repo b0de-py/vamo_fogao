@@ -23,3 +23,13 @@ pub(crate) fn config() -> Result<PathBuf> {
         .wrap_err("não achei a pasta pessoal: a variável HOME está definida?")?;
     Ok(base.config_dir().join(APP_DIR).join("config.toml"))
 }
+
+/// A cópia local da agenda, na pasta de cache:
+/// `$XDG_CACHE_HOME/vamo_fogao/agenda.ics`, que na maioria das máquinas é
+/// `~/.cache/vamo_fogao/agenda.ics`. Dá pra apagar: o `vamo sync` baixa de
+/// novo.
+pub(crate) fn agenda_cache() -> Result<PathBuf> {
+    let base = etcetera::choose_base_strategy()
+        .wrap_err("não achei a pasta pessoal: a variável HOME está definida?")?;
+    Ok(base.cache_dir().join(APP_DIR).join("agenda.ics"))
+}

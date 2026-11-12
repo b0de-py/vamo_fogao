@@ -26,6 +26,7 @@ tracing-subscriber.workspace = true
 # O `v7` traz o gerador de UUID v7, com relógio e sorteio.
 uuid = { workspace = true, features = ["v7"] }
 vamo-acervo.workspace = true
+vamo-agenda.workspace = true
 vamo-core.workspace = true
 vamo-store.workspace = true
 vamo-tui.workspace = true

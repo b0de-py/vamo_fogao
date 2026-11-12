@@ -9,6 +9,16 @@ repository.workspace = true
 publish.workspace = true
 
 [dependencies]
+# Aqui o jiff precisa dos fusos pelo nome (`America/Sao_Paulo`), que vêm da
+# base do sistema.
+jiff = { workspace = true, features = ["tz-system", "tzdb-bundle-platform", "tzdb-zoneinfo"] }
+thiserror.workspace = true
+tracing.workspace = true
+ureq.workspace = true
+vamo-core.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
 
 [lints]
 workspace = true

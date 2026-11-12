@@ -55,6 +55,9 @@ thiserror = "2.0"
 # linha de cada um, pra apontar o problema em português.
 toml = { version = "1.2", default-features = false, features = ["parse", "std"] }
 tracing = "0.1"
+# O download da agenda. Sem as features padrão, que trazem o rustls (e o
+# ring, com licença fora do `deny.toml`): a TLS é a do sistema.
+ureq = { version = "3.4", default-features = false, features = ["native-tls-no-default"] }
 tracing-subscriber = { version = "0.3", default-features = false, features = ["env-filter", "fmt", "std"] }
 uuid = "1.29"
 

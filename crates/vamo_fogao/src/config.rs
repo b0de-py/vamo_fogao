@@ -17,6 +17,16 @@ pub(crate) struct Config {
     pub(crate) voice: Option<Voice>,
     /// `animacao = false` apaga o fogo da TUI.
     pub(crate) animation: Option<Animation>,
+    /// A seção `[agenda]`.
+    pub(crate) agenda: AgendaConfig,
+}
+
+/// A seção `[agenda]`: de onde a agenda vem.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct AgendaConfig {
+    /// `ics = "https://..."`: o link secreto da agenda (ou o caminho de um
+    /// arquivo `.ics`). É segredo: fica só na config, nunca no repositório.
+    pub(crate) ics: Option<String>,
 }
 
 /// Lê a config do lugar padrão. Sem arquivo, devolve a config vazia.
@@ -50,12 +60,34 @@ fn parse(text: &str) -> Result<Config> {
                 };
                 config.animation = Some(if *on { Animation::On } else { Animation::Off });
             }
+            "agenda" => config.agenda = agenda(value.get_ref())?,
             other => bail!(
-                "`{other}` não é um campo da config: os campos que existem são linguagem e animacao"
+                "`{other}` não é um campo da config: os campos que existem são linguagem, \
+                 animacao e a seção [agenda]"
             ),
         }
     }
     Ok(config)
+}
+
+/// Lê a seção `[agenda]`.
+fn agenda(value: &DeValue<'_>) -> Result<AgendaConfig> {
+    let DeValue::Table(table) = value else {
+        bail!("`agenda` é uma seção: escreva [agenda] numa linha e os campos embaixo");
+    };
+    let mut agenda = AgendaConfig::default();
+    for (key, value) in table {
+        match key.get_ref().as_ref() {
+            "ics" => {
+                let DeValue::String(link) = value.get_ref() else {
+                    bail!("`ics` é o link da agenda entre aspas, como ics = \"https://...\"");
+                };
+                agenda.ics = Some(link.to_string());
+            }
+            other => bail!("`{other}` não é um campo da seção [agenda]: o campo que existe é ics"),
+        }
+    }
+    Ok(agenda)
 }
 
 #[cfg(test)]
@@ -92,6 +124,17 @@ mod tests {
             error.to_string(),
             "`torcida` não é uma linguagem: as linguagens são jogo e neutra"
         );
+    }
+
+    #[test]
+    fn the_agenda_link_comes_in_its_section() {
+        let config = parse("[agenda]\nics = \"https://agenda.exemplo/basic.ics\"\n").unwrap();
+        assert_eq!(
+            config.agenda.ics.as_deref(),
+            Some("https://agenda.exemplo/basic.ics")
+        );
+        assert!(parse("agenda = 1").is_err());
+        assert!(parse("[agenda]\nlink = \"x\"").is_err());
     }
 
     #[test]

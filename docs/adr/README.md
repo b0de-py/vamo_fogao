@@ -11,6 +11,7 @@ Cada escolha que muda o jeito do projeto ganha um registro curto: o contexto, a 
 | [0005](0005-acervo-em-toml-com-a-regua-no-validador.md) | Guardar o acervo em TOML, um fato por arquivo, com a régua no validador | aceita |
 | [0006](0006-sqlite-com-migracoes-proprias.md) | Guardar o log em SQLite, com migrações próprias | aceita |
 | [0007](0007-tui-com-ratatui-e-porta-propria.md) | Desenhar a TUI com o ratatui, recebendo as tarefas por uma porta própria | aceita |
+| [0008](0008-agenda-por-ics-com-leitor-proprio.md) | Ler a agenda pelo link ICS, com leitor próprio e cópia local | aceita |
 
 ## Como escrever uma
 

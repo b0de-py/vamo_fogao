@@ -45,7 +45,10 @@
 //! implementa.
 //!
 //! - [`EventStore`]: onde o log de eventos fica guardado.
+//! - [`Agenda`]: de onde vêm os compromissos da agenda, os
+//!   [`Appointment`]s.
 
+mod appointment;
 mod area;
 mod error;
 mod event;
@@ -59,6 +62,7 @@ mod status;
 mod task;
 mod title;
 
+pub use appointment::{Agenda, Appointment, When};
 pub use area::Area;
 pub use error::Error;
 pub use event::{Change, Event, EventId};

@@ -13,15 +13,15 @@ use vamo_core::{
 };
 use vamo_store::Store;
 
-use crate::acervo;
 use crate::cli::{AcervoCommand, Command};
+use crate::config::Config;
 use crate::import::{self, Plan};
 use crate::paths;
-use vamo_tui::{Animation, Voice};
+use crate::{acervo, agenda};
+use vamo_tui::Voice;
 
-/// Roda um comando e devolve o que mostrar na saída. A animação só vale
-/// pra TUI.
-pub(crate) fn run(command: Command, voice: Voice, animation: Animation) -> Result<String> {
+/// Roda um comando e devolve o que mostrar na saída.
+pub(crate) fn run(command: Command, voice: Voice, config: &Config) -> Result<String> {
     match command {
         Command::Add {
             title,
@@ -40,6 +40,10 @@ pub(crate) fn run(command: Command, voice: Voice, animation: Animation) -> Resul
             let date = date.unwrap_or_else(|| jiff::Zoned::now().date());
             acervo::curiosity(date, banter, voice)
         }
+        Command::Agenda { date } => {
+            let day = date.unwrap_or_else(|| jiff::Zoned::now().date());
+            agenda::show(&config.agenda, day)
+        }
         Command::Tui => {
             let mut session = Session::open(voice)?;
             let acervo::Bundled { facts, banter } = acervo::bundled();
@@ -47,7 +51,7 @@ pub(crate) fn run(command: Command, voice: Voice, animation: Animation) -> Resul
                 voice,
                 acervo: vamo_tui::Acervo { facts, banter },
                 time_zone: TimeZone::system(),
-                animation,
+                animation: config.animation.unwrap_or_default(),
             };
             vamo_tui::run(&mut session, setup).wrap_err("a TUI não conseguiu usar o terminal")?;
             Ok(String::new())
