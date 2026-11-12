@@ -34,6 +34,12 @@ pub(crate) fn agenda_cache() -> Result<PathBuf> {
     Ok(base.cache_dir().join(APP_DIR).join("agenda.ics"))
 }
 
+/// A cópia local do calendário de jogos, ao lado da agenda:
+/// `$XDG_CACHE_HOME/vamo_fogao/jogos.ics`.
+pub(crate) fn games_cache() -> Result<PathBuf> {
+    Ok(agenda_cache()?.with_file_name("jogos.ics"))
+}
+
 #[cfg(feature = "google")]
 /// A cópia local da agenda do Google, ao lado da do ICS:
 /// `$XDG_CACHE_HOME/vamo_fogao/agenda-google.json`.

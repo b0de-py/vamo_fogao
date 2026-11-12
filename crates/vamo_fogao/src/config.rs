@@ -35,6 +35,29 @@ pub(crate) struct Config {
     /// `antecedencia = 15`, na seção `[lembretes]`: quantos minutos antes
     /// do compromisso o aviso chega.
     pub(crate) reminder_lead: Option<SignedDuration>,
+    /// A seção `[jogos]`: o calendário de jogos do time.
+    pub(crate) games: GamesConfig,
+}
+
+/// O time da torcida, quando a config não diz outro.
+pub(crate) const DEFAULT_TEAM: &str = "Botafogo";
+
+/// A seção `[jogos]`: de onde vêm os jogos do time.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct GamesConfig {
+    /// `ics = "https://..."`: o link de uma agenda de jogos (ou o caminho de
+    /// um arquivo `.ics`).
+    pub(crate) ics: Option<String>,
+    /// `time = "Botafogo"`: o nome do time nos títulos dos jogos. Sem ele,
+    /// [`DEFAULT_TEAM`].
+    pub(crate) team: Option<String>,
+}
+
+impl GamesConfig {
+    /// O nome do time nos títulos dos jogos.
+    pub(crate) fn team(&self) -> &str {
+        self.team.as_deref().unwrap_or(DEFAULT_TEAM)
+    }
 }
 
 /// A seção `[agenda]`: de onde a agenda vem.
@@ -111,9 +134,10 @@ fn parse(text: &str) -> Result<Config> {
             "tempo" => (config.rules, config.min_gap) = rules(value.get_ref())?,
             "apelidos" => config.aliases = aliases(value.get_ref())?,
             "lembretes" => config.reminder_lead = reminders(value.get_ref())?,
+            "jogos" => config.games = games(value.get_ref())?,
             other => bail!(
                 "`{other}` não é um campo da config: os campos que existem são linguagem, \
-                 animacao e as seções [agenda], [tempo], [apelidos] e [lembretes]"
+                 animacao e as seções [agenda], [tempo], [apelidos], [lembretes] e [jogos]"
             ),
         }
     }
@@ -159,6 +183,43 @@ fn agenda(value: &DeValue<'_>) -> Result<AgendaConfig> {
         }
     }
     Ok(agenda)
+}
+
+/// Lê a seção `[jogos]`:
+///
+/// ```toml
+/// [jogos]
+/// ics = "https://tabela.exemplo/jogos.ics"
+/// time = "Botafogo"
+/// ```
+fn games(value: &DeValue<'_>) -> Result<GamesConfig> {
+    let DeValue::Table(table) = value else {
+        bail!("`jogos` é uma seção: escreva [jogos] numa linha e os campos embaixo");
+    };
+    let mut games = GamesConfig::default();
+    for (key, value) in table {
+        match key.get_ref().as_ref() {
+            "ics" => {
+                let DeValue::String(link) = value.get_ref() else {
+                    bail!("`ics` dos jogos é o link entre aspas, como ics = \"https://...\"");
+                };
+                games.ics = Some(link.to_string());
+            }
+            "time" => {
+                let DeValue::String(team) = value.get_ref() else {
+                    bail!("`time` é o nome do time entre aspas, como time = \"Botafogo\"");
+                };
+                if team.trim().is_empty() {
+                    bail!("`time` não pode ficar vazio");
+                }
+                games.team = Some(team.trim().to_owned());
+            }
+            other => bail!(
+                "`{other}` não é um campo da seção [jogos]: os campos que existem são ics e time"
+            ),
+        }
+    }
+    Ok(games)
 }
 
 /// Lê a seção `[lembretes]`:
@@ -500,6 +561,26 @@ mod tests {
             "[tempo]\nalmoco = \"12:00-13:00\"",
         ] {
             assert!(parse(text).is_err(), "{text}");
+        }
+    }
+
+    #[test]
+    fn the_games_come_in_their_section() {
+        let config = parse("[jogos]\nics = \"https://tabela.exemplo/jogos.ics\"\n").unwrap();
+        assert_eq!(
+            config.games.ics.as_deref(),
+            Some("https://tabela.exemplo/jogos.ics")
+        );
+        assert_eq!(config.games.team(), "Botafogo");
+        let other = parse("[jogos]\ntime = \"Bangu\"").unwrap();
+        assert_eq!(other.games.team(), "Bangu");
+        for wrong in [
+            "jogos = 1",
+            "[jogos]\ntime = \" \"",
+            "[jogos]\nics = 1",
+            "[jogos]\nlink = \"x\"",
+        ] {
+            assert!(parse(wrong).is_err(), "{wrong}");
         }
     }
 

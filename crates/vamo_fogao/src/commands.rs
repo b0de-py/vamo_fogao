@@ -20,7 +20,7 @@ use crate::cli::{AcervoCommand, Command};
 use crate::config::Config;
 use crate::import::{self, Plan};
 use crate::paths;
-use crate::{acervo, agenda, bar, remind};
+use crate::{acervo, agenda, bar, games, remind};
 use vamo_tui::Voice;
 
 /// Roda um comando e devolve o que mostrar na saída.
@@ -48,6 +48,9 @@ pub(crate) fn run(command: Command, voice: Voice, config: &Config) -> Result<Str
             Session::open(voice)?.agenda(config, day)
         }
         Command::Sync => Session::open(voice)?.sync(config),
+        Command::Games { date } => {
+            games_list(config, date.unwrap_or_else(|| jiff::Zoned::now().date()))
+        }
         Command::Inbox => Ok(Session::open(voice)?.inbox()),
         Command::Bar { json } => Ok(Session::open(voice)?.bar(config, json)),
         Command::Remind { test } => Session::open(voice)?.remind(config, test),
@@ -70,6 +73,26 @@ pub(crate) fn run(command: Command, voice: Voice, config: &Config) -> Result<Str
             command: AcervoCommand::Validate { folder },
         } => acervo::validate(&folder, voice),
     }
+}
+
+/// `vamo jogos`: baixa o calendário de jogos e mostra os dos 60 dias a
+/// partir de `today`. Não mexe nas tarefas, então nem abre o banco.
+fn games_list(config: &Config, today: Date) -> Result<String> {
+    let zone = TimeZone::system();
+    let loaded = games::load(&config.games, zone)?.ok_or_else(games::not_configured)?;
+    let (found, warnings) = loaded
+        .fixtures
+        .read(today, today.checked_add(jiff::ToSpan::days(60))?);
+    let mut lines: Vec<String> = warnings.iter().map(|w| format!("aviso: {w}")).collect();
+    if loaded.freshness == Freshness::Cached {
+        lines.push("aviso: os jogos não baixaram agora; esta é a cópia local".to_owned());
+    }
+    if found.is_empty() {
+        lines.push("Nenhum jogo nos próximos 60 dias.".to_owned());
+    }
+    let team = config.games.team();
+    lines.extend(found.iter().map(|game| games::line(game, team)));
+    Ok(lines.join("\n"))
 }
 
 /// O banco aberto, o log lido e o estado das tarefas calculado a partir dele.
@@ -316,6 +339,15 @@ impl Session {
             }
         }
         lines.push(self.voice.synced(appointments.len(), changed));
+        // A tabela de jogos vem junto, mas jogo que não baixou não derruba o
+        // sync da agenda.
+        match games::load(&config.games, TimeZone::system()) {
+            Ok(Some(loaded)) if loaded.freshness == Freshness::Cached => {
+                lines.push("aviso: os jogos não baixaram agora; fica a cópia local".to_owned());
+            }
+            Ok(_) => {}
+            Err(error) => lines.push(format!("aviso: os jogos não vieram: {error:#}")),
+        }
         Ok(lines.join("\n"))
     }
 

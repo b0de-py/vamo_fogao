@@ -924,3 +924,27 @@ mod reminders {
         assert!(saved.trim().ends_with('Z'), "{saved}");
     }
 }
+
+mod games {
+    use super::*;
+
+    #[test]
+    fn without_the_section_it_says_how_to_configure() {
+        let err = Vamo::new().fails(&["jogos"], 1);
+        assert!(err.contains("[jogos]"), "{err}");
+    }
+
+    #[test]
+    fn lists_the_games_of_the_team() {
+        let vamo = Vamo::new();
+        let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../vamo-agenda/tests/fixtures/jogos.ics")
+            .canonicalize()
+            .expect("o calendário de jogos de exemplo deveria existir");
+        vamo.configure(&format!(
+            "[jogos]\nics = {:?}\n",
+            fixture.display().to_string()
+        ));
+        insta::assert_snapshot!(vamo.ok(&["jogos", "--data", "2026-11-01"]));
+    }
+}

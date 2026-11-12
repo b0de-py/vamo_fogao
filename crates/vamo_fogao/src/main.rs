@@ -10,6 +10,7 @@ mod bar;
 mod cli;
 mod commands;
 mod config;
+mod games;
 mod import;
 mod paths;
 mod remind;

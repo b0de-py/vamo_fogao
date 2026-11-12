@@ -38,7 +38,8 @@ Config:
   padrão e animacao = false pra apagar o fogo da TUI. A --linguagem e a
   VAMO_LINGUAGEM ganham da config. Na seção [agenda], ics = \"https://...\"
   é o link secreto da agenda (ou fonte = \"google\", com o vamo compilado
-  com a feature google).
+  com a feature google). Na seção [jogos], ics = \"https://...\" é a tabela
+  de jogos do time.
 
 Variáveis de ambiente:
   VAMO_LINGUAGEM   jogo ou neutra, o mesmo que --linguagem
@@ -240,6 +241,19 @@ pub(crate) enum Command {
         next_help_heading = "Opções"
     )]
     Sync,
+
+    /// Mostra os próximos jogos do time, lidos do calendário de jogos
+    #[command(
+        name = "jogos",
+        override_usage = "vamo jogos [OPÇÕES]",
+        help_template = SUBCOMMAND_HELP_TEMPLATE,
+        next_help_heading = "Opções"
+    )]
+    Games {
+        /// O primeiro dia, como 2026-11-11 (sem ela, hoje)
+        #[arg(long = "data", value_name = "DATA", value_parser = parse_date)]
+        date: Option<jiff::civil::Date>,
+    },
 
     /// Lista as tarefas prontas esperando horário, com o rodapé pra agenda
     #[command(

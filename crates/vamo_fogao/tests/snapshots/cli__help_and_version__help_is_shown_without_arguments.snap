@@ -15,6 +15,7 @@ Comandos:
   curiosidade      Conta a curiosidade do dia, uma história do Botafogo
   agenda           Mostra os compromissos do dia, lidos da agenda
   sync             Lê a agenda e liga os eventos com rodapé vamo: às tarefas
+  jogos            Mostra os próximos jogos do time, lidos do calendário de jogos
   caixa            Lista as tarefas prontas esperando horário, com o rodapé pra agenda
   barra            Mostra o placar do dia numa linha, pra barra do desktop
   lembrar          Avisa, nas notificações do desktop, dos compromissos que vão começar
@@ -32,7 +33,8 @@ Config:
   padrão e animacao = false pra apagar o fogo da TUI. A --linguagem e a
   VAMO_LINGUAGEM ganham da config. Na seção [agenda], ics = "https://..."
   é o link secreto da agenda (ou fonte = "google", com o vamo compilado
-  com a feature google).
+  com a feature google). Na seção [jogos], ics = "https://..." é a tabela
+  de jogos do time.
 
 Variáveis de ambiente:
   VAMO_LINGUAGEM   jogo ou neutra, o mesmo que --linguagem

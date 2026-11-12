@@ -53,6 +53,11 @@
 //! Todos esses tipos validam na construção, então um valor que existe é um
 //! valor válido. Quando algo dá errado, o erro é um [`Error`].
 //!
+//! # O dia de jogo
+//!
+//! - [`Game`]: um jogo do time, com o adversário, a hora e o campeonato.
+//! - [`game_on`]: o jogo de um dia, se tiver.
+//!
 //! # As portas
 //!
 //! O que o core precisa do mundo de fora vira trait, e um adaptador
@@ -62,6 +67,7 @@
 //! - [`Agenda`]: de onde vêm os compromissos da agenda, os
 //!   [`Appointment`]s.
 //! - [`Notifier`]: pra onde vão os avisos, as notificações do desktop.
+//! - [`Fixtures`]: de onde vêm os jogos do time, os [`Game`]s.
 
 mod appointment;
 mod area;
@@ -69,6 +75,7 @@ mod error;
 mod event;
 mod fit;
 mod fixed;
+mod game;
 mod gaps;
 mod id;
 mod lineup;
@@ -88,6 +95,7 @@ pub use error::Error;
 pub use event::{Change, Event, EventId};
 pub use fit::Fit;
 pub use fixed::{FixedActivity, fixed_activities};
+pub use game::{Fixtures, Game, Side, game_on};
 pub use gaps::{DEFAULT_MIN_GAP, Gap, fitting, gaps};
 pub use id::TaskId;
 pub use lineup::{Lineup, Score};

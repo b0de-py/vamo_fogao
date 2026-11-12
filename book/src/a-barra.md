@@ -1,4 +1,4 @@
-# A barra e os lembretes
+# A barra, os lembretes e o dia de jogo
 
 A fase 4 tira o `vamo` do terminal. O primeiro passo é o placar do dia sempre à vista, num módulo da barra do Omarchy: `⚽ 3 x 2` quer dizer três feitas e duas em aberto. Com o mouse em cima, a dica mostra o dia, o placar, o atraso, o próximo compromisso da agenda e o que ainda está em campo. O clique esquerdo mostra e esconde a TUI; o direito relê o placar na hora.
 
@@ -116,3 +116,39 @@ systemctl --user enable --now vamo-lembrar.timer vamo-sync.timer
 ```
 
 Pra conferir: `systemctl --user list-timers 'vamo-*'` mostra a próxima rodada, e `journalctl --user -u vamo-lembrar` mostra os avisos mandados e os erros.
+
+## Os jogos
+
+O terceiro passo é saber quando o Botafogo joga sem depender da agenda pessoal. Quem usa assina a tabela de jogos do time, como se assina uma agenda, e põe o link na config:
+
+```toml
+[jogos]
+# O link ICS da tabela de jogos (ou o caminho de um arquivo .ics).
+ics = "https://tabela.exemplo/jogos.ics"
+# O nome do time nos títulos dos jogos. Sem ele, Botafogo.
+time = "Botafogo"
+```
+
+```sh
+vamo jogos                    # os jogos dos próximos 60 dias
+vamo jogos --data 2026-11-01  # a partir de outro dia
+```
+
+O `vamo sync` baixa a tabela junto com a agenda, e o resto do app lê a cópia local (`~/.cache/vamo_fogao/jogos.ics`). Se a tabela não baixar, o sync avisa e segue com a agenda.
+
+### A porta
+
+O core não sabe de onde vêm os jogos: ele conhece a porta `Fixtures` e o tipo `Game` (o adversário, a hora, o campeonato e se o time é mandante ou visitante), em `crates/vamo-core/src/game.rs`. A primeira implementação é o `IcsFixtures`, do `vamo-agenda`, que lê a agenda ICS com o mesmo leitor da agenda pessoal e reconhece o jogo pelo título do evento. Outra fonte, como uma API de futebol, só precisa devolver os mesmos `Game`s.
+
+As tabelas escrevem o jogo cada uma de um jeito, e o leitor aceita as formas comuns:
+
+| Título do evento | Adversário | Campeonato | Lado |
+|------------------|------------|------------|------|
+| `Botafogo x Bangu` | Bangu | | mandante |
+| `Bangu vs Botafogo` | Bangu | | visitante |
+| `⚽ Botafogo x Bangu - Carioca` | Bangu | Carioca | mandante |
+| `Carioca: Bangu x Botafogo` | Bangu | Carioca | visitante |
+| `Botafogo x Bangu (Copa do Brasil)` | Bangu | Copa do Brasil | mandante |
+| `Botafogo-RJ x São Paulo` | São Paulo | | mandante |
+
+Evento que não é jogo do time (um sorteio, um jogo de outros dois times) fica de fora, e jogo sem hora marcada também, porque ainda não tem quando a bola rola. Os testes leem uma tabela de exemplo inventada (`crates/vamo-agenda/tests/fixtures/jogos.ics`), e um teste de propriedade confere que qualquer nome de adversário volta inteiro, dos dois lados do jogo.
