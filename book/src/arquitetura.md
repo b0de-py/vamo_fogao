@@ -16,7 +16,7 @@ O vamo_fogao segue a arquitetura hexagonal, também chamada de portas e adaptado
         +-------------------------------------------------+
 ```
 
-Do lado esquerdo ficam os adaptadores que **chamam** o domínio: a CLI, a TUI e o MCP recebem um pedido de quem usa e pedem ao core pra fazer. Do lado direito ficam os que **são chamados** por ele: o core declara uma porta, por exemplo "preciso guardar e ler o log de eventos", na forma de uma trait (a `EventStore`), e o `vamo-store` implementa essa trait com SQLite.
+Do lado esquerdo ficam os adaptadores que **chamam** o domínio: a CLI, a TUI e o MCP recebem um pedido de quem usa e pedem ao core pra fazer. Do lado direito ficam os que **são chamados** por ele: o core declara uma porta, por exemplo "preciso guardar e ler o log de eventos", na forma de uma trait (a `EventStore`), e o `vamo-store` implementa essa trait com SQLite. A agenda é a mesma ideia: o core declara a porta `Agenda`, e o leitor de ICS e o cliente do Google implementam.
 
 ## Os crates
 
@@ -25,7 +25,7 @@ Do lado esquerdo ficam os adaptadores que **chamam** o domínio: a CLI, a TUI e 
 | `vamo-core` | O domínio: tarefa, status, encaixe, regras do tempo, brechas, título do caderno e as portas. | nenhum crate do workspace |
 | `vamo-acervo` | O museu de bolso: fatos, validador e sorteio da curiosidade do dia. | nenhum crate do workspace |
 | `vamo-store` | Guarda o log de eventos em SQLite. | `vamo-core` |
-| `vamo-agenda` | Lê a agenda e o rodapé `vamo:` dos eventos. | `vamo-core` |
+| `vamo-agenda` | Lê a agenda (link ICS ou, com a feature `google`, a API do Google) e o rodapé `vamo:` dos eventos. | `vamo-core` |
 | `vamo-sync` | Exporta o log de eventos e sincroniza as máquinas pelo git. | `vamo-core` |
 | `vamo-tui` | As telas, o tema e o fogo. | `vamo-core`, `vamo-acervo` |
 | `vamo-mcp` | O servidor MCP. | `vamo-core`, `vamo-acervo` |

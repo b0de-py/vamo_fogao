@@ -18,7 +18,7 @@ O vamo_fogao junta num lugar só as tarefas, a agenda e um pedaço da história 
 
 ## Em que pé está
 
-Fase 2, a TUI: as tarefas moram num banco SQLite, a linha de comando cuida do rápido e `vamo tui` abre as telas do dia, com o fogo alvinegro queimando no fundo. No Hyprland, um atalho mostra e esconde a TUI ([como configurar](book/src/a-tui.md#no-hyprland-a-janela-que-aparece-e-some)). O [ROADMAP](ROADMAP.md) mostra todas as fases.
+Fase 3, a agenda: as tarefas moram num banco SQLite, a linha de comando cuida do rápido e `vamo tui` abre as telas do dia, com o fogo alvinegro queimando no fundo. No Hyprland, um atalho mostra e esconde a TUI ([como configurar](book/src/a-tui.md#no-hyprland-a-janela-que-aparece-e-some)). A agenda entra pelo link ICS (ou pelo Google Agenda, opcional): a tela Hoje mostra os compromissos, as brechas do expediente e as regras do tempo feridas, e o rodapé `vamo:` na descrição de um evento liga ele à tarefa ([como configurar](book/src/a-agenda.md)). O [ROADMAP](ROADMAP.md) mostra todas as fases.
 
 ```console
 $ vamo add Trocar o filtro da água --area casa
@@ -28,6 +28,9 @@ T-001  pronta  brecha  casa  Trocar o filtro da água
 $ vamo done 1
 GOOOL! T-001 Trocar o filtro da água
 $ vamo show 1
+$ vamo caixa
+$ vamo sync
+$ vamo agenda
 ```
 
 O banco fica em `~/.local/share/vamo_fogao/vamo.db`, ou na pasta que o `XDG_DATA_HOME` apontar.

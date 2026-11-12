@@ -13,7 +13,13 @@ O código fala inglês e a interface fala português, com a linguagem de jogo li
 | Status | `Status` | Em que pé a tarefa está: ideia, destrinchando, pronta, agendada, recorrente, concluída ou descartada. |
 | Caderno | notebook | A lista do dia no formato do caderno de papel: título curto, verbo na frente. |
 | Título do caderno | `NotebookTitle` | Um título de até cinco palavras que começa com verbo. |
-| Brecha | gap | Uma janela livre no expediente, onde cabe uma tarefa curta. |
+| Brecha | `Gap` | Uma janela livre no expediente, onde cabe uma tarefa curta. |
+| Compromisso | `Appointment` | Um evento da agenda, já no horário local, com a recorrência resolvida. |
+| Rodapé | `Footer` | A linha `vamo: T-041 \| ...` na descrição do evento, que liga ele à tarefa. |
+| Atividade fixa da agenda | `FixedActivity` | Um compromisso recorrente, de marcar na tela Hoje sem virar tarefa. |
+| Regras do tempo | `TimeRules` | Expediente, teto da noite e blocos protegidos, da seção `[tempo]` da config. |
+| Regra ferida | `Violation` | O que uma tarefa marcada num horário fere: o teto da noite ou um bloco protegido. |
+| Caixa a marcar | inbox | As tarefas prontas sem dia, esperando horário na agenda. |
 | Gol | done | Tarefa concluída. |
 | Evento | `Event` | Uma mudança numa tarefa, com o instante, a máquina e um ID que nunca se repete. |
 | Mudança | `Change` | O que um evento mudou: a criação da tarefa ou um campo só. |

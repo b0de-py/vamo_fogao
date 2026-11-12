@@ -8,5 +8,6 @@
 - [O log de eventos](o-log-de-eventos.md)
 - [O acervo](o-acervo.md)
 - [A TUI](a-tui.md)
+- [A agenda](a-agenda.md)
 - [O Rust que aparece aqui](rust-que-aparece-aqui.md)
 - [Glossário](glossario.md)
