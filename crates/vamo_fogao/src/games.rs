@@ -5,9 +5,11 @@
 //! barra e os lembretes leem só a cópia local.
 
 use color_eyre::eyre::{Result, WrapErr, eyre};
+use jiff::civil::Date;
 use jiff::tz::TimeZone;
 use vamo_agenda::{Calendar, Freshness, IcsFixtures, IcsLink};
-use vamo_core::{Game, Side};
+use vamo_core::{Game, GameDay, Side};
+use vamo_tui::Voice;
 
 use crate::config::GamesConfig;
 use crate::paths;
@@ -39,6 +41,48 @@ pub(crate) fn load(config: &GamesConfig, zone: TimeZone) -> Result<Option<Loaded
         fixtures: parse(&text, config, zone)?,
         freshness,
     }))
+}
+
+/// Os jogos de `from` a `to`, lidos só da cópia local. Sem calendário na
+/// config, sem cópia ou com a cópia ilegível, nenhum, e o motivo vai pro
+/// log: dia sem jogo não é erro.
+pub(crate) fn cached(config: &GamesConfig, zone: TimeZone, from: Date, to: Date) -> Vec<Game> {
+    let read = || -> Result<Vec<Game>> {
+        let Some(url) = &config.ics else {
+            return Ok(Vec::new());
+        };
+        let Some(text) = link(url)?.cached()? else {
+            return Ok(Vec::new());
+        };
+        Ok(parse(&text, config, zone)?.read(from, to).0)
+    };
+    read().unwrap_or_else(|error| {
+        tracing::warn!("a cópia local dos jogos não deu pra ler: {error:#}");
+        Vec::new()
+    })
+}
+
+/// O dia de jogo de `day`, lido da cópia local, com a área das tarefas do
+/// jogo. Só na linguagem de jogo: no modo neutro, o `vamo` não fala de
+/// futebol.
+pub(crate) fn on(config: &GamesConfig, zone: TimeZone, day: Date, voice: Voice) -> Option<GameDay> {
+    if voice == Voice::Neutral {
+        return None;
+    }
+    pick(&cached(config, zone, day, day), config, day)
+}
+
+/// O dia de jogo de `day` entre jogos já lidos, com a área da config.
+pub(crate) fn pick(found: &[Game], config: &GamesConfig, day: Date) -> Option<GameDay> {
+    Some(GameDay {
+        game: vamo_core::game_on(found, day)?.clone(),
+        area: config.area(),
+    })
+}
+
+/// O dia de jogo de hoje, como [`on`].
+pub(crate) fn today(config: &GamesConfig, now: &jiff::Zoned, voice: Voice) -> Option<GameDay> {
+    on(config, now.time_zone().clone(), now.date(), voice)
 }
 
 /// O jogo como se escreve, com o mandante na frente: `Botafogo x Bangu`.

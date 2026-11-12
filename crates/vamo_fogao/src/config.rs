@@ -11,7 +11,7 @@ use color_eyre::eyre::{Result, WrapErr, bail, eyre};
 use jiff::SignedDuration;
 use jiff::civil::Weekday;
 use toml::de::{DeTable, DeValue};
-use vamo_core::{Block, TimeRange, TimeRules};
+use vamo_core::{Area, Block, TimeRange, TimeRules};
 use vamo_tui::{Animation, Voice};
 
 /// O que a config escolhe. Cada campo é `None` quando o arquivo não fala
@@ -51,12 +51,22 @@ pub(crate) struct GamesConfig {
     /// `time = "Botafogo"`: o nome do time nos títulos dos jogos. Sem ele,
     /// [`DEFAULT_TEAM`].
     pub(crate) team: Option<String>,
+    /// `area = "jogo"`: a área das tarefas do jogo (como ver, com quem, o
+    /// que preparar). Sem ela, `jogo`.
+    pub(crate) area: Option<Area>,
 }
 
 impl GamesConfig {
     /// O nome do time nos títulos dos jogos.
     pub(crate) fn team(&self) -> &str {
         self.team.as_deref().unwrap_or(DEFAULT_TEAM)
+    }
+
+    /// A área das tarefas do jogo.
+    pub(crate) fn area(&self) -> Area {
+        self.area
+            .clone()
+            .unwrap_or_else(|| Area::new("jogo").expect("`jogo` é um nome de área válido"))
     }
 }
 
@@ -214,8 +224,15 @@ fn games(value: &DeValue<'_>) -> Result<GamesConfig> {
                 }
                 games.team = Some(team.trim().to_owned());
             }
+            "area" => {
+                let DeValue::String(area) = value.get_ref() else {
+                    bail!("`area` é o nome da área entre aspas, como area = \"jogo\"");
+                };
+                games.area = Some(area.parse()?);
+            }
             other => bail!(
-                "`{other}` não é um campo da seção [jogos]: os campos que existem são ics e time"
+                "`{other}` não é um campo da seção [jogos]: os campos que existem são ics, time \
+                 e area"
             ),
         }
     }
@@ -572,13 +589,16 @@ mod tests {
             Some("https://tabela.exemplo/jogos.ics")
         );
         assert_eq!(config.games.team(), "Botafogo");
-        let other = parse("[jogos]\ntime = \"Bangu\"").unwrap();
+        assert_eq!(config.games.area().as_str(), "jogo");
+        let other = parse("[jogos]\ntime = \"Bangu\"\narea = \"futebol\"").unwrap();
         assert_eq!(other.games.team(), "Bangu");
+        assert_eq!(other.games.area().as_str(), "futebol");
         for wrong in [
             "jogos = 1",
             "[jogos]\ntime = \" \"",
             "[jogos]\nics = 1",
             "[jogos]\nlink = \"x\"",
+            "[jogos]\narea = \"Futebol\"",
         ] {
             assert!(parse(wrong).is_err(), "{wrong}");
         }

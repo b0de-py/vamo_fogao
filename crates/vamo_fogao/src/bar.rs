@@ -12,7 +12,7 @@ use std::collections::BTreeSet;
 
 use jiff::civil::{Date, DateTime};
 use serde_json::{Value, json};
-use vamo_core::{Appointment, FixedActivity, Lineup, Projection, Status};
+use vamo_core::{Appointment, FixedActivity, GameDay, Lineup, Projection, Side, Status};
 use vamo_tui::Voice;
 
 /// A versão do formato do `vamo barra --json`.
@@ -35,6 +35,10 @@ pub(crate) struct Day<'a> {
     pub(crate) fixed: &'a [FixedActivity],
     /// As fixas da agenda marcadas.
     pub(crate) checks: &'a BTreeSet<(Date, String)>,
+    /// O dia de jogo, se hoje tem jogo (e a linguagem é a de jogo).
+    pub(crate) game: Option<&'a GameDay>,
+    /// O nome do time, pro "Botafogo x Bangu".
+    pub(crate) team: &'a str,
     /// Agora, no horário local.
     pub(crate) now: DateTime,
 }
@@ -50,6 +54,22 @@ pub(crate) struct Bar {
     next: Option<(DateTime, String)>,
     /// As tarefas escaladas pro dia que ainda não saíram, com o ID na frente.
     open: Vec<String>,
+    /// O jogo do dia, se tiver.
+    game: Option<Matchday>,
+}
+
+/// O jogo do dia, como a barra mostra.
+#[derive(Debug)]
+struct Matchday {
+    opponent: String,
+    matchup: String,
+    kickoff: DateTime,
+    competition: Option<String>,
+    side: Side,
+    /// O trecho perto do jogo, onde só cabe tarefa leve.
+    light_only: (DateTime, DateTime),
+    /// As tarefas do jogo que ainda não saíram.
+    open_tasks: usize,
 }
 
 /// O estado do placar, que vira a classe do módulo (e a cor na barra).
@@ -83,6 +103,25 @@ impl Bar {
             .filter(|task| task.status() != Status::Done)
             .map(|task| format!("{} {}", task.id(), task.title()))
             .collect();
+        let game = day.game.map(|game_day| {
+            let game = &game_day.game;
+            Matchday {
+                opponent: game.opponent.clone(),
+                matchup: match game.side {
+                    Side::Home => format!("{} x {}", day.team, game.opponent),
+                    Side::Away => format!("{} x {}", game.opponent, day.team),
+                },
+                kickoff: game.kickoff,
+                competition: game.competition.clone(),
+                side: game.side,
+                light_only: game_day.light_only(),
+                open_tasks: game_day
+                    .tasks(day.projection, today)
+                    .iter()
+                    .filter(|task| task.status() != Status::Done)
+                    .count(),
+            }
+        });
         Self {
             day: today,
             done: score.done,
@@ -90,6 +129,7 @@ impl Bar {
             late: lineup.late.len(),
             next,
             open,
+            game,
         }
     }
 
@@ -105,7 +145,11 @@ impl Bar {
 
     /// O texto curto, o que aparece na barra.
     pub(crate) fn text(&self, voice: Voice) -> String {
-        voice.bar_score(self.done, self.planned)
+        let score = voice.bar_score(self.done, self.planned);
+        match &self.game {
+            Some(game) => format!("{score} · {}", voice.bar_game(&hm(game.kickoff))),
+            None => score,
+        }
     }
 
     /// A dica que aparece com o mouse em cima: o dia, o placar, o atraso, o
@@ -119,11 +163,25 @@ impl Bar {
             ),
             voice.score(self.done, self.planned),
         ];
+        if let Some(game) = &self.game {
+            let competition = game
+                .competition
+                .as_ref()
+                .map(|competition| format!(" · {competition}"))
+                .unwrap_or_default();
+            lines.push(format!(
+                "{}: {}, {}{competition}",
+                voice.game_day(),
+                game.matchup,
+                hm(game.kickoff)
+            ));
+            lines.push(voice.light_only(&hm(game.light_only.0), &hm(game.light_only.1)));
+        }
         if self.late > 0 {
             lines.push(voice.late_count(self.late));
         }
         if let Some((start, title)) = &self.next {
-            lines.push(voice.next_appointment(&start.strftime("%H:%M").to_string(), title));
+            lines.push(voice.next_appointment(&hm(*start), title));
         }
         if !self.open.is_empty() {
             lines.push(String::new());
@@ -148,6 +206,9 @@ impl Bar {
         if self.late > 0 {
             classes.push("atraso");
         }
+        if self.game.is_some() {
+            classes.push("jogo");
+        }
         classes
     }
 
@@ -165,11 +226,30 @@ impl Bar {
             },
             "atrasadas": self.late,
             "proximo": self.next.as_ref().map(|(start, title)| json!({
-                "inicio": start.strftime("%H:%M").to_string(),
+                "inicio": hm(*start),
                 "titulo": title,
+            })),
+            "jogo": self.game.as_ref().map(|game| json!({
+                "adversario": game.opponent,
+                "inicio": hm(game.kickoff),
+                "campeonato": game.competition,
+                "mando": match game.side {
+                    Side::Home => "casa",
+                    Side::Away => "fora",
+                },
+                "so_tarefa_leve": {
+                    "de": hm(game.light_only.0),
+                    "ate": hm(game.light_only.1),
+                },
+                "tarefas_em_aberto": game.open_tasks,
             })),
         })
     }
+}
+
+/// Uma hora como se escreve: `21:30`.
+fn hm(at: DateTime) -> String {
+    at.strftime("%H:%M").to_string()
 }
 
 #[cfg(test)]
@@ -250,13 +330,47 @@ mod tests {
             appointments,
             fixed: &[],
             checks: &BTreeSet::new(),
+            game: None,
+            team: "Botafogo",
             now: today().at(10, 30, 0, 0),
         })
+    }
+
+    fn game_day() -> GameDay {
+        GameDay {
+            game: vamo_core::Game {
+                uid: "jogo-1@exemplo".to_owned(),
+                opponent: "Bangu".to_owned(),
+                kickoff: today().at(21, 30, 0, 0),
+                competition: Some("Amistoso".to_owned()),
+                side: Side::Away,
+            },
+            area: "jogo".parse().unwrap(),
+        }
     }
 
     #[test]
     fn the_json_format_is_stable() {
         let bar = bar(&projection(), &appointments());
+        let json = serde_json::to_string_pretty(&bar.json(Voice::Game)).unwrap();
+        insta::assert_snapshot!(json);
+    }
+
+    #[test]
+    fn the_game_day_goes_in_the_json() {
+        let projection = projection();
+        let game_day = game_day();
+        let bar = Bar::new(&Day {
+            projection: &projection,
+            appointments: &[],
+            fixed: &[],
+            checks: &BTreeSet::new(),
+            game: Some(&game_day),
+            team: "Botafogo",
+            now: today().at(10, 30, 0, 0),
+        });
+        assert_eq!(bar.text(Voice::Game), "⚽ 1 x 2 · jogo às 21:30");
+        assert_eq!(bar.classes(), ["andando", "atraso", "jogo"]);
         let json = serde_json::to_string_pretty(&bar.json(Voice::Game)).unwrap();
         insta::assert_snapshot!(json);
     }
@@ -290,6 +404,7 @@ mod tests {
             late: 0,
             next: None,
             open: Vec::new(),
+            game: None,
         };
         assert_eq!(bar.classes(), ["fechado"]);
     }
@@ -302,6 +417,7 @@ mod tests {
             planned: 7,
             late: 0,
             next: None,
+            game: None,
             open: (1..=7)
                 .map(|n| format!("T-00{n} Fazer a coisa {n}"))
                 .collect(),

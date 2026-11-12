@@ -193,6 +193,22 @@ impl Voice {
         }
     }
 
+    /// O selo do card do dia de jogo. O card só aparece na linguagem de
+    /// jogo: no modo neutro, quem chama a TUI não passa o jogo.
+    pub fn game_day(self) -> &'static str {
+        "⚽ Dia de jogo"
+    }
+
+    /// O jogo do dia no texto curto da barra.
+    pub fn bar_game(self, kickoff: &str) -> String {
+        format!("jogo às {kickoff}")
+    }
+
+    /// A regra do dia de jogo, com o trecho perto do jogo.
+    pub fn light_only(self, from: &str, to: &str) -> String {
+        format!("De {from} a {to}, só tarefa leve.")
+    }
+
     /// O título de um grupo da escalação.
     pub(crate) fn group(self, group: Group) -> &'static str {
         match (self, group) {

@@ -9,6 +9,7 @@ expression: json
     "atraso"
   ],
   "dia": "2026-11-12",
+  "jogo": null,
   "placar": {
     "feitas": 1,
     "previstas": 3

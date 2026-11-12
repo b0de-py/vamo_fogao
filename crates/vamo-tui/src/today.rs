@@ -168,7 +168,13 @@ impl Today {
         } else {
             rest.width
         });
-        let mut lines = self.lines(&lineup, schedule, checks, width, voice);
+        let mut lines = match &schedule.game {
+            Some(game_day) => {
+                crate::matchday::lines(game_day, &schedule.team, projection, today, width, voice)
+            }
+            None => Vec::new(),
+        };
+        lines.extend(self.lines(&lineup, schedule, checks, width, voice));
         lines.extend(schedule.lines(projection, today, width, voice));
         let needed = u16::try_from(lines.len()).unwrap_or(u16::MAX);
         let spare = rest.height.saturating_sub(needed.saturating_add(1));

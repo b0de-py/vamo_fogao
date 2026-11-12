@@ -33,10 +33,11 @@ O `--json` é um contrato entre o binário e o módulo, e os dois podem estar em
 | `versao` | A versão do formato. Campo novo não muda a versão (o módulo ignora o que não conhece); campo que some, troca de tipo ou de sentido muda. |
 | `dia` | O dia do placar, `AAAA-MM-DD`. |
 | `text`, `tooltip`, `class` | O texto da barra, a dica e as classes, no padrão dos módulos de comando (o mesmo do Waybar). Até um módulo genérico mostra o placar com eles. |
-| `class` | Uma de `vazio` (nada previsto), `andando` ou `fechado` (tudo feito), mais `atraso` quando tem tarefa atrasada. |
+| `class` | Uma de `vazio` (nada previsto), `andando` ou `fechado` (tudo feito), mais `atraso` quando tem tarefa atrasada e `jogo` em dia de jogo. |
 | `placar` | Os números do placar: `feitas` e `previstas`. |
 | `atrasadas` | Quantas tarefas escaladas pra um dia que passou ainda não saíram. |
 | `proximo` | O próximo compromisso com horário de hoje (`inicio` e `titulo`), ou `null`. |
+| `jogo` | O jogo do dia, ou `null`. Os campos estão em [O dia de jogo](#o-dia-de-jogo). |
 
 O módulo confere a `versao`. Se o binário falar uma versão que ele não conhece, a barra mostra `vamo ?` e a dica pede pra atualizar o módulo, em vez de mostrar coisa errada.
 
@@ -152,3 +153,35 @@ As tabelas escrevem o jogo cada uma de um jeito, e o leitor aceita as formas com
 | `Botafogo-RJ x São Paulo` | São Paulo | | mandante |
 
 Evento que não é jogo do time (um sorteio, um jogo de outros dois times) fica de fora, e jogo sem hora marcada também, porque ainda não tem quando a bola rola. Os testes leem uma tabela de exemplo inventada (`crates/vamo-agenda/tests/fixtures/jogos.ics`), e um teste de propriedade confere que qualquer nome de adversário volta inteiro, dos dois lados do jogo.
+
+## O dia de jogo
+
+Com a tabela de jogos configurada, o dia de jogo tem cara própria. No alto da tela Hoje aparece o card do jogo: o adversário, a hora e o campeonato, as tarefas do jogo e a regra do dia. Na barra, o texto ganha a hora do jogo (`⚽ 3 x 2 · jogo às 21:30`), a dica ganha o jogo e o JSON ganha o campo `jogo`, com a classe `jogo`.
+
+```text
+⚽ Dia de jogo
+Bangu x Botafogo · 21:30 · Amistoso
+ [ ] T-051  Combinar onde ver
+ [x] T-052  Separar a camisa
+De 19:30 a 23:30, só tarefa leve.
+```
+
+- **As tarefas do jogo** são as da área `jogo` (ou a da config, `area = "futebol"` na seção `[jogos]`): como ver, com quem, o que preparar. Entram as que estão em campo, escaladas pro dia ou sem dia, e as que saíram no dia.
+- **A regra do dia de jogo:** perto do horário, só tarefa leve. De duas horas antes da bola rolar até o fim do jogo (duas horas depois), tarefa de foco ou com alguém marcada na agenda vira impedimento, em amarelo plasma: `⚠ T-041: pesada perto do jogo (19:30–23:30)`. Brecha pode, e tarefa do próprio jogo também. Nas brechas desse trecho, a tela Hoje só sugere tarefa leve. O `vamo agenda` e o `vamo sync` avisam a mesma regra.
+
+A regra mora no core, no `GameDay` (`crates/vamo-core/src/game.rs`): `light_only` diz o trecho, `check` diz se uma tarefa marcada fere a regra, e `tasks` diz quais são as tarefas do jogo. A TUI, a barra e a CLI só mostram.
+
+No modo neutro, o dia de jogo some de tudo: o `vamo` não fala de futebol.
+
+O campo `jogo` do JSON da barra:
+
+| Campo | O que é |
+|-------|---------|
+| `adversario` | O adversário, como está na tabela. |
+| `inicio` | A hora do jogo, `HH:MM`. |
+| `campeonato` | O campeonato, ou `null`. |
+| `mando` | `casa` ou `fora`. |
+| `so_tarefa_leve` | O trecho perto do jogo: `de` e `ate`, `HH:MM`. |
+| `tarefas_em_aberto` | Quantas tarefas do jogo ainda não saíram. |
+
+Sem jogo no dia (ou no modo neutro), `jogo` é `null`. O campo entrou depois da versão 1 do formato e não muda a versão: módulo velho só ignora.

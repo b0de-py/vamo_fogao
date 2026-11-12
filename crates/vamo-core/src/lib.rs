@@ -57,6 +57,8 @@
 //!
 //! - [`Game`]: um jogo do time, com o adversário, a hora e o campeonato.
 //! - [`game_on`]: o jogo de um dia, se tiver.
+//! - [`GameDay`]: o dia de jogo, com as tarefas do jogo e a regra de só
+//!   tarefa leve perto do horário.
 //!
 //! # As portas
 //!
@@ -95,7 +97,7 @@ pub use error::Error;
 pub use event::{Change, Event, EventId};
 pub use fit::Fit;
 pub use fixed::{FixedActivity, fixed_activities};
-pub use game::{Fixtures, Game, Side, game_on};
+pub use game::{BEFORE_KICKOFF, Fixtures, Game, GameDay, MATCH_LENGTH, Side, game_on};
 pub use gaps::{DEFAULT_MIN_GAP, Gap, fitting, gaps};
 pub use id::TaskId;
 pub use lineup::{Lineup, Score};

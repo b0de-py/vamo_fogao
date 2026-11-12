@@ -58,12 +58,15 @@ pub(crate) fn run(command: Command, voice: Voice, config: &Config) -> Result<Str
         Command::Tui => {
             let mut session = Session::open(voice)?;
             let acervo::Bundled { facts, banter } = acervo::bundled();
+            let now = jiff::Zoned::now();
+            let mut schedule = agenda::schedule(config, &now);
+            schedule.game = games::today(&config.games, &now, voice);
             let setup = vamo_tui::Setup {
                 voice,
                 acervo: vamo_tui::Acervo { facts, banter },
                 time_zone: TimeZone::system(),
                 animation: config.animation.unwrap_or_default(),
-                schedule: agenda::schedule(config, &jiff::Zoned::now()),
+                schedule,
             };
             vamo_tui::run(&mut session, setup).wrap_err("a TUI não conseguiu usar o terminal")?;
             Ok(String::new())
@@ -214,11 +217,14 @@ impl Session {
     fn bar(&self, config: &Config, json: bool) -> String {
         let now = jiff::Zoned::now();
         let schedule = agenda::schedule(config, &now);
+        let game = games::today(&config.games, &now, self.voice);
         let bar = bar::Bar::new(&bar::Day {
             projection: &self.projection,
             appointments: &schedule.appointments,
             fixed: &schedule.fixed,
             checks: &self.agenda_checks,
+            game: game.as_ref(),
+            team: config.games.team(),
             now: now.datetime(),
         });
         if json {
@@ -283,9 +289,12 @@ impl Session {
         if appointments.is_empty() {
             lines.push(format!("Nada na agenda em {}.", day.strftime("%d/%m")));
         }
+        let game = games::on(&config.games, TimeZone::system(), day, self.voice);
         for appointment in &appointments {
             lines.push(agenda::line(appointment, day));
-            for violation in agenda::violations(appointment, &self.projection, &config.rules) {
+            for violation in
+                agenda::violations(appointment, &self.projection, &config.rules, game.as_ref())
+            {
                 lines.push(format!("             ⚠ {violation}"));
             }
         }
@@ -328,9 +337,18 @@ impl Session {
             let task = self.task(id)?;
             lines.push(format!("{id} {}: {}", task.title(), what.join(", ")));
         }
-        // As tarefas marcadas fora das regras, de hoje em diante.
+        // As tarefas marcadas fora das regras, de hoje em diante, com a
+        // regra do dia de jogo (só na linguagem de jogo). A tabela é lida
+        // uma vez só, da cópia local.
+        let found = match self.voice {
+            Voice::Game => games::cached(&config.games, TimeZone::system(), today, to),
+            Voice::Neutral => Vec::new(),
+        };
         for appointment in appointments.iter().filter(|a| a.day() >= today) {
-            for violation in agenda::violations(appointment, &self.projection, &config.rules) {
+            let game = games::pick(&found, &config.games, appointment.day());
+            for violation in
+                agenda::violations(appointment, &self.projection, &config.rules, game.as_ref())
+            {
                 lines.push(format!(
                     "⚠ {} ({}): {violation}",
                     appointment.title,

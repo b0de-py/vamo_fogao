@@ -7,7 +7,7 @@ use jiff::ToSpan;
 use jiff::civil::Date;
 use jiff::tz::TimeZone;
 use vamo_agenda::{Calendar, Freshness, IcsLink};
-use vamo_core::{Appointment, Projection, TimeRules, When};
+use vamo_core::{Appointment, GameDay, Projection, TimeRules, When};
 
 use crate::config::{AgendaConfig, AgendaSource, Config};
 use crate::paths;
@@ -111,6 +111,9 @@ pub(crate) fn schedule(config: &Config, now: &jiff::Zoned) -> vamo_tui::Schedule
         rules: config.rules.clone(),
         min_gap: config.min_gap.unwrap_or(vamo_core::DEFAULT_MIN_GAP),
         now: Some(now.time()),
+        // O dia de jogo depende da linguagem: quem chama põe.
+        game: None,
+        team: config.games.team().to_owned(),
     }
 }
 
@@ -222,11 +225,13 @@ pub(crate) mod google {
 }
 
 /// As regras do tempo que uma tarefa marcada na agenda fere, com o ID na
-/// frente: `T-041: foco depois do teto da noite (22:00)`.
+/// frente: `T-041: foco depois do teto da noite (22:00)`. Com `game`, a
+/// regra do dia de jogo também vale.
 pub(crate) fn violations(
     appointment: &Appointment,
     projection: &Projection,
     rules: &TimeRules,
+    game: Option<&GameDay>,
 ) -> Vec<String> {
     let (Some(id), Some((start, end))) = (appointment.task, appointment.span()) else {
         return Vec::new();
@@ -234,9 +239,11 @@ pub(crate) fn violations(
     let Some(task) = projection.task(id) else {
         return Vec::new();
     };
+    let near_game = game.and_then(|game_day| game_day.check(&task, start, end));
     rules
         .check(&task, start, end)
         .iter()
+        .chain(near_game.iter())
         .map(|violation| format!("{id}: {violation}"))
         .collect()
 }

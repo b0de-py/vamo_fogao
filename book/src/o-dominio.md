@@ -34,6 +34,8 @@ Quase todo tipo do core implementa o par `FromStr` e `Display`: um lê do texto,
 | `title.rs` | `NotebookTitle` | O título no padrão do caderno: até cinco palavras, verbo no infinitivo na frente. |
 | `task.rs` | `Task` | A tarefa inteira, montada com as partes acima, com o dia da escalação e as marcações das recorrentes. |
 | `lineup.rs` | `Lineup`, `Score` | A escalação de um dia (as escaladas, o atraso e as fixas) e o placar. |
+| `reminder.rs` | `ReminderWindow`, `Reminder` | A janela de uma rodada dos lembretes e os avisos que vencem nela. |
+| `game.rs` | `Game`, `GameDay` | O jogo do time e o dia de jogo, com as tarefas do jogo e a regra de só tarefa leve perto do horário. |
 | `error.rs` | `Error` | Tudo que pode dar errado no core, com a mensagem em português. |
 
 O `Task::new` não devolve `Result`: como cada parte já chega validada, não sobra nada pra dar errado. A validação fica na borda, quando o texto vira tipo, e o meio do código trabalha só com valores bons.

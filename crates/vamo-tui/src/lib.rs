@@ -21,6 +21,7 @@ mod card;
 mod curiosity;
 mod fire;
 mod ledger;
+mod matchday;
 mod museum;
 mod notebook;
 mod prompt;

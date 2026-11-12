@@ -1009,6 +1009,7 @@ pub(crate) mod tests {
             },
             min_gap: vamo_core::DEFAULT_MIN_GAP,
             now: None,
+            ..Schedule::default()
         };
         let screen = draw(&app, &ledger, 80, 24);
         assert!(
@@ -1031,6 +1032,61 @@ pub(crate) mod tests {
         assert_eq!(ledger.agenda_checks().len(), 1);
         app.on_key(key(KeyCode::Char(' ')), &mut ledger);
         assert!(draw(&app, &ledger, 80, 24).contains("Placar: 0 de 1"));
+    }
+
+    /// Um dia de jogo de exemplo: hoje às 21:30, fora de casa.
+    pub(crate) fn game_day() -> vamo_core::GameDay {
+        vamo_core::GameDay {
+            game: vamo_core::Game {
+                uid: "jogo-1@exemplo".to_owned(),
+                opponent: "Time de Teste".to_owned(),
+                kickoff: today().at(21, 30, 0, 0),
+                competition: Some("Amistoso".to_owned()),
+                side: vamo_core::Side::Away,
+            },
+            area: "jogo".parse().unwrap(),
+        }
+    }
+
+    #[test]
+    fn a_game_day_has_its_card_and_its_rule() {
+        use vamo_core::{Appointment, When};
+
+        let mut app = new_app(Voice::Game);
+        let mut ledger = ledger();
+        ledger.add("Combinar onde ver", "jogo", Fit::WithSomeone, Status::Ready);
+        let report = ledger.add("Escrever o relatório", "trampo", Fit::Focus, Status::Ready);
+        let day = today();
+        app.schedule = Schedule {
+            appointments: vec![Appointment {
+                uid: "relatorio@exemplo".to_owned(),
+                title: "Bloco do relatório".to_owned(),
+                when: When::Timed {
+                    start: day.at(20, 0, 0, 0),
+                    end: day.at(21, 0, 0, 0),
+                },
+                recurring: false,
+                task: Some(report),
+            }],
+            game: Some(game_day()),
+            team: "Botafogo".to_owned(),
+            ..Schedule::default()
+        };
+        let screen = draw(&app, &ledger, 120, 24);
+        assert!(screen.contains("⚽ Dia de jogo"), "{screen}");
+        assert!(
+            screen.contains("Time de Teste x Botafogo · 21:30 · Amistoso"),
+            "{screen}"
+        );
+        assert!(
+            screen.contains("De 19:30 a 23:30, só tarefa leve."),
+            "{screen}"
+        );
+        assert!(
+            screen.contains("⚠ T-002: pesada perto do jogo (19:30–23:30)"),
+            "{screen}"
+        );
+        assert_snapshot!(screen);
     }
 
     #[test]
