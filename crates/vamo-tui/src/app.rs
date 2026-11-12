@@ -1034,6 +1034,40 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn agenda_titles_use_the_width_and_are_cut_only_when_they_do_not_fit() {
+        use vamo_core::{Appointment, When};
+
+        let mut app = new_app(Voice::Game);
+        let day = today();
+        let appointments = vec![Appointment {
+            uid: "caminhada@exemplo".to_owned(),
+            title: "Caminhada no parque (levar garrafa d'água e o boné)".to_owned(),
+            when: When::Timed {
+                start: day.at(7, 0, 0, 0),
+                end: day.at(7, 45, 0, 0),
+            },
+            recurring: true,
+            task: None,
+        }];
+        app.schedule = Schedule {
+            fixed: vamo_core::fixed_activities(&appointments, &std::collections::BTreeMap::new()),
+            appointments,
+            ..Schedule::default()
+        };
+        let wide = draw(&app, &ledger(), 120, 16);
+        assert!(
+            wide.contains("Caminhada no parque (levar garrafa d'água e o boné)"),
+            "{wide}"
+        );
+        let narrow = draw(&app, &ledger(), 50, 16);
+        assert!(
+            narrow.contains("Caminhada no parque (levar ga…"),
+            "{narrow}"
+        );
+        assert_snapshot!(narrow);
+    }
+
+    #[test]
     fn a_tiny_terminal_does_not_panic() {
         let mut app = new_app(Voice::Game);
         app.help = true;

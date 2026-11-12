@@ -71,18 +71,6 @@ impl NotebookTitle {
     }
 }
 
-/// Um texto qualquer cortado no tamanho do caderno, do mesmo jeito que a
-/// sugestão de corte, mas sem pedir verbo: é o título curto de um evento
-/// da agenda ("Reunião de alinhamento da equipe de produto" vira "Reunião
-/// de alinhamento da equipe").
-pub(crate) fn shorten(text: &str) -> String {
-    let words: Vec<&str> = text.split_whitespace().collect();
-    if words.is_empty() {
-        return String::new();
-    }
-    cut(&words)
-}
-
 /// As palavras que não fecham bem um título cortado: artigos, preposições e
 /// conjunções. "Comprar ração e areia para" vira "Comprar ração e areia".
 const WEAK_ENDINGS: &[&str] = &[

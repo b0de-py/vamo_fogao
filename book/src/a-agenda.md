@@ -29,7 +29,7 @@ dias = ["seg", "ter", "qua", "qui", "sex"]
 - **`[agenda]`:** de onde a agenda vem. Sem a seção, os comandos da agenda dizem como configurar.
 - **`[tempo]`:** as regras do tempo. O expediente é onde as brechas são procuradas; sem os dias, vale de segunda a sexta. O teto da noite vale pra tarefa de foco. A brecha mínima é em minutos, e o padrão é 15.
 - **`[[tempo.protegido]]`:** horários que não são de tarefa. Sem `dias`, vale todo dia.
-- **`[apelidos]`:** o título curto de um evento recorrente de nome comprido, pela chave do título do evento (sem ligar pra maiúscula).
+- **`[apelidos]`:** um título mais curto pra um evento recorrente, pela chave do título do evento (sem ligar pra maiúscula).
 
 Campo que o `vamo` não conhece é erro, pra um erro de digitação não passar batido.
 
@@ -83,7 +83,7 @@ Os testes de propriedade garantem as três regras que não podem falhar: a brech
 
 ## As atividades fixas
 
-Os compromissos recorrentes da agenda (a caminhada, a reunião diária) aparecem na Hoje num grupo à parte, "Fixas da agenda", como itens de marcar. O título é o apelido da config ou o título do evento cortado no tamanho do caderno, do mesmo jeito que a sugestão de corte do título de tarefa.
+Os compromissos recorrentes da agenda (a caminhada, a reunião diária) aparecem na Hoje num grupo à parte, "Fixas da agenda", como itens de marcar. O título é o apelido da config ou o título inteiro do evento: a fixa não vai pro caderno, então a regra das cinco palavras não vale pra ela. Na tela, o título dos eventos (das fixas e da agenda) usa a largura da coluna e só é cortado, com reticências, quando não cabe.
 
 Marcar uma delas conta no placar do dia, mas não vira tarefa: a marcação mora numa tabela própria do banco, `agenda_checks`, com a chave dia e UID do evento (migração 0003). O log de eventos é todo de tarefa, e um compromisso que já mora na agenda viraria duplicata a cada sync.
 

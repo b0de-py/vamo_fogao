@@ -167,8 +167,15 @@ impl Today {
         // Com espaço, a curiosidade vai do lado; sem, embaixo, no que sobrar
         // da escalação. Se sobrar pouco, a escalação fica com a tela toda:
         // ela é o que importa, e a curiosidade continua no Museu.
-        let mut lines = self.lines(&lineup, schedule, checks, voice);
-        lines.extend(schedule.lines(projection, today, voice));
+        // A largura da coluna da escalação, pra cortar só o que não cabe:
+        // do lado, a curiosidade leva 42 colunas mais 2 de espaço.
+        let width = usize::from(if rest.width >= 90 {
+            rest.width.saturating_sub(44)
+        } else {
+            rest.width
+        });
+        let mut lines = self.lines(&lineup, schedule, checks, width, voice);
+        lines.extend(schedule.lines(projection, today, width, voice));
         let needed = u16::try_from(lines.len()).unwrap_or(u16::MAX);
         let spare = rest.height.saturating_sub(needed.saturating_add(1));
         let (list, corner) = if rest.width >= 90 {
@@ -197,6 +204,7 @@ impl Today {
         lineup: &Lineup,
         schedule: &Schedule,
         checks: &BTreeSet<(Date, String)>,
+        width: usize,
         voice: Voice,
     ) -> Vec<Line<'static>> {
         let rows = rows(lineup, schedule);
@@ -225,7 +233,7 @@ impl Today {
                 Row::Task(group, task) => task_line(group, task, lineup.today(), cursor, voice),
                 Row::Activity(activity) => {
                     let done = checks.contains(&(lineup.today(), activity.uid.clone()));
-                    activity_line(activity, lineup.today(), done, cursor)
+                    activity_line(activity, lineup.today(), done, cursor, width)
                 }
             });
         }
@@ -269,8 +277,15 @@ fn toggle_activity<L: Ledger>(ledger: &mut L, activity: &FixedActivity, today: D
     }
 }
 
-/// Uma atividade fixa: a marca, o horário e o título curto.
-fn activity_line(activity: &FixedActivity, today: Date, done: bool, cursor: bool) -> Line<'static> {
+/// Uma atividade fixa: a marca, o horário e o título, cortado só se não
+/// couber na largura.
+fn activity_line(
+    activity: &FixedActivity,
+    today: Date,
+    done: bool,
+    cursor: bool,
+    width: usize,
+) -> Line<'static> {
     let mark = if done { "[x]" } else { "[ ]" };
     let base = if done {
         theme::success()
@@ -283,7 +298,11 @@ fn activity_line(activity: &FixedActivity, today: Date, done: bool, cursor: bool
             format!("{:<11}  ", schedule::when(activity.when, today)),
             theme::muted(),
         ),
-        Span::styled(activity.title.clone(), base),
+        // A marca e o horário ocupam 18 colunas; o título fica com o resto.
+        Span::styled(
+            schedule::fit(&activity.title, width.saturating_sub(18)),
+            base,
+        ),
     ]);
     if cursor {
         line.style(theme::cursor())
