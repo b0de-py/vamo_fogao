@@ -1,11 +1,11 @@
 # A barra, os lembretes e o dia de jogo
 
-A fase 4 tira o `vamo` do terminal. O primeiro passo é o placar do dia sempre à vista, num módulo da barra do Omarchy: `⚽ 3 x 2` quer dizer três feitas e duas em aberto. Com o mouse em cima, a dica mostra o dia, o placar, o atraso, o próximo compromisso da agenda e o que ainda está em campo. O clique esquerdo mostra e esconde a TUI; o direito relê o placar na hora.
+A fase 4 tira o `vamo` do terminal. O primeiro passo é o placar do dia sempre à vista, num módulo da barra do Omarchy: `⭐ 3 x 2` quer dizer três feitas e duas em aberto, com a Estrela Solitária na frente. Com o mouse em cima, a dica mostra o dia, o placar, o atraso, o próximo compromisso da agenda e o que ainda está em campo. O clique esquerdo mostra e esconde a TUI; o direito relê o placar na hora.
 
 ## O comando
 
 ```sh
-vamo barra          # ⚽ 3 x 2 (no modo neutro, 3/5)
+vamo barra          # ⭐ 3 x 2 (no modo neutro, 3/5)
 vamo barra --json   # o mesmo, no formato do módulo
 ```
 
@@ -19,7 +19,7 @@ O `--json` é um contrato entre o binário e o módulo, e os dois podem estar em
 {
   "versao": 1,
   "dia": "2026-11-12",
-  "text": "⚽ 1 x 2",
+  "text": "⭐ 1 x 2",
   "tooltip": "Hoje · quinta, 12/11\nPlacar: 1 de 3\n1 atrasada\n...",
   "class": ["andando", "atraso"],
   "placar": { "feitas": 1, "previstas": 3 },
@@ -156,7 +156,7 @@ Evento que não é jogo do time (um sorteio, um jogo de outros dois times) fica 
 
 ## O dia de jogo
 
-Com a tabela de jogos configurada, o dia de jogo tem cara própria. No alto da tela Hoje aparece o card do jogo: o adversário, a hora e o campeonato, as tarefas do jogo e a regra do dia. Na barra, o texto ganha a hora do jogo (`⚽ 3 x 2 · jogo às 21:30`), a dica ganha o jogo e o JSON ganha o campo `jogo`, com a classe `jogo`.
+Com a tabela de jogos configurada, o dia de jogo tem cara própria. No alto da tela Hoje aparece o card do jogo: o adversário, a hora e o campeonato, as tarefas do jogo e a regra do dia. Na barra, o texto ganha a hora do jogo (`⭐ 3 x 2 · jogo às 21:30`), a dica ganha o jogo e o JSON ganha o campo `jogo`, com a classe `jogo`.
 
 ```text
 ⚽ Dia de jogo

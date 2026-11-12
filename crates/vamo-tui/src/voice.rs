@@ -125,11 +125,11 @@ impl Voice {
         }
     }
 
-    /// O placar curto da barra: `⚽ 2 x 3` (duas feitas, três em aberto) na
+    /// O placar curto da barra: `⭐ 2 x 3` (duas feitas, três em aberto) na
     /// de jogo, `2/5` na neutra.
     pub fn bar_score(self, done: usize, planned: usize) -> String {
         match self {
-            Self::Game => format!("⚽ {done} x {}", planned.saturating_sub(done)),
+            Self::Game => format!("⭐ {done} x {}", planned.saturating_sub(done)),
             Self::Neutral => format!("{done}/{planned}"),
         }
     }

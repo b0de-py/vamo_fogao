@@ -369,7 +369,7 @@ mod tests {
             team: "Botafogo",
             now: today().at(10, 30, 0, 0),
         });
-        assert_eq!(bar.text(Voice::Game), "⚽ 1 x 2 · jogo às 21:30");
+        assert_eq!(bar.text(Voice::Game), "⭐ 1 x 2 · jogo às 21:30");
         assert_eq!(bar.classes(), ["andando", "atraso", "jogo"]);
         let json = serde_json::to_string_pretty(&bar.json(Voice::Game)).unwrap();
         insta::assert_snapshot!(json);
@@ -378,7 +378,7 @@ mod tests {
     #[test]
     fn the_neutral_voice_has_no_ball() {
         let bar = bar(&projection(), &appointments());
-        assert_eq!(bar.text(Voice::Game), "⚽ 1 x 2");
+        assert_eq!(bar.text(Voice::Game), "⭐ 1 x 2");
         assert_eq!(bar.text(Voice::Neutral), "1/3");
     }
 
