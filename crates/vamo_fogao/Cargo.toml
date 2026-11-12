@@ -24,6 +24,8 @@ color-eyre.workspace = true
 etcetera.workspace = true
 # Aqui o jiff precisa dos fusos, pra mostrar os horários na hora local.
 jiff = { workspace = true, features = ["tz-system", "tzdb-bundle-platform", "tzdb-zoneinfo"] }
+# A saída do `vamo barra --json`, pro módulo da barra.
+serde_json.workspace = true
 # Só o leitor, pra config.
 toml.workspace = true
 tracing.workspace = true

@@ -1,0 +1,7 @@
+---
+source: crates/vamo_fogao/tests/cli.rs
+expression: "vamo.ok(&[\"jogos\", \"--data\", \"2026-11-01\"])"
+---
+15/11 16:00  Botafogo x Bangu · Amistoso
+19/11 21:30  Madureira x Botafogo · Copa Exemplo
+26/11 19:00  Botafogo x Olaria

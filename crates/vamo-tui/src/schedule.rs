@@ -5,7 +5,7 @@ use jiff::SignedDuration;
 use jiff::civil::{Date, DateTime, Time};
 use ratatui::text::{Line, Span};
 use vamo_core::{
-    Appointment, FixedActivity, Gap, Projection, Task, TimeRules, When, fitting, gaps,
+    Appointment, FixedActivity, GameDay, Gap, Projection, Task, TimeRules, When, fitting, gaps,
 };
 
 use crate::{Voice, theme};
@@ -26,6 +26,11 @@ pub struct Schedule {
     pub min_gap: SignedDuration,
     /// A hora em que a TUI abriu: brecha que já passou não aparece.
     pub now: Option<Time>,
+    /// O dia de jogo, se hoje tem jogo. No modo neutro, quem chama deixa
+    /// vazio: a TUI não fala de futebol.
+    pub game: Option<GameDay>,
+    /// O nome do time, pro card do dia de jogo.
+    pub team: String,
 }
 
 /// Quantas tarefas sugerir por brecha, pra linha não virar parágrafo.
@@ -93,7 +98,24 @@ impl Schedule {
             }
             let tasks: Vec<Task> = projection.tasks().collect();
             for gap in found {
-                lines.push(gap_line(gap, today, &tasks, &self.appointments));
+                // Perto do jogo, a brecha só sugere tarefa leve.
+                let near_game = self.game.as_ref().filter(|game_day| {
+                    let (from, to) = game_day.light_only();
+                    gap.start < to && from < gap.end
+                });
+                let light: Vec<Task>;
+                let tasks = match near_game {
+                    Some(game_day) => {
+                        light = tasks
+                            .iter()
+                            .filter(|t| game_day.allows(t))
+                            .cloned()
+                            .collect();
+                        &light
+                    }
+                    None => &tasks,
+                };
+                lines.push(gap_line(gap, today, tasks, &self.appointments));
             }
         }
         lines
@@ -107,9 +129,14 @@ impl Schedule {
         let Some(task) = projection.task(id) else {
             return Vec::new();
         };
+        let game = self
+            .game
+            .as_ref()
+            .and_then(|game_day| game_day.check(&task, start, end));
         self.rules
             .check(&task, start, end)
             .iter()
+            .chain(game.iter())
             .map(|violation| format!("{id}: {violation}"))
             .collect()
     }

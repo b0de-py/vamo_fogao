@@ -7,6 +7,8 @@
 //! - [`IcsLink`]: baixa o ICS do link secreto da agenda e guarda uma cópia
 //!   local, pra funcionar sem internet.
 //! - [`Calendar`]: lê o texto do ICS e responde o que tem em cada dia.
+//! - [`IcsFixtures`]: os jogos do time, lidos de uma agenda ICS de jogos.
+//!   É a porta [`vamo_core::Fixtures`].
 //! - [`Footer`]: o rodapé `vamo:` que liga um evento a uma tarefa:
 //!
 //! ```text
@@ -23,6 +25,7 @@
 mod calendar;
 mod error;
 mod footer;
+mod games;
 #[cfg(feature = "google")]
 mod google;
 mod ics;
@@ -32,6 +35,7 @@ mod rrule;
 pub use calendar::Calendar;
 pub use error::Error;
 pub use footer::Footer;
+pub use games::IcsFixtures;
 #[cfg(feature = "google")]
 pub use google::{GoogleCalendar, GoogleLink, OAuthClient};
 pub use link::{Freshness, IcsLink};

@@ -1,0 +1,28 @@
+---
+source: crates/vamo-tui/src/app.rs
+expression: screen
+---
+" vamo_fogao   1 Hoje  2 Caderno  3 Banco  4 Museu                                                                       "
+"────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────"
+"                                                                                                                        "
+" Hoje · quarta, 11/11                                                                                    Placar: 0 de 0 "
+"                                                                                                                        "
+" ⚽ Dia de jogo                                                              ┌ Histórico contra Time de Teste ────────┐ " Hidden by multi-width symbols: [(2, " ")]
+" Time de Teste x Botafogo · 21:30 · Amistoso                                 │Uma goleada inventada pros testes.      │ "
+"  [ ] T-001  Combinar onde ver                                               │                                        │ "
+" De 19:30 a 23:30, só tarefa leve.                                           │Fontes: Jornal · Revista                │ "
+"                                                                             │r: a resenha do dia                     │ "
+" Ninguém escalado hoje. No Banco, o e escala uma tarefa pro dia.             │                                        │ "
+"                                                                             │                                        │ "
+" Agenda                                                                      │                                        │ "
+" 20:00–21:00  Bloco do relatório                                             │                                        │ "
+"              ⚠ T-002: pesada perto do jogo (19:30–23:30)                    └────────────────────────────────────────┘ "
+"                                                                                                      ▀▀▀▀▀▀▀▀▀▀▀▀▀▀    "
+"                                                                                                         ▀▀▀▀▀▀▀▀       "
+"                                                                                                         ▀▀▀▀▀▀▀▀       "
+"                                                                                                        ▀▀▀▀  ▀▀▀▀      "
+"                                                                                                        ▀        ▀      "
+"                                                                                                                        "
+"                                                                                                                        "
+"                                                                                                                        "
+"tab troca de tela · ? ajuda · q encerra a partida                                                                       "

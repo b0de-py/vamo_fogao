@@ -30,6 +30,7 @@ impl Vamo {
             .env("XDG_DATA_HOME", self.home.path().join("dados"))
             .env("XDG_CONFIG_HOME", self.home.path().join("config"))
             .env("XDG_CACHE_HOME", self.home.path().join("cache"))
+            .env("XDG_STATE_HOME", self.home.path().join("estado"))
             .env("VAMO_MAQUINA", "notebook")
             .env("TZ", "America/Sao_Paulo")
             .env_remove("VAMO_LINGUAGEM")
@@ -888,5 +889,62 @@ END:VCALENDAR\r\n";
             vamo.ok(&["agenda", "--data", "2026-11-12"]),
             "21:30–23:00  Relatório\n             ⚠ T-001: foco depois do teto da noite (22:00)\n"
         );
+    }
+}
+
+mod bar {
+    use super::*;
+
+    #[test]
+    fn an_empty_day_in_json_has_the_format_version() {
+        let out = Vamo::new().ok(&["barra", "--json"]);
+        assert!(out.starts_with('{'), "{out}");
+        assert!(out.contains(r#""versao":1"#), "{out}");
+        assert!(out.contains(r#""class":["vazio"]"#), "{out}");
+        assert!(out.contains(r#""text":"⭐ 0 x 0""#), "{out}");
+    }
+
+    #[test]
+    fn without_json_it_is_just_the_score() {
+        let vamo = Vamo::new();
+        assert_eq!(vamo.ok(&["barra"]), "⭐ 0 x 0\n");
+        assert_eq!(vamo.ok(&["barra", "--linguagem", "neutra"]), "0/0\n");
+    }
+}
+
+mod reminders {
+    use super::*;
+
+    #[test]
+    fn a_round_without_agenda_is_quiet_and_remembers_where_it_stopped() {
+        let vamo = Vamo::new();
+        assert_eq!(vamo.ok(&["lembrar"]), "");
+        let state = vamo.home.path().join("estado/vamo_fogao/lembretes");
+        let saved = std::fs::read_to_string(state).expect("a rodada deveria ficar guardada");
+        assert!(saved.trim().ends_with('Z'), "{saved}");
+    }
+}
+
+mod games {
+    use super::*;
+
+    #[test]
+    fn without_the_section_it_says_how_to_configure() {
+        let err = Vamo::new().fails(&["jogos"], 1);
+        assert!(err.contains("[jogos]"), "{err}");
+    }
+
+    #[test]
+    fn lists_the_games_of_the_team() {
+        let vamo = Vamo::new();
+        let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../vamo-agenda/tests/fixtures/jogos.ics")
+            .canonicalize()
+            .expect("o calendário de jogos de exemplo deveria existir");
+        vamo.configure(&format!(
+            "[jogos]\nics = {:?}\n",
+            fixture.display().to_string()
+        ));
+        insta::assert_snapshot!(vamo.ok(&["jogos", "--data", "2026-11-01"]));
     }
 }

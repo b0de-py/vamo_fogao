@@ -1,0 +1,12 @@
+# Roda o vamo-sync.service a cada meia hora. Pra ligar:
+#
+#   systemctl --user enable --now vamo-sync.timer
+[Unit]
+Description=Sincronia da agenda do vamo_fogao, a cada meia hora
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=30min
+
+[Install]
+WantedBy=timers.target

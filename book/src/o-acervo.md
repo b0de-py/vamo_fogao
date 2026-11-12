@@ -77,3 +77,11 @@ Em `crates/vamo-acervo/src/draw.rs`. A curiosidade é um "sorteio" que não sort
 A casa do dia é o número de dias desde 1º de janeiro de 1970, contado pelo algoritmo `days_from_civil`, de Howard Hinnant. O acervo não lê o relógio: quem chama passa o `Day` de hoje.
 
 O acervo vai dentro do binário. O `build.rs` do `vamo_fogao` transforma cada `.toml` de `acervo/` num `include_str!`, então quem instala o `vamo` tem a curiosidade sem precisar da pasta. É o `vamo curiosidade` no terminal, e o quadro da tela Hoje na TUI, onde a tecla `r` troca o fato pela resenha.
+
+## O fato do confronto
+
+Em dia de jogo (o calendário de jogos está no capítulo [A barra, os lembretes e o dia de jogo](a-barra.md#os-jogos)), o quadro da tela Hoje troca a curiosidade pelo fato do confronto: um fato verificado sobre o adversário do dia, com o título "Histórico contra Bangu". É o `matchup_fact`, também em `draw.rs`.
+
+O adversário do fato é a tag `adversario:` (`adversario:bangu`), e não precisou de campo novo no TOML. O do jogo é o nome como está na tabela (`Bangu`, `São Paulo`, `Vasco da Gama`). Os dois se encontram pelo nome escrito como tag: minúsculas, sem acento e com hífen no lugar do espaço (`sao-paulo`). Vale também o nome da tabela que começa pela tag, então `adversario:vasco` acha o `Vasco da Gama`, mas não o `Vascão`.
+
+Com mais de um fato do confronto, eles se revezam no mesmo rodízio da curiosidade. Sem nenhum, o quadro fica com a curiosidade de sempre, no mesmo lugar e do mesmo tamanho: a tela não ganha buraco por falta de fato.

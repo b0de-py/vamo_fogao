@@ -11,8 +11,8 @@ use jiff::tz::TimeZone;
 use uuid::Uuid;
 use vamo_agenda::{Footer, Freshness};
 use vamo_core::{
-    Area, Change, Event, EventId, EventStore, Fit, Machine, NotebookTitle, Projection, Skipped,
-    Status, Task, TaskId,
+    Area, Change, Event, EventId, EventStore, Fit, Machine, NotebookTitle, Notifier, Projection,
+    ReminderWindow, Skipped, Status, Task, TaskId,
 };
 use vamo_store::Store;
 
@@ -20,7 +20,7 @@ use crate::cli::{AcervoCommand, Command};
 use crate::config::Config;
 use crate::import::{self, Plan};
 use crate::paths;
-use crate::{acervo, agenda};
+use crate::{acervo, agenda, bar, games, remind};
 use vamo_tui::Voice;
 
 /// Roda um comando e devolve o que mostrar na saída.
@@ -48,17 +48,25 @@ pub(crate) fn run(command: Command, voice: Voice, config: &Config) -> Result<Str
             Session::open(voice)?.agenda(config, day)
         }
         Command::Sync => Session::open(voice)?.sync(config),
+        Command::Games { date } => {
+            games_list(config, date.unwrap_or_else(|| jiff::Zoned::now().date()))
+        }
         Command::Inbox => Ok(Session::open(voice)?.inbox()),
+        Command::Bar { json } => Ok(Session::open(voice)?.bar(config, json)),
+        Command::Remind { test } => Session::open(voice)?.remind(config, test),
         Command::ConnectGoogle => agenda::google::connect(&config.agenda),
         Command::Tui => {
             let mut session = Session::open(voice)?;
             let acervo::Bundled { facts, banter } = acervo::bundled();
+            let now = jiff::Zoned::now();
+            let mut schedule = agenda::schedule(config, &now);
+            schedule.game = games::today(&config.games, &now, voice);
             let setup = vamo_tui::Setup {
                 voice,
                 acervo: vamo_tui::Acervo { facts, banter },
                 time_zone: TimeZone::system(),
                 animation: config.animation.unwrap_or_default(),
-                schedule: agenda::schedule(config, &jiff::Zoned::now()),
+                schedule,
             };
             vamo_tui::run(&mut session, setup).wrap_err("a TUI não conseguiu usar o terminal")?;
             Ok(String::new())
@@ -68,6 +76,26 @@ pub(crate) fn run(command: Command, voice: Voice, config: &Config) -> Result<Str
             command: AcervoCommand::Validate { folder },
         } => acervo::validate(&folder, voice),
     }
+}
+
+/// `vamo jogos`: baixa o calendário de jogos e mostra os dos 60 dias a
+/// partir de `today`. Não mexe nas tarefas, então nem abre o banco.
+fn games_list(config: &Config, today: Date) -> Result<String> {
+    let zone = TimeZone::system();
+    let loaded = games::load(&config.games, zone)?.ok_or_else(games::not_configured)?;
+    let (found, warnings) = loaded
+        .fixtures
+        .read(today, today.checked_add(jiff::ToSpan::days(60))?);
+    let mut lines: Vec<String> = warnings.iter().map(|w| format!("aviso: {w}")).collect();
+    if loaded.freshness == Freshness::Cached {
+        lines.push("aviso: os jogos não baixaram agora; esta é a cópia local".to_owned());
+    }
+    if found.is_empty() {
+        lines.push("Nenhum jogo nos próximos 60 dias.".to_owned());
+    }
+    let team = config.games.team();
+    lines.extend(found.iter().map(|game| games::line(game, team)));
+    Ok(lines.join("\n"))
 }
 
 /// O banco aberto, o log lido e o estado das tarefas calculado a partir dele.
@@ -183,6 +211,72 @@ impl Session {
         lines.join("\n")
     }
 
+    /// `vamo barra`: o placar do dia, em texto ou no JSON do módulo. A
+    /// agenda vem só da cópia local: a barra pergunta a cada meio minuto e
+    /// não pode esperar a internet.
+    fn bar(&self, config: &Config, json: bool) -> String {
+        let now = jiff::Zoned::now();
+        let schedule = agenda::schedule(config, &now);
+        let game = games::today(&config.games, &now, self.voice);
+        let bar = bar::Bar::new(&bar::Day {
+            projection: &self.projection,
+            appointments: &schedule.appointments,
+            fixed: &schedule.fixed,
+            checks: &self.agenda_checks,
+            game: game.as_ref(),
+            team: config.games.team(),
+            now: now.datetime(),
+        });
+        if json {
+            bar.json(self.voice).to_string()
+        } else {
+            bar.text(self.voice)
+        }
+    }
+
+    /// `vamo lembrar`: uma rodada dos lembretes. Olha da última rodada até
+    /// agora, manda o que venceu e guarda até onde olhou. Sem nada pra
+    /// avisar, não escreve nada: o timer roda de minuto em minuto, e o
+    /// diário do systemd não precisa de uma linha por minuto.
+    fn remind(&self, config: &Config, test: bool) -> Result<String> {
+        let mut notifier = remind::NotifySend;
+        if test {
+            let (summary, body) = self.voice.test_reminder();
+            notifier
+                .notify(summary, body)
+                .wrap_err("a notificação de teste não saiu: o notify-send está instalado?")?;
+            return Ok(self.voice.reminders_sent(1));
+        }
+        let zone = TimeZone::system();
+        let now = Timestamp::now();
+        let path = paths::reminders_state()?;
+        let window = ReminderWindow::since(
+            remind::last_round(&path, &zone),
+            now.to_zoned(zone.clone()).datetime(),
+        );
+        let lead = config.reminder_lead.unwrap_or(vamo_core::DEFAULT_LEAD);
+        // O aviso das 23:55 pode ser de um compromisso de amanhã cedo.
+        let last_day = window.until.saturating_add(lead).date();
+        let appointments = agenda::cached_appointments(config, zone, window.after.date(), last_day);
+        let sent = remind::round(
+            &mut notifier,
+            &appointments,
+            &self.projection,
+            lead,
+            window,
+            self.voice,
+        );
+        // A rodada fica guardada mesmo com aviso que falhou: repetir a
+        // janela mandaria de novo os que saíram.
+        remind::save_round(&path, now)?;
+        let sent = sent.wrap_err("um lembrete não saiu: o notify-send está instalado?")?;
+        Ok(if sent == 0 {
+            String::new()
+        } else {
+            self.voice.reminders_sent(sent)
+        })
+    }
+
     /// `vamo agenda`: os compromissos do dia, baixados agora, com o aviso
     /// das tarefas marcadas fora das regras do tempo.
     fn agenda(&self, config: &Config, day: jiff::civil::Date) -> Result<String> {
@@ -195,9 +289,12 @@ impl Session {
         if appointments.is_empty() {
             lines.push(format!("Nada na agenda em {}.", day.strftime("%d/%m")));
         }
+        let game = games::on(&config.games, TimeZone::system(), day, self.voice);
         for appointment in &appointments {
             lines.push(agenda::line(appointment, day));
-            for violation in agenda::violations(appointment, &self.projection, &config.rules) {
+            for violation in
+                agenda::violations(appointment, &self.projection, &config.rules, game.as_ref())
+            {
                 lines.push(format!("             ⚠ {violation}"));
             }
         }
@@ -240,9 +337,18 @@ impl Session {
             let task = self.task(id)?;
             lines.push(format!("{id} {}: {}", task.title(), what.join(", ")));
         }
-        // As tarefas marcadas fora das regras, de hoje em diante.
+        // As tarefas marcadas fora das regras, de hoje em diante, com a
+        // regra do dia de jogo (só na linguagem de jogo). A tabela é lida
+        // uma vez só, da cópia local.
+        let found = match self.voice {
+            Voice::Game => games::cached(&config.games, TimeZone::system(), today, to),
+            Voice::Neutral => Vec::new(),
+        };
         for appointment in appointments.iter().filter(|a| a.day() >= today) {
-            for violation in agenda::violations(appointment, &self.projection, &config.rules) {
+            let game = games::pick(&found, &config.games, appointment.day());
+            for violation in
+                agenda::violations(appointment, &self.projection, &config.rules, game.as_ref())
+            {
                 lines.push(format!(
                     "⚠ {} ({}): {violation}",
                     appointment.title,
@@ -251,6 +357,15 @@ impl Session {
             }
         }
         lines.push(self.voice.synced(appointments.len(), changed));
+        // A tabela de jogos vem junto, mas jogo que não baixou não derruba o
+        // sync da agenda.
+        match games::load(&config.games, TimeZone::system()) {
+            Ok(Some(loaded)) if loaded.freshness == Freshness::Cached => {
+                lines.push("aviso: os jogos não baixaram agora; fica a cópia local".to_owned());
+            }
+            Ok(_) => {}
+            Err(error) => lines.push(format!("aviso: os jogos não vieram: {error:#}")),
+        }
         Ok(lines.join("\n"))
     }
 

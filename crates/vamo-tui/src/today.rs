@@ -73,13 +73,7 @@ pub(crate) fn score(
     schedule: &Schedule,
     checks: &BTreeSet<(Date, String)>,
 ) -> Score {
-    let today = lineup.today();
-    let checked = schedule
-        .fixed
-        .iter()
-        .filter(|activity| checks.contains(&(today, activity.uid.clone())))
-        .count();
-    lineup.score().plus(checked, schedule.fixed.len())
+    lineup.score_with(&schedule.fixed, checks)
 }
 
 impl Today {
@@ -174,7 +168,13 @@ impl Today {
         } else {
             rest.width
         });
-        let mut lines = self.lines(&lineup, schedule, checks, width, voice);
+        let mut lines = match &schedule.game {
+            Some(game_day) => {
+                crate::matchday::lines(game_day, &schedule.team, projection, today, width, voice)
+            }
+            None => Vec::new(),
+        };
+        lines.extend(self.lines(&lineup, schedule, checks, width, voice));
         lines.extend(schedule.lines(projection, today, width, voice));
         let needed = u16::try_from(lines.len()).unwrap_or(u16::MAX);
         let spare = rest.height.saturating_sub(needed.saturating_add(1));
@@ -194,7 +194,8 @@ impl Today {
         };
         frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), list);
         if !corner.is_empty() {
-            curiosity::render(frame, corner, acervo, today, banter, voice);
+            let opponent = schedule.game.as_ref().map(|g| g.game.opponent.as_str());
+            curiosity::render(frame, corner, acervo, today, opponent, banter, voice);
         }
     }
 

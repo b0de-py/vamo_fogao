@@ -38,7 +38,8 @@ Config:
   padrão e animacao = false pra apagar o fogo da TUI. A --linguagem e a
   VAMO_LINGUAGEM ganham da config. Na seção [agenda], ics = \"https://...\"
   é o link secreto da agenda (ou fonte = \"google\", com o vamo compilado
-  com a feature google).
+  com a feature google). Na seção [jogos], ics = \"https://...\" é a tabela
+  de jogos do time.
 
 Variáveis de ambiente:
   VAMO_LINGUAGEM   jogo ou neutra, o mesmo que --linguagem
@@ -46,7 +47,8 @@ Variáveis de ambiente:
   VAMO_LOG         o nível dos logs na saída de erro, como debug (padrão: warn)
   XDG_CONFIG_HOME  onde fica a pasta da config (padrão: ~/.config)
   XDG_CACHE_HOME   onde fica a cópia da agenda (padrão: ~/.cache)
-  XDG_DATA_HOME    onde fica a pasta do banco (padrão: ~/.local/share)";
+  XDG_DATA_HOME    onde fica a pasta do banco (padrão: ~/.local/share)
+  XDG_STATE_HOME   onde fica a última rodada dos lembretes (padrão: ~/.local/state)";
 
 /// vamo, o app de tarefas do vamo_fogao
 #[derive(Debug, Parser)]
@@ -240,6 +242,19 @@ pub(crate) enum Command {
     )]
     Sync,
 
+    /// Mostra os próximos jogos do time, lidos do calendário de jogos
+    #[command(
+        name = "jogos",
+        override_usage = "vamo jogos [OPÇÕES]",
+        help_template = SUBCOMMAND_HELP_TEMPLATE,
+        next_help_heading = "Opções"
+    )]
+    Games {
+        /// O primeiro dia, como 2026-11-11 (sem ela, hoje)
+        #[arg(long = "data", value_name = "DATA", value_parser = parse_date)]
+        date: Option<jiff::civil::Date>,
+    },
+
     /// Lista as tarefas prontas esperando horário, com o rodapé pra agenda
     #[command(
         name = "caixa",
@@ -248,6 +263,32 @@ pub(crate) enum Command {
         next_help_heading = "Opções"
     )]
     Inbox,
+
+    /// Mostra o placar do dia numa linha, pra barra do desktop
+    #[command(
+        name = "barra",
+        override_usage = "vamo barra [OPÇÕES]",
+        help_template = SUBCOMMAND_HELP_TEMPLATE,
+        next_help_heading = "Opções"
+    )]
+    Bar {
+        /// Sai em JSON, no formato do módulo da barra (com o campo versao)
+        #[arg(long = "json")]
+        json: bool,
+    },
+
+    /// Avisa, nas notificações do desktop, dos compromissos que vão começar
+    #[command(
+        name = "lembrar",
+        override_usage = "vamo lembrar [OPÇÕES]",
+        help_template = SUBCOMMAND_HELP_TEMPLATE,
+        next_help_heading = "Opções"
+    )]
+    Remind {
+        /// Manda uma notificação de teste, pra conferir se os avisos chegam
+        #[arg(long = "teste")]
+        test: bool,
+    },
 
     /// Conecta o vamo ao Google Agenda, pelo navegador
     #[command(

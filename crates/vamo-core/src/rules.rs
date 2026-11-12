@@ -162,6 +162,14 @@ pub enum Violation {
         /// O horário dele.
         hours: TimeRange,
     },
+    /// Tarefa pesada (foco ou com alguém) perto do jogo, quando só cabe
+    /// tarefa leve.
+    NearGame {
+        /// O começo do trecho perto do jogo.
+        from: Time,
+        /// O fim.
+        to: Time,
+    },
 }
 
 impl fmt::Display for Violation {
@@ -172,6 +180,9 @@ impl fmt::Display for Violation {
             }
             Self::Protected { name, hours } => {
                 write!(f, "em cima do bloco protegido {name} ({hours})")
+            }
+            Self::NearGame { from, to } => {
+                write!(f, "pesada perto do jogo ({}–{})", hm(*from), hm(*to))
             }
         }
     }

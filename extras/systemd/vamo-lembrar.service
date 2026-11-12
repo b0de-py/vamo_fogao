@@ -1,0 +1,11 @@
+# Uma rodada dos lembretes do vamo_fogao: avisa, nas notificações do
+# desktop, dos compromissos que vão começar. Quem chama é o
+# vamo-lembrar.timer, de minuto em minuto. Instalação no livro, capítulo
+# "Os lembretes".
+[Unit]
+Description=Lembretes do vamo_fogao
+
+[Service]
+Type=oneshot
+# O %h é a pasta pessoal. Se o vamo estiver em outro lugar, troque o caminho.
+ExecStart=%h/.cargo/bin/vamo lembrar

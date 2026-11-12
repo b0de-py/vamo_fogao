@@ -6,11 +6,14 @@
 
 mod acervo;
 mod agenda;
+mod bar;
 mod cli;
 mod commands;
 mod config;
+mod games;
 mod import;
 mod paths;
+mod remind;
 
 use std::io::IsTerminal;
 use std::process::ExitCode;

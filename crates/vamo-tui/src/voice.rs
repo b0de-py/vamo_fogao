@@ -118,11 +118,100 @@ impl Voice {
     }
 
     /// O placar do dia.
-    pub(crate) fn score(self, done: usize, planned: usize) -> String {
+    pub fn score(self, done: usize, planned: usize) -> String {
         match self {
             Self::Game => format!("Placar: {done} de {planned}"),
             Self::Neutral => format!("Feitas: {done} de {planned}"),
         }
+    }
+
+    /// O placar curto da barra: `⭐ 2 x 3` (duas feitas, três em aberto) na
+    /// de jogo, `2/5` na neutra.
+    pub fn bar_score(self, done: usize, planned: usize) -> String {
+        match self {
+            Self::Game => format!("⭐ {done} x {}", planned.saturating_sub(done)),
+            Self::Neutral => format!("{done}/{planned}"),
+        }
+    }
+
+    /// Quantas tarefas estão atrasadas, na dica da barra.
+    pub fn late_count(self, count: usize) -> String {
+        match (self, count) {
+            (_, 1) => "1 atrasada".to_owned(),
+            (_, count) => format!("{count} atrasadas"),
+        }
+    }
+
+    /// O próximo compromisso da agenda, na dica da barra.
+    pub fn next_appointment(self, time: &str, title: &str) -> String {
+        format!("Próximo: {time} {title}")
+    }
+
+    /// O título da lista do que falta no dia, na dica da barra.
+    pub fn still_open(self) -> &'static str {
+        match self {
+            Self::Game => "Em campo:",
+            Self::Neutral => "Falta:",
+        }
+    }
+
+    /// O texto do lembrete de um compromisso que ainda vai começar.
+    pub fn reminder_ahead(self, time: &str) -> String {
+        match self {
+            Self::Game => format!("A bola rola às {time}"),
+            Self::Neutral => format!("Começa às {time}"),
+        }
+    }
+
+    /// O texto do lembrete de um compromisso que já começou.
+    pub fn reminder_started(self, time: &str) -> String {
+        match self {
+            Self::Game => format!("A bola rolou às {time}"),
+            Self::Neutral => format!("Começou às {time}"),
+        }
+    }
+
+    /// Quantos lembretes uma rodada do `vamo lembrar` mandou.
+    pub fn reminders_sent(self, count: usize) -> String {
+        match count {
+            1 => "1 lembrete enviado".to_owned(),
+            count => format!("{count} lembretes enviados"),
+        }
+    }
+
+    /// A notificação de teste do `vamo lembrar --teste`: o título e o texto.
+    pub fn test_reminder(self) -> (&'static str, &'static str) {
+        match self {
+            Self::Game => (
+                "vamo_fogao",
+                "Teste de lembrete: se você está lendo isto, o aviso chega na hora do jogo.",
+            ),
+            Self::Neutral => (
+                "vamo_fogao",
+                "Teste de lembrete: se você está lendo isto, os avisos estão funcionando.",
+            ),
+        }
+    }
+
+    /// O selo do card do dia de jogo. O card só aparece na linguagem de
+    /// jogo: no modo neutro, quem chama a TUI não passa o jogo.
+    pub fn game_day(self) -> &'static str {
+        "⚽ Dia de jogo"
+    }
+
+    /// O título do quadro com o fato do confronto, em dia de jogo.
+    pub(crate) fn matchup_title(self, opponent: &str) -> String {
+        format!("Histórico contra {opponent}")
+    }
+
+    /// O jogo do dia no texto curto da barra.
+    pub fn bar_game(self, kickoff: &str) -> String {
+        format!("jogo às {kickoff}")
+    }
+
+    /// A regra do dia de jogo, com o trecho perto do jogo.
+    pub fn light_only(self, from: &str, to: &str) -> String {
+        format!("De {from} a {to}, só tarefa leve.")
     }
 
     /// O título de um grupo da escalação.
@@ -436,7 +525,7 @@ impl Voice {
     }
 
     /// O dia da semana.
-    pub(crate) fn weekday(self, day: Weekday) -> &'static str {
+    pub fn weekday(self, day: Weekday) -> &'static str {
         match day {
             Weekday::Monday => "segunda",
             Weekday::Tuesday => "terça",

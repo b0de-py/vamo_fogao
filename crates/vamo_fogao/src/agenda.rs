@@ -7,7 +7,7 @@ use jiff::ToSpan;
 use jiff::civil::Date;
 use jiff::tz::TimeZone;
 use vamo_agenda::{Calendar, Freshness, IcsLink};
-use vamo_core::{Appointment, Projection, TimeRules, When};
+use vamo_core::{Appointment, GameDay, Projection, TimeRules, When};
 
 use crate::config::{AgendaConfig, AgendaSource, Config};
 use crate::paths;
@@ -79,26 +79,41 @@ fn cached(config: &AgendaConfig, zone: TimeZone) -> Result<Option<Source>> {
     }
 }
 
+/// Os compromissos de `from` a `to`, lidos só da cópia local, como na
+/// [`schedule`]. Sem agenda, sem cópia ou com a cópia ilegível, nenhum, e o
+/// motivo vai pro log.
+pub(crate) fn cached_appointments(
+    config: &Config,
+    zone: TimeZone,
+    from: Date,
+    to: Date,
+) -> Vec<Appointment> {
+    match cached(&config.agenda, zone) {
+        Ok(Some(source)) => source.read(from, to).0,
+        Ok(None) => Vec::new(),
+        Err(error) => {
+            tracing::warn!("a cópia local da agenda não deu pra ler: {error:#}");
+            Vec::new()
+        }
+    }
+}
+
 /// A agenda de hoje pra tela Hoje, lida só da cópia local: a TUI abre na
 /// hora, sem esperar a internet. Quem atualiza a cópia é o `vamo sync` (e o
 /// `vamo agenda`). Sem agenda na config, sem cópia ou com a cópia ilegível,
 /// a tela mostra só as brechas do expediente, e o motivo vai pro log.
 pub(crate) fn schedule(config: &Config, now: &jiff::Zoned) -> vamo_tui::Schedule {
     let today = now.date();
-    let appointments = match cached(&config.agenda, now.time_zone().clone()) {
-        Ok(Some(source)) => source.read(today, today).0,
-        Ok(None) => Vec::new(),
-        Err(error) => {
-            tracing::warn!("a cópia local da agenda não deu pra ler: {error:#}");
-            Vec::new()
-        }
-    };
+    let appointments = cached_appointments(config, now.time_zone().clone(), today, today);
     vamo_tui::Schedule {
         fixed: vamo_core::fixed_activities(&appointments, &config.aliases),
         appointments,
         rules: config.rules.clone(),
         min_gap: config.min_gap.unwrap_or(vamo_core::DEFAULT_MIN_GAP),
         now: Some(now.time()),
+        // O dia de jogo depende da linguagem: quem chama põe.
+        game: None,
+        team: config.games.team().to_owned(),
     }
 }
 
@@ -210,11 +225,13 @@ pub(crate) mod google {
 }
 
 /// As regras do tempo que uma tarefa marcada na agenda fere, com o ID na
-/// frente: `T-041: foco depois do teto da noite (22:00)`.
+/// frente: `T-041: foco depois do teto da noite (22:00)`. Com `game`, a
+/// regra do dia de jogo também vale.
 pub(crate) fn violations(
     appointment: &Appointment,
     projection: &Projection,
     rules: &TimeRules,
+    game: Option<&GameDay>,
 ) -> Vec<String> {
     let (Some(id), Some((start, end))) = (appointment.task, appointment.span()) else {
         return Vec::new();
@@ -222,9 +239,11 @@ pub(crate) fn violations(
     let Some(task) = projection.task(id) else {
         return Vec::new();
     };
+    let near_game = game.and_then(|game_day| game_day.check(&task, start, end));
     rules
         .check(&task, start, end)
         .iter()
+        .chain(near_game.iter())
         .map(|violation| format!("{id}: {violation}"))
         .collect()
 }

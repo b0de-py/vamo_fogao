@@ -4,7 +4,7 @@
 //! guardar nada. O fato sai da data, por conta.
 
 use crate::date::days_in_month;
-use crate::{Banter, Fact};
+use crate::{Banter, Fact, Tag};
 
 /// Um dia do calendário, a data de hoje pra quem pede a curiosidade.
 ///
@@ -122,6 +122,94 @@ pub fn curiosity_of_the_day(facts: &[Fact], today: Day) -> Option<Curiosity<'_>>
     }
 
     rotation(&verified, today).map(Curiosity::Drawn)
+}
+
+/// O fato do confronto: um fato verificado sobre o adversário de hoje, no
+/// rodízio do dia. `None` quando o acervo não tem nenhum: aí vale a
+/// curiosidade de sempre.
+///
+/// O adversário do fato é a tag `adversario:` (como `adversario:bangu`), e
+/// o do jogo é o nome como está na tabela (como `Bangu`). Os dois se
+/// encontram pelo nome escrito como a tag: minúsculas, sem acento e com
+/// hífen no lugar do espaço. Vale também o nome da tabela que começa pela
+/// tag, pra `Vasco da Gama` achar `adversario:vasco`.
+///
+/// ```
+/// use vamo_acervo::{Day, Fact, matchup_fact};
+///
+/// let fact = Fact::from_toml(
+///     "goleada-no-bangu",
+///     r#"
+///     texto = "Uma goleada inventada sobre o Bangu."
+///     data = "1950"
+///     status = "verificado"
+///     tags = ["adversario:bangu"]
+///
+///     [[fontes]]
+///     nome = "Jornal"
+///     url = "https://jornal.example.com.br/"
+///
+///     [[fontes]]
+///     nome = "Revista"
+///     url = "https://revista.example.org/"
+///     "#,
+/// )?;
+/// let facts = [fact];
+/// let today = Day::new(2026, 11, 15).unwrap();
+///
+/// assert!(matchup_fact(&facts, "Bangu", today).is_some());
+/// assert!(matchup_fact(&facts, "Madureira", today).is_none());
+/// # Ok::<(), vamo_acervo::Error>(())
+/// ```
+pub fn matchup_fact<'a>(facts: &'a [Fact], opponent: &str, today: Day) -> Option<&'a Fact> {
+    let opponent = slug_of(opponent);
+    if opponent.is_empty() {
+        return None;
+    }
+    let mut found: Vec<&Fact> = facts
+        .iter()
+        .filter(|fact| fact.is_verified())
+        .filter(|fact| {
+            fact.tags().iter().any(|tag| match tag {
+                Tag::Opponent(slug) => faces(slug.as_str(), &opponent),
+                _ => false,
+            })
+        })
+        .collect();
+    found.sort_by(|a, b| a.id().cmp(b.id()));
+    rotation(&found, today)
+}
+
+/// Se a tag de adversário `tag` é o time da tabela (já como slug).
+fn faces(tag: &str, opponent: &str) -> bool {
+    opponent == tag
+        || opponent
+            .strip_prefix(tag)
+            .is_some_and(|rest| rest.starts_with('-'))
+}
+
+/// Um nome escrito como as tags: minúsculas, sem acento, e um hífen no
+/// lugar de cada trecho que não é letra nem número.
+fn slug_of(name: &str) -> String {
+    let mut slug = String::new();
+    for c in name.chars().flat_map(char::to_lowercase) {
+        let plain = match c {
+            'á' | 'à' | 'â' | 'ã' | 'ä' => 'a',
+            'é' | 'è' | 'ê' | 'ë' => 'e',
+            'í' | 'ì' | 'î' | 'ï' => 'i',
+            'ó' | 'ò' | 'ô' | 'õ' | 'ö' => 'o',
+            'ú' | 'ù' | 'û' | 'ü' => 'u',
+            'ç' => 'c',
+            'ñ' => 'n',
+            other => other,
+        };
+        if plain.is_ascii_alphanumeric() {
+            slug.push(plain);
+        } else if !slug.is_empty() && !slug.ends_with('-') {
+            slug.push('-');
+        }
+    }
+    slug.trim_end_matches('-').to_owned()
 }
 
 /// Se o fato aconteceu neste mesmo dia e mês, em qualquer ano: o "Neste
@@ -373,5 +461,74 @@ mod tests {
             }
             Day::new(year, month, u8::try_from(d).unwrap()).unwrap()
         }
+    }
+
+    fn against(id: &str, opponent: &str, status: &str) -> Fact {
+        let toml = format!(
+            r#"
+            texto = "Fato {id}."
+            data = "1950"
+            status = "{status}"
+            tags = ["titulo:carioca", "adversario:{opponent}"]
+
+            [[fontes]]
+            nome = "Lance!"
+            url = "https://www.lance.com.br/"
+
+            [[fontes]]
+            nome = "Wikipédia"
+            url = "https://pt.wikipedia.org/"
+            "#
+        );
+        Fact::from_toml(id, &toml).unwrap()
+    }
+
+    #[test]
+    fn the_name_in_the_table_is_written_like_the_tag() {
+        for (name, slug) in [
+            ("Bangu", "bangu"),
+            ("São Paulo", "sao-paulo"),
+            ("Atlético-MG", "atletico-mg"),
+            ("  Grêmio ", "gremio"),
+            ("Vasco da Gama", "vasco-da-gama"),
+            ("Peñarol (URU)", "penarol-uru"),
+            ("⚽", ""),
+        ] {
+            assert_eq!(slug_of(name), slug, "{name}");
+        }
+    }
+
+    #[test]
+    fn the_matchup_fact_finds_the_opponent_by_its_tag() {
+        let facts = [
+            against("vasco-1", "vasco", "verificado"),
+            against("sao-paulo-1", "sao-paulo", "verificado"),
+            against("sao-paulo-2", "sao-paulo", "a-conferir"),
+        ];
+        let today = Day::new(2026, 11, 15).unwrap();
+        let id = |opponent| matchup_fact(&facts, opponent, today).map(|f| f.id().as_str());
+        assert_eq!(id("Vasco da Gama"), Some("vasco-1"));
+        assert_eq!(id("VASCO"), Some("vasco-1"));
+        assert_eq!(id("São Paulo"), Some("sao-paulo-1"));
+        // Só fato verificado, e a tag inteira: `vasco` não é `vascão`.
+        assert_eq!(id("Vascão"), None);
+        assert_eq!(id("Bangu"), None);
+    }
+
+    #[test]
+    fn the_matchup_facts_take_turns() {
+        let facts = [
+            against("vasco-1", "vasco", "verificado"),
+            against("vasco-2", "vasco", "verificado"),
+        ];
+        let seen: BTreeSet<&str> = (1..=2)
+            .map(|day| {
+                matchup_fact(&facts, "Vasco", Day::new(2026, 11, day).unwrap())
+                    .unwrap()
+                    .id()
+                    .as_str()
+            })
+            .collect();
+        assert_eq!(seen.len(), 2);
     }
 }

@@ -30,3 +30,19 @@ pub trait EventStore {
     /// válido.
     fn events(&self) -> Result<Vec<Event>, Self::Error>;
 }
+
+/// Pra onde vão os avisos: as notificações do desktop.
+///
+/// O binário implementa com o `notify-send`, que fala com o serviço de
+/// notificações pelo D-Bus. Nos testes, um falso guarda o que recebeu.
+pub trait Notifier {
+    /// O erro do envio.
+    type Error: std::error::Error + Send + Sync + 'static;
+
+    /// Mostra uma notificação com o título `summary` e o texto `body`.
+    ///
+    /// # Errors
+    ///
+    /// Quando a notificação não pode ser mostrada.
+    fn notify(&mut self, summary: &str, body: &str) -> Result<(), Self::Error>;
+}

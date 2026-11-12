@@ -1,0 +1,42 @@
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//vamo_fogao//jogos de exemplo//PT
+X-WR-CALNAME:Jogos de exemplo (inventados)
+BEGIN:VEVENT
+UID:jogo-1@exemplo
+DTSTART;TZID=America/Sao_Paulo:20261115T160000
+DTEND;TZID=America/Sao_Paulo:20261115T180000
+SUMMARY:⚽ Botafogo x Bangu - Amistoso
+LOCATION:Estádio de exemplo
+END:VEVENT
+BEGIN:VEVENT
+UID:outro-jogo@exemplo
+DTSTART;TZID=America/Sao_Paulo:20261117T200000
+DTEND;TZID=America/Sao_Paulo:20261117T220000
+SUMMARY:Bangu x Olaria - Amistoso
+END:VEVENT
+BEGIN:VEVENT
+UID:jogo-2@exemplo
+DTSTART:20261120T003000Z
+DTEND:20261120T023000Z
+SUMMARY:Copa Exemplo: Madureira vs Botafogo
+END:VEVENT
+BEGIN:VEVENT
+UID:sem-hora@exemplo
+DTSTART;VALUE=DATE:20261122
+DTEND;VALUE=DATE:20261123
+SUMMARY:Botafogo x Bonsucesso (horário a definir)
+END:VEVENT
+BEGIN:VEVENT
+UID:sorteio@exemplo
+DTSTART;TZID=America/Sao_Paulo:20261124T120000
+DTEND;TZID=America/Sao_Paulo:20261124T130000
+SUMMARY:Sorteio dos grupos
+END:VEVENT
+BEGIN:VEVENT
+UID:jogo-3@exemplo
+DTSTART;TZID=America/Sao_Paulo:20261126T190000
+DTEND;TZID=America/Sao_Paulo:20261126T210000
+SUMMARY:Botafogo x Olaria
+END:VEVENT
+END:VCALENDAR
