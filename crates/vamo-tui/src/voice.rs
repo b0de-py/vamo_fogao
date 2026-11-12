@@ -118,10 +118,40 @@ impl Voice {
     }
 
     /// O placar do dia.
-    pub(crate) fn score(self, done: usize, planned: usize) -> String {
+    pub fn score(self, done: usize, planned: usize) -> String {
         match self {
             Self::Game => format!("Placar: {done} de {planned}"),
             Self::Neutral => format!("Feitas: {done} de {planned}"),
+        }
+    }
+
+    /// O placar curto da barra: `⚽ 2 x 3` (duas feitas, três em aberto) na
+    /// de jogo, `2/5` na neutra.
+    pub fn bar_score(self, done: usize, planned: usize) -> String {
+        match self {
+            Self::Game => format!("⚽ {done} x {}", planned.saturating_sub(done)),
+            Self::Neutral => format!("{done}/{planned}"),
+        }
+    }
+
+    /// Quantas tarefas estão atrasadas, na dica da barra.
+    pub fn late_count(self, count: usize) -> String {
+        match (self, count) {
+            (_, 1) => "1 atrasada".to_owned(),
+            (_, count) => format!("{count} atrasadas"),
+        }
+    }
+
+    /// O próximo compromisso da agenda, na dica da barra.
+    pub fn next_appointment(self, time: &str, title: &str) -> String {
+        format!("Próximo: {time} {title}")
+    }
+
+    /// O título da lista do que falta no dia, na dica da barra.
+    pub fn still_open(self) -> &'static str {
+        match self {
+            Self::Game => "Em campo:",
+            Self::Neutral => "Falta:",
         }
     }
 
@@ -436,7 +466,7 @@ impl Voice {
     }
 
     /// O dia da semana.
-    pub(crate) fn weekday(self, day: Weekday) -> &'static str {
+    pub fn weekday(self, day: Weekday) -> &'static str {
         match day {
             Weekday::Monday => "segunda",
             Weekday::Tuesday => "terça",

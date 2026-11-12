@@ -20,7 +20,7 @@ use crate::cli::{AcervoCommand, Command};
 use crate::config::Config;
 use crate::import::{self, Plan};
 use crate::paths;
-use crate::{acervo, agenda};
+use crate::{acervo, agenda, bar};
 use vamo_tui::Voice;
 
 /// Roda um comando e devolve o que mostrar na saída.
@@ -49,6 +49,7 @@ pub(crate) fn run(command: Command, voice: Voice, config: &Config) -> Result<Str
         }
         Command::Sync => Session::open(voice)?.sync(config),
         Command::Inbox => Ok(Session::open(voice)?.inbox()),
+        Command::Bar { json } => Ok(Session::open(voice)?.bar(config, json)),
         Command::ConnectGoogle => agenda::google::connect(&config.agenda),
         Command::Tui => {
             let mut session = Session::open(voice)?;
@@ -181,6 +182,26 @@ impl Session {
             lines.push(format!("       {}", Footer::of(task)));
         }
         lines.join("\n")
+    }
+
+    /// `vamo barra`: o placar do dia, em texto ou no JSON do módulo. A
+    /// agenda vem só da cópia local: a barra pergunta a cada meio minuto e
+    /// não pode esperar a internet.
+    fn bar(&self, config: &Config, json: bool) -> String {
+        let now = jiff::Zoned::now();
+        let schedule = agenda::schedule(config, &now);
+        let bar = bar::Bar::new(&bar::Day {
+            projection: &self.projection,
+            appointments: &schedule.appointments,
+            fixed: &schedule.fixed,
+            checks: &self.agenda_checks,
+            now: now.datetime(),
+        });
+        if json {
+            bar.json(self.voice).to_string()
+        } else {
+            bar.text(self.voice)
+        }
     }
 
     /// `vamo agenda`: os compromissos do dia, baixados agora, com o aviso

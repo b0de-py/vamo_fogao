@@ -890,3 +890,23 @@ END:VCALENDAR\r\n";
         );
     }
 }
+
+mod bar {
+    use super::*;
+
+    #[test]
+    fn an_empty_day_in_json_has_the_format_version() {
+        let out = Vamo::new().ok(&["barra", "--json"]);
+        assert!(out.starts_with('{'), "{out}");
+        assert!(out.contains(r#""versao":1"#), "{out}");
+        assert!(out.contains(r#""class":["vazio"]"#), "{out}");
+        assert!(out.contains(r#""text":"⚽ 0 x 0""#), "{out}");
+    }
+
+    #[test]
+    fn without_json_it_is_just_the_score() {
+        let vamo = Vamo::new();
+        assert_eq!(vamo.ok(&["barra"]), "⚽ 0 x 0\n");
+        assert_eq!(vamo.ok(&["barra", "--linguagem", "neutra"]), "0/0\n");
+    }
+}

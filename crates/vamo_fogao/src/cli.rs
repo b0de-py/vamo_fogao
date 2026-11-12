@@ -249,6 +249,19 @@ pub(crate) enum Command {
     )]
     Inbox,
 
+    /// Mostra o placar do dia numa linha, pra barra do desktop
+    #[command(
+        name = "barra",
+        override_usage = "vamo barra [OPÇÕES]",
+        help_template = SUBCOMMAND_HELP_TEMPLATE,
+        next_help_heading = "Opções"
+    )]
+    Bar {
+        /// Sai em JSON, no formato do módulo da barra (com o campo versao)
+        #[arg(long = "json")]
+        json: bool,
+    },
+
     /// Conecta o vamo ao Google Agenda, pelo navegador
     #[command(
         name = "conectar-google",

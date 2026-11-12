@@ -16,6 +16,7 @@ Comandos:
   agenda           Mostra os compromissos do dia, lidos da agenda
   sync             Lê a agenda e liga os eventos com rodapé vamo: às tarefas
   caixa            Lista as tarefas prontas esperando horário, com o rodapé pra agenda
+  barra            Mostra o placar do dia numa linha, pra barra do desktop
   conectar-google  Conecta o vamo ao Google Agenda, pelo navegador
   tui              Abre a interface de terminal, com as telas do dia
   acervo           Cuida do acervo, o museu de bolso com a história do Botafogo

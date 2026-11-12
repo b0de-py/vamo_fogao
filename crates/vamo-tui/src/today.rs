@@ -73,13 +73,7 @@ pub(crate) fn score(
     schedule: &Schedule,
     checks: &BTreeSet<(Date, String)>,
 ) -> Score {
-    let today = lineup.today();
-    let checked = schedule
-        .fixed
-        .iter()
-        .filter(|activity| checks.contains(&(today, activity.uid.clone())))
-        .count();
-    lineup.score().plus(checked, schedule.fixed.len())
+    lineup.score_with(&schedule.fixed, checks)
 }
 
 impl Today {

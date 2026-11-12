@@ -6,6 +6,7 @@
 
 mod acervo;
 mod agenda;
+mod bar;
 mod cli;
 mod commands;
 mod config;

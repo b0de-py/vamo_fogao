@@ -1,9 +1,11 @@
 //! As atividades fixas: os compromissos recorrentes da agenda que aparecem
 //! na tela Hoje como itens de marcar, sem virar tarefa no banco.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
-use crate::{Appointment, Score, When};
+use jiff::civil::Date;
+
+use crate::{Appointment, Lineup, Score, When};
 
 /// Um compromisso recorrente do dia, com o título curto pra escalação.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -83,6 +85,22 @@ impl Score {
     }
 }
 
+impl Lineup {
+    /// O placar do dia com as atividades fixas da agenda: cada uma conta
+    /// como prevista, e como gol quando o par (dia, UID) está em `checks`.
+    ///
+    /// É o placar que a tela Hoje e a barra mostram, então as duas contam
+    /// do mesmo jeito.
+    pub fn score_with(&self, fixed: &[FixedActivity], checks: &BTreeSet<(Date, String)>) -> Score {
+        let today = self.today();
+        let checked = fixed
+            .iter()
+            .filter(|activity| checks.contains(&(today, activity.uid.clone())))
+            .count();
+        self.score().plus(checked, fixed.len())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use jiff::civil::date;
@@ -116,6 +134,28 @@ mod tests {
         let aliases = BTreeMap::from([("reunião diária".to_owned(), "Daily".to_owned())]);
         let found = fixed_activities(&[event("a", "  Reunião Diária ", true)], &aliases);
         assert_eq!(found[0].title, "Daily");
+    }
+
+    #[test]
+    fn the_checked_activities_of_the_day_are_goals() {
+        let today = date(2026, 11, 12);
+        let lineup = Lineup::new(&crate::Projection::new(), today);
+        let fixed = fixed_activities(
+            &[event("a", "Caminhada", true), event("b", "Leitura", true)],
+            &BTreeMap::new(),
+        );
+        // A marcação de outro dia não conta hoje.
+        let checks = BTreeSet::from([
+            (today, "a".to_owned()),
+            (date(2026, 11, 11), "b".to_owned()),
+        ]);
+        assert_eq!(
+            lineup.score_with(&fixed, &checks),
+            Score {
+                done: 1,
+                planned: 2
+            }
+        );
     }
 
     #[test]
