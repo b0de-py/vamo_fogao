@@ -771,6 +771,22 @@ END:VCALENDAR\r\n";
     }
 
     #[test]
+    fn the_inbox_lists_ready_tasks_without_a_day() {
+        let vamo = Vamo::new();
+        vamo.ok(&[
+            "add",
+            "Ligar pro síndico",
+            "--area",
+            "casa",
+            "--notas",
+            "~20 min",
+        ]);
+        vamo.ok(&["add", "Pensar na viagem", "--status", "ideia"]);
+        insta::assert_snapshot!(vamo.ok(&["caixa"]));
+        insta::assert_snapshot!("caixa_neutra", vamo.ok(&["--linguagem", "neutra", "caixa"]));
+    }
+
+    #[test]
     fn without_the_link_it_says_how_to_configure() {
         let vamo = Vamo::new();
         let error = vamo.fails(&["agenda"], 1);
@@ -797,6 +813,12 @@ END:VCALENDAR\r\n";
         std::fs::write(&file, ics).expect("a agenda de exemplo deveria ser gravada");
         vamo.configure(&format!("[agenda]\nics = \"{}\"\n", file.display()));
 
+        // Antes do sync, a tarefa espera na caixa, com o rodapé que foi
+        // colado no evento.
+        assert!(
+            vamo.ok(&["caixa"])
+                .contains("\n       vamo: T-001 | Trocar o filtro da água | casa | brecha\n")
+        );
         let first = vamo.ok(&["sync"]);
         assert_eq!(
             first,
@@ -808,6 +830,11 @@ END:VCALENDAR\r\n";
             )
         );
         assert!(vamo.ok(&["list"]).contains("agendada"));
+        // Agendada pelo rodapé, ela sai da caixa.
+        assert_eq!(
+            vamo.ok(&["caixa"]),
+            "Ninguém no aquecimento: toda tarefa pronta já tem dia.\n"
+        );
         // De novo, nada muda.
         assert!(
             vamo.ok(&["sync"])

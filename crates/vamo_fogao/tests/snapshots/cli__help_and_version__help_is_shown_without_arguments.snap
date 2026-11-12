@@ -15,6 +15,7 @@ Comandos:
   curiosidade  Conta a curiosidade do dia, uma história do Botafogo
   agenda       Mostra os compromissos do dia, lidos da agenda
   sync         Lê a agenda e liga os eventos com rodapé vamo: às tarefas
+  caixa        Lista as tarefas prontas esperando horário, com o rodapé pra agenda
   tui          Abre a interface de terminal, com as telas do dia
   acervo       Cuida do acervo, o museu de bolso com a história do Botafogo
 

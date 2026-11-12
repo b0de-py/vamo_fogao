@@ -7,7 +7,7 @@ use color_eyre::eyre::{Result, WrapErr, bail, eyre};
 use jiff::Timestamp;
 use jiff::tz::TimeZone;
 use uuid::Uuid;
-use vamo_agenda::Freshness;
+use vamo_agenda::{Footer, Freshness};
 use vamo_core::{
     Area, Change, Event, EventId, EventStore, Fit, Machine, NotebookTitle, Projection, Skipped,
     Status, Task, TaskId,
@@ -46,6 +46,7 @@ pub(crate) fn run(command: Command, voice: Voice, config: &Config) -> Result<Str
             Session::open(voice)?.agenda(config, day)
         }
         Command::Sync => Session::open(voice)?.sync(config),
+        Command::Inbox => Ok(Session::open(voice)?.inbox()),
         Command::Tui => {
             let mut session = Session::open(voice)?;
             let acervo::Bundled { facts, banter } = acervo::bundled();
@@ -146,6 +147,32 @@ impl Session {
         self.record(id, changes)?;
         let task = self.task(id)?;
         Ok(self.voice.goal(task.id(), task.title()))
+    }
+
+    /// `vamo caixa`: as tarefas prontas sem dia, cada uma com o encaixe, a
+    /// estimativa (se tiver) e o rodapé pra colar na descrição do evento.
+    fn inbox(&self) -> String {
+        let tasks = self.projection.inbox();
+        if tasks.is_empty() {
+            return self.voice.empty_inbox().to_owned();
+        }
+        let mut lines = vec![self.voice.inbox(tasks.len())];
+        for task in &tasks {
+            let estimate = task
+                .estimate()
+                .map(|estimate| format!(" · ~{}", agenda::length(estimate)))
+                .unwrap_or_default();
+            lines.push(String::new());
+            lines.push(format!(
+                "{}  {} · {} · {}{estimate}",
+                task.id(),
+                task.title(),
+                task.area(),
+                task.fit()
+            ));
+            lines.push(format!("       {}", Footer::of(task)));
+        }
+        lines.join("\n")
     }
 
     /// `vamo agenda`: os compromissos do dia, baixados agora, com o aviso

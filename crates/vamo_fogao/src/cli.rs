@@ -239,6 +239,15 @@ pub(crate) enum Command {
     )]
     Sync,
 
+    /// Lista as tarefas prontas esperando horário, com o rodapé pra agenda
+    #[command(
+        name = "caixa",
+        override_usage = "vamo caixa",
+        help_template = SUBCOMMAND_HELP_TEMPLATE,
+        next_help_heading = "Opções"
+    )]
+    Inbox,
+
     /// Abre a interface de terminal, com as telas do dia
     #[command(
         override_usage = "vamo tui",

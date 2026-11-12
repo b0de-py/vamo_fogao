@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 
 use jiff::civil::Date;
 
-use crate::{Appointment, Change, Projection, Status, TaskId};
+use crate::{Appointment, Change, Projection, Status, Task, TaskId};
 
 /// O resultado de cruzar a agenda com as tarefas: as mudanças pra gravar e
 /// os eventos que ficaram de fora, com o motivo.
@@ -90,6 +90,21 @@ impl Projection {
             }
         }
         plan
+    }
+
+    /// A caixa "a marcar": as tarefas prontas que ainda não têm dia, na
+    /// ordem dos IDs. É daqui que sai o que vai pra agenda; quando o evento
+    /// com o rodapé volta no sync, a tarefa vira agendada e sai da caixa.
+    ///
+    /// ```
+    /// use vamo_core::Projection;
+    ///
+    /// assert!(Projection::new().inbox().is_empty());
+    /// ```
+    pub fn inbox(&self) -> Vec<Task> {
+        self.tasks()
+            .filter(|task| task.status() == Status::Ready && task.day().is_none())
+            .collect()
     }
 }
 
@@ -208,6 +223,21 @@ mod tests {
         ];
         let plan = log.projection.link(&agenda, TODAY);
         assert_eq!(plan.changes[0].1[1], Change::Day(Some(date(2026, 11, 13))));
+    }
+
+    #[test]
+    fn a_task_leaves_the_inbox_once_the_agenda_schedules_it() {
+        let mut log = Log::new();
+        let id = log.add("Trocar o filtro", Status::Ready);
+        log.add("Pensar na viagem", Status::Idea);
+        let ids =
+            |log: &Log| -> Vec<TaskId> { log.projection.inbox().iter().map(Task::id).collect() };
+        assert_eq!(ids(&log), [id]);
+        let plan = log.projection.link(&[on(date(2026, 11, 14), id)], TODAY);
+        for (id, changes) in plan.changes {
+            log.record(id, changes);
+        }
+        assert_eq!(ids(&log), []);
     }
 
     #[test]

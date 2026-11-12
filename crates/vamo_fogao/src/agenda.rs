@@ -134,6 +134,16 @@ pub(crate) fn gap_lines(
     lines
 }
 
+/// Uma duração como se escreve: `45 min`, `2h`, `1h30`.
+pub(crate) fn length(span: jiff::SignedDuration) -> String {
+    let minutes = span.as_mins();
+    match (minutes / 60, minutes % 60) {
+        (0, minutes) => format!("{minutes} min"),
+        (hours, 0) => format!("{hours}h"),
+        (hours, minutes) => format!("{hours}h{minutes:02}"),
+    }
+}
+
 /// O erro de quando a config não tem o link da agenda.
 pub(crate) fn not_configured() -> color_eyre::Report {
     eyre!(

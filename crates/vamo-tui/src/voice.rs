@@ -151,6 +151,27 @@ impl Voice {
         }
     }
 
+    /// O título do `vamo caixa`.
+    pub fn inbox(self, count: usize) -> String {
+        let tasks = if count == 1 { "tarefa" } else { "tarefas" };
+        match self {
+            Self::Game => format!(
+                "A marcar: {count} {tasks} no aquecimento, esperando horário. Cole o rodapé na descrição do evento."
+            ),
+            Self::Neutral => format!(
+                "A marcar: {count} {tasks} esperando horário. Cole o rodapé na descrição do evento."
+            ),
+        }
+    }
+
+    /// O `vamo caixa` vazio.
+    pub fn empty_inbox(self) -> &'static str {
+        match self {
+            Self::Game => "Ninguém no aquecimento: toda tarefa pronta já tem dia.",
+            Self::Neutral => "Nada a marcar: toda tarefa pronta já tem dia.",
+        }
+    }
+
     /// O título das brechas do dia na tela Hoje.
     pub(crate) fn gaps(self) -> &'static str {
         match self {
