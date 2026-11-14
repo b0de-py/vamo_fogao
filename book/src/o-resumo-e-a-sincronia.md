@@ -74,3 +74,24 @@ vamo resumo --semana --json             # o mesmo, pro MCP
 A semana vai de segunda a domingo, como na ISO 8601 (`WeekSummary::monday_of`). A rodada (`WeekSummary`, em `crates/vamo-core/src/week.rs`) junta a súmula de cada dia, numa linha por dia, os impedimentos, os hábitos somados e a invencibilidade no fim da semana, com o recorde do clube do lado. É o material da coletiva: a revisão semanal curta.
 
 Os impedimentos são as tarefas marcadas na agenda num horário que fere uma regra do tempo (`Offside`): a mesma conta do `vamo agenda`, feita na cópia local da agenda da semana inteira. A rodada não fica guardada; sai sempre do log, e uma semana que ainda não acabou avisa no fim.
+
+## O formato de exportação
+
+Tudo que sai do app tem um formato só, versionado, no módulo `format` do `vamo-sync`. A decisão está na [ADR 0012](https://github.com/b0de-py/vamo_fogao/blob/main/docs/adr/0012-formato-de-exportacao-versionado.md).
+
+| Tipo | Onde aparece | Schema |
+|------|--------------|--------|
+| `EventLine` | Uma linha do log de eventos exportado (JSONL). | `schema/v1/evento.json` |
+| `MarkLine` | Uma marcação de atividade fixa da agenda (JSONL). | `schema/v1/marcacao.json` |
+| `SummaryDoc` | A súmula guardada no banco e o `vamo resumo --json`. | `schema/v1/resumo.json` |
+| `WeekDoc` | O `vamo resumo --semana --json`. | `schema/v1/rodada.json` |
+
+Uma linha do log, com dados inventados:
+
+```json
+{"versao":1,"id":"0192f0c4-8a00-7000-8000-000000000001","em":"2026-11-10T12:00:00Z","maquina":"notebook","tarefa":"T-001","mudanca":{"tipo":"criada","titulo":"Trocar o filtro da água","area":"casa","encaixe":"brecha","status":"pronta"}}
+```
+
+Aqui o `serde` aparece com derive pela primeira vez no projeto. Nos outros formatos (a config, o acervo, a API do Google) o código lê campo a campo, pra apontar o erro em português; num contrato entre versões do app, o que pesa é o leitor e o escritor serem o mesmo tipo. O `#[serde(tag = "tipo")]` no enum `ChangeLine` escreve cada variante como um objeto com o nome dela no campo `tipo`, e o `#[serde(deny_unknown_fields)]` faz campo desconhecido virar erro, não silêncio.
+
+**Versão nova lê export antigo.** Cada linha tem a `versao`; a maior que a conhecida é recusada com um pedido de atualizar o `vamo`. O schema de cada tipo sai dos mesmos tipos pelo `schemars` e fica guardado em `crates/vamo-sync/schema/v1/`: o teste `the_schema_of_each_type_matches_the_saved_one` quebra se um tipo mudar sem a `VERSION` subir. Os exemplos de cada versão, em `crates/vamo-sync/tests/fixtures/`, continuam sendo lidos a cada versão nova.

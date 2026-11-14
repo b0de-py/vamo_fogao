@@ -403,8 +403,7 @@ impl Session {
         let exported = summary::json(&closed);
         let finished = now.timestamp() >= window.end;
         if finished {
-            self.store
-                .save_summary(day, now.timestamp(), &exported.to_string())?;
+            self.store.save_summary(day, now.timestamp(), &exported)?;
         }
 
         if json {
@@ -412,7 +411,7 @@ impl Session {
             for warning in &warnings {
                 eprintln!("{warning}");
             }
-            return Ok(exported.to_string());
+            return Ok(exported);
         }
         let mut lines = warnings;
         lines.push(summary::text(&closed, self.voice));
@@ -449,7 +448,7 @@ impl Session {
             for warning in &warnings {
                 eprintln!("{warning}");
             }
-            return Ok(summary::week_json(&week).to_string());
+            return Ok(summary::week_json(&week));
         }
         let mut lines = warnings;
         lines.push(summary::week_text(&week, self.voice));

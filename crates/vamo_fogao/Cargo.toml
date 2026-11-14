@@ -36,6 +36,7 @@ vamo-acervo.workspace = true
 vamo-agenda.workspace = true
 vamo-core.workspace = true
 vamo-store.workspace = true
+vamo-sync.workspace = true
 vamo-tui.workspace = true
 
 [dev-dependencies]

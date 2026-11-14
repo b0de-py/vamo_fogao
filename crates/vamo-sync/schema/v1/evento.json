@@ -1,0 +1,224 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "EventLine",
+  "description": "Uma linha do log de eventos exportado.",
+  "type": "object",
+  "properties": {
+    "em": {
+      "description": "Quando a mudança aconteceu, em RFC 3339 e UTC (`2026-11-11T12:00:00Z`).",
+      "type": "string"
+    },
+    "id": {
+      "description": "O ID do evento, um UUID v7.",
+      "type": "string"
+    },
+    "maquina": {
+      "description": "O nome da máquina de origem.",
+      "type": "string"
+    },
+    "mudanca": {
+      "description": "O que mudou.",
+      "$ref": "#/$defs/ChangeLine"
+    },
+    "tarefa": {
+      "description": "A tarefa que mudou, como `T-041`.",
+      "type": "string"
+    },
+    "versao": {
+      "description": "A versão do formato.",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "versao",
+    "id",
+    "em",
+    "maquina",
+    "tarefa",
+    "mudanca"
+  ],
+  "$defs": {
+    "ChangeLine": {
+      "description": "O que mudou numa tarefa, com o tipo da mudança no campo `tipo`.",
+      "oneOf": [
+        {
+          "description": "A tarefa nasceu, com os quatro campos de partida.",
+          "type": "object",
+          "properties": {
+            "area": {
+              "description": "A área.",
+              "type": "string"
+            },
+            "encaixe": {
+              "description": "O encaixe: `foco`, `brecha` ou `com-alguém`.",
+              "type": "string"
+            },
+            "status": {
+              "description": "O status de partida, como `pronta`.",
+              "type": "string"
+            },
+            "tipo": {
+              "type": "string",
+              "const": "criada"
+            },
+            "titulo": {
+              "description": "O título, no padrão do caderno.",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "tipo",
+            "titulo",
+            "area",
+            "encaixe",
+            "status"
+          ]
+        },
+        {
+          "description": "O título mudou.",
+          "type": "object",
+          "properties": {
+            "tipo": {
+              "type": "string",
+              "const": "titulo"
+            },
+            "titulo": {
+              "description": "O título novo.",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "tipo",
+            "titulo"
+          ]
+        },
+        {
+          "description": "A área mudou.",
+          "type": "object",
+          "properties": {
+            "area": {
+              "description": "A área nova.",
+              "type": "string"
+            },
+            "tipo": {
+              "type": "string",
+              "const": "area"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "tipo",
+            "area"
+          ]
+        },
+        {
+          "description": "O encaixe mudou.",
+          "type": "object",
+          "properties": {
+            "encaixe": {
+              "description": "O encaixe novo.",
+              "type": "string"
+            },
+            "tipo": {
+              "type": "string",
+              "const": "encaixe"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "tipo",
+            "encaixe"
+          ]
+        },
+        {
+          "description": "O status mudou.",
+          "type": "object",
+          "properties": {
+            "status": {
+              "description": "O status novo.",
+              "type": "string"
+            },
+            "tipo": {
+              "type": "string",
+              "const": "status"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "tipo",
+            "status"
+          ]
+        },
+        {
+          "description": "As notas mudaram. Vazio apaga.",
+          "type": "object",
+          "properties": {
+            "notas": {
+              "description": "As notas novas.",
+              "type": "string"
+            },
+            "tipo": {
+              "type": "string",
+              "const": "notas"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "tipo",
+            "notas"
+          ]
+        },
+        {
+          "description": "A tarefa foi escalada pra um dia, ou saiu da escalação (`null`).",
+          "type": "object",
+          "properties": {
+            "dia": {
+              "description": "O dia, como `2026-11-11`.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "tipo": {
+              "type": "string",
+              "const": "dia"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "tipo"
+          ]
+        },
+        {
+          "description": "Uma recorrente foi marcada ou desmarcada num dia.",
+          "type": "object",
+          "properties": {
+            "dia": {
+              "description": "O dia da marcação.",
+              "type": "string"
+            },
+            "feita": {
+              "description": "Se ficou marcada.",
+              "type": "boolean"
+            },
+            "tipo": {
+              "type": "string",
+              "const": "marcacao"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "tipo",
+            "dia",
+            "feita"
+          ]
+        }
+      ]
+    }
+  }
+}

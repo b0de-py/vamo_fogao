@@ -1,0 +1,10 @@
+{"versao":1,"id":"0192f0c4-8a00-7000-8000-000000000001","em":"2026-11-10T12:00:00Z","maquina":"notebook","tarefa":"T-001","mudanca":{"tipo":"criada","titulo":"Trocar o filtro da água","area":"casa","encaixe":"brecha","status":"pronta"}}
+{"versao":1,"id":"0192f0c4-8a00-7000-8000-000000000002","em":"2026-11-10T12:05:00Z","maquina":"notebook","tarefa":"T-001","mudanca":{"tipo":"notas","notas":"O filtro fica na gaveta\nda cozinha"}}
+{"versao":1,"id":"0192f0c4-8a00-7000-8000-000000000003","em":"2026-11-10T12:10:00Z","maquina":"pc","tarefa":"T-001","mudanca":{"tipo":"status","status":"agendada"}}
+{"versao":1,"id":"0192f0c4-8a00-7000-8000-000000000004","em":"2026-11-10T12:10:00Z","maquina":"pc","tarefa":"T-001","mudanca":{"tipo":"dia","dia":"2026-11-11"}}
+{"versao":1,"id":"0192f0c4-8a00-7000-8000-000000000005","em":"2026-11-10T12:20:00Z","maquina":"pc","tarefa":"T-002","mudanca":{"tipo":"criada","titulo":"Regar as plantas","area":"casa","encaixe":"brecha","status":"recorrente"}}
+{"versao":1,"id":"0192f0c4-8a00-7000-8000-000000000006","em":"2026-11-11T09:00:00Z","maquina":"pc","tarefa":"T-002","mudanca":{"tipo":"marcacao","dia":"2026-11-11","feita":true}}
+{"versao":1,"id":"0192f0c4-8a00-7000-8000-000000000007","em":"2026-11-11T13:00:00Z","maquina":"notebook","tarefa":"T-001","mudanca":{"tipo":"titulo","titulo":"Trocar o filtro velho"}}
+{"versao":1,"id":"0192f0c4-8a00-7000-8000-000000000008","em":"2026-11-11T13:01:00Z","maquina":"notebook","tarefa":"T-001","mudanca":{"tipo":"area","area":"cozinha"}}
+{"versao":1,"id":"0192f0c4-8a00-7000-8000-000000000009","em":"2026-11-11T13:02:00Z","maquina":"notebook","tarefa":"T-001","mudanca":{"tipo":"encaixe","encaixe":"com-alguém"}}
+{"versao":1,"id":"0192f0c4-8a00-7000-8000-00000000000a","em":"2026-11-11T13:03:00Z","maquina":"notebook","tarefa":"T-001","mudanca":{"tipo":"dia","dia":null}}

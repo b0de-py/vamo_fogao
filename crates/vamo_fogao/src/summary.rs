@@ -10,10 +10,8 @@ use color_eyre::eyre::{Result, WrapErr, eyre};
 use jiff::Zoned;
 use jiff::civil::Date;
 use jiff::tz::TimeZone;
-use serde_json::{Value, json};
-use vamo_core::{
-    CLUB_RECORD, DaySummary, DayWindow, Event, HabitCount, Task, Unbeaten, WeekSummary,
-};
+use serde_json::Value;
+use vamo_core::{CLUB_RECORD, DaySummary, DayWindow, Event, HabitCount, Unbeaten, WeekSummary};
 use vamo_store::{Habit, HabitTracker};
 use vamo_tui::Voice;
 
@@ -234,50 +232,10 @@ fn habit_lines(habits: &[HabitCount], voice: Voice) -> Vec<String> {
     lines
 }
 
-/// A rodada em JSON, pro MCP.
-pub(crate) fn week_json(week: &WeekSummary) -> Value {
-    let mut days: Vec<Value> = week.days.iter().map(json).collect();
-    // Os hábitos de cada dia vêm vazios na rodada: os da semana vão somados.
-    for day in &mut days {
-        if let Some(day) = day.as_object_mut() {
-            day.remove("habitos");
-            day.remove("versao");
-        }
-    }
-    json!({
-        "versao": 1,
-        "inicio": week.days.first().map(|day| day.day.to_string()),
-        "fim": week.days.last().map(|day| day.day.to_string()),
-        "gols": week.goals(),
-        "voltaram_pro_banco": week.benched(),
-        "acrescimos": week.stoppage(),
-        "dias": days,
-        "impedimentos": week.offside.iter().map(|offside| json!({
-            "dia": offside.day.to_string(),
-            "tarefa": offside.task.to_string(),
-            "compromisso": offside.appointment,
-            "regra": offside.violation.to_string(),
-        })).collect::<Vec<_>>(),
-        "habitos": habits_json(&week.habits),
-        "invencibilidade": {
-            "atual": week.unbeaten.current,
-            "recorde": week.unbeaten.record,
-            "recorde_do_clube": CLUB_RECORD,
-        },
-    })
-}
-
-fn habits_json(habits: &[HabitCount]) -> Vec<Value> {
-    habits
-        .iter()
-        .map(|habit| {
-            json!({
-                "nome": habit.name,
-                "unidade": habit.unit,
-                "quantidade": habit.count,
-            })
-        })
-        .collect()
+/// A rodada em JSON, no formato de exportação, pro MCP.
+pub(crate) fn week_json(week: &WeekSummary) -> String {
+    let doc = vamo_sync::format::WeekDoc::from(week);
+    serde_json::to_string(&doc).expect("a rodada só tem texto e número, e vira JSON sempre")
 }
 
 /// A unidade no plural quando precisa. O plural é o do português mais
@@ -292,23 +250,11 @@ fn unit(habit: &HabitCount) -> String {
     }
 }
 
-/// A súmula em JSON: é o que fica guardado no banco e o que o MCP lê.
-pub(crate) fn json(summary: &DaySummary) -> Value {
-    let tasks = |tasks: &[Task]| -> Vec<Value> {
-        tasks
-            .iter()
-            .map(|task| json!({ "id": task.id().to_string(), "titulo": task.title().as_str() }))
-            .collect()
-    };
-    json!({
-        "versao": 1,
-        "dia": summary.day.to_string(),
-        "gols": tasks(&summary.goals),
-        "fixas": tasks(&summary.checks),
-        "voltaram_pro_banco": tasks(&summary.benched),
-        "acrescimos": tasks(&summary.stoppage),
-        "habitos": habits_json(&summary.habits),
-    })
+/// A súmula em JSON, no formato de exportação: é o que fica guardado no
+/// banco e o que o MCP lê.
+pub(crate) fn json(summary: &DaySummary) -> String {
+    let doc = vamo_sync::format::SummaryDoc::from(summary);
+    serde_json::to_string(&doc).expect("a súmula só tem texto e número, e vira JSON sempre")
 }
 
 #[cfg(test)]
@@ -421,6 +367,10 @@ pub(crate) mod tests {
         ]
     }
 
+    fn pretty(json: &str) -> String {
+        serde_json::to_string_pretty(&serde_json::from_str::<Value>(json).unwrap()).unwrap()
+    }
+
     #[test]
     fn the_summary_of_an_example_day() {
         let (log, day) = example_day();
@@ -432,10 +382,7 @@ pub(crate) mod tests {
         );
         insta::assert_snapshot!(text(&summary, Voice::Game));
         insta::assert_snapshot!("neutra", text(&summary, Voice::Neutral));
-        insta::assert_snapshot!(
-            "json",
-            serde_json::to_string_pretty(&json(&summary)).unwrap()
-        );
+        insta::assert_snapshot!("json", pretty(&json(&summary)));
     }
 
     /// Uma semana de exemplo, de 09/11 a 15/11, com o dia de exemplo na
@@ -478,10 +425,7 @@ pub(crate) mod tests {
         let week = example_week();
         insta::assert_snapshot!(week_text(&week, Voice::Game));
         insta::assert_snapshot!("semana_neutra", week_text(&week, Voice::Neutral));
-        insta::assert_snapshot!(
-            "semana_json",
-            serde_json::to_string_pretty(&week_json(&week)).unwrap()
-        );
+        insta::assert_snapshot!("semana_json", pretty(&week_json(&week)));
     }
 
     #[test]
