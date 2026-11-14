@@ -432,6 +432,77 @@ impl Voice {
         }
     }
 
+    /// O título do resumo da semana, como "Rodada de 09/11 a 15/11".
+    pub fn week_title(self, first: &str, last: &str) -> String {
+        match self {
+            Self::Game => format!("Rodada de {first} a {last}"),
+            Self::Neutral => format!("Semana de {first} a {last}"),
+        }
+    }
+
+    /// Os números de um dia ou de uma semana numa linha, como "2 gols · 1
+    /// voltou pro banco". Número zero fica de fora.
+    pub fn summary_counts(self, goals: usize, benched: usize, stoppage: usize) -> String {
+        let plural = |n: usize, one: &str, many: &str| {
+            if n == 1 {
+                format!("1 {one}")
+            } else {
+                format!("{n} {many}")
+            }
+        };
+        let parts: Vec<String> = match self {
+            Self::Game => [
+                (goals > 0).then(|| plural(goals, "gol", "gols")),
+                (benched > 0).then(|| plural(benched, "voltou pro banco", "voltaram pro banco")),
+                (stoppage > 0).then(|| format!("{stoppage} nos acréscimos")),
+            ],
+            Self::Neutral => [
+                (goals > 0).then(|| plural(goals, "concluída", "concluídas")),
+                (benched > 0).then(|| plural(benched, "adiada", "adiadas")),
+                (stoppage > 0).then(|| plural(stoppage, "vencida", "vencidas")),
+            ],
+        }
+        .into_iter()
+        .flatten()
+        .collect();
+        if parts.is_empty() {
+            match self {
+                Self::Game => "sem jogo".to_owned(),
+                Self::Neutral => "nada".to_owned(),
+            }
+        } else {
+            parts.join(" · ")
+        }
+    }
+
+    /// O título dos impedimentos da semana: as tarefas marcadas fora das
+    /// regras do tempo.
+    pub fn offside_title(self) -> &'static str {
+        match self {
+            Self::Game => "Impedimentos",
+            Self::Neutral => "Regras feridas",
+        }
+    }
+
+    /// A invencibilidade no resumo da semana, com o recorde do clube na
+    /// linguagem de jogo.
+    pub fn week_unbeaten(self, current: u32, record: u32, club: u32) -> String {
+        match self {
+            Self::Game => format!(
+                "Invencibilidade: {current} · recorde {record} · o do clube é {club}, em 1977 e 1978"
+            ),
+            Self::Neutral => format!("Dias seguidos sem vencida: {current} · recorde {record}"),
+        }
+    }
+
+    /// Quando a semana pedida ainda não acabou.
+    pub fn week_still_open(self) -> &'static str {
+        match self {
+            Self::Game => "A rodada ainda está em andamento.",
+            Self::Neutral => "A semana ainda não acabou.",
+        }
+    }
+
     /// O título da súmula de um dia, como "Súmula de quarta, 11/11".
     pub fn summary_title(self, weekday: Weekday, day: &str) -> String {
         let weekday = self.weekday(weekday);

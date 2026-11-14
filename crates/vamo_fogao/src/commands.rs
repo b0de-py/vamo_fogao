@@ -12,7 +12,7 @@ use uuid::Uuid;
 use vamo_agenda::{Footer, Freshness};
 use vamo_core::{
     Area, Change, DaySummary, Event, EventId, EventStore, Fit, Habits, Machine, NotebookTitle,
-    Notifier, Projection, ReminderWindow, Skipped, Status, Task, TaskId,
+    Notifier, Projection, ReminderWindow, Skipped, Status, Task, TaskId, WeekSummary,
 };
 use vamo_store::Store;
 
@@ -48,7 +48,16 @@ pub(crate) fn run(command: Command, voice: Voice, config: &Config) -> Result<Str
             Session::open(voice)?.agenda(config, day)
         }
         Command::Sync => Session::open(voice)?.sync(config),
-        Command::Summary { date, json } => Session::open(voice)?.summary(config, date, json),
+        Command::Summary {
+            date,
+            week: false,
+            json,
+        } => Session::open(voice)?.summary(config, date, json),
+        Command::Summary {
+            date,
+            week: true,
+            json,
+        } => Session::open(voice)?.week(config, date, json),
         Command::Games { date } => {
             games_list(config, date.unwrap_or_else(|| jiff::Zoned::now().date()))
         }
@@ -65,7 +74,7 @@ pub(crate) fn run(command: Command, voice: Voice, config: &Config) -> Result<Str
             schedule.unbeaten = Some(summary::unbeaten(
                 &session.events,
                 &TimeZone::system(),
-                &now,
+                summary::last_closed_day(&now)?,
             )?);
             let setup = vamo_tui::Setup {
                 voice,
@@ -387,19 +396,8 @@ impl Session {
         };
         let window = summary::window(day, &zone)?;
 
-        // Hábito que não abriu vira aviso: a súmula das 4h sai mesmo assim.
         let mut warnings = Vec::new();
-        let habits = match summary::habit_tracker(&config.habits) {
-            Ok(None) => Vec::new(),
-            Ok(Some(tracker)) => tracker.count(day, day).unwrap_or_else(|error| {
-                warnings.push(format!("aviso: os hábitos não vieram: {error}"));
-                Vec::new()
-            }),
-            Err(error) => {
-                warnings.push(format!("aviso: os hábitos não vieram: {error:#}"));
-                Vec::new()
-            }
-        };
+        let habits = habits(config, day, day, &mut warnings);
 
         let closed = DaySummary::close(&self.events, day, window, habits);
         let exported = summary::json(&closed);
@@ -423,6 +421,74 @@ impl Session {
             lines.push(self.voice.summary_still_open().to_owned());
         }
         Ok(lines.join("\n"))
+    }
+
+    /// `vamo resumo --semana`: a rodada da semana do dia, de segunda a
+    /// domingo. Não fica guardada: sai sempre do log, dos hábitos e da cópia
+    /// local da agenda.
+    fn week(&self, config: &Config, day: Option<Date>, json: bool) -> Result<String> {
+        let zone = TimeZone::system();
+        let now = jiff::Zoned::now().with_time_zone(zone.clone());
+        let last_closed = summary::last_closed_day(&now)?;
+        let monday = WeekSummary::monday_of(day.unwrap_or(last_closed));
+        let sunday = monday.checked_add(jiff::ToSpan::days(6))?;
+
+        let mut warnings = Vec::new();
+        let habits = habits(config, monday, sunday, &mut warnings);
+        let offside = self.offside(config, &zone, monday, sunday);
+        let unbeaten = summary::unbeaten(&self.events, &zone, sunday.min(last_closed))?;
+        let week = WeekSummary::close(
+            &self.events,
+            summary::days(monday, sunday, &zone)?,
+            offside,
+            habits,
+            unbeaten,
+        );
+
+        if json {
+            for warning in &warnings {
+                eprintln!("{warning}");
+            }
+            return Ok(summary::week_json(&week).to_string());
+        }
+        let mut lines = warnings;
+        lines.push(summary::week_text(&week, self.voice));
+        if sunday > last_closed {
+            lines.push(String::new());
+            lines.push(self.voice.week_still_open().to_owned());
+        }
+        Ok(lines.join("\n"))
+    }
+
+    /// Os impedimentos de `first` a `last`: as tarefas marcadas na agenda
+    /// fora das regras do tempo. A agenda vem da cópia local, e o dia de
+    /// jogo só vale na linguagem de jogo.
+    fn offside(
+        &self,
+        config: &Config,
+        zone: &TimeZone,
+        first: Date,
+        last: Date,
+    ) -> Vec<vamo_core::Offside> {
+        let appointments = agenda::cached_appointments(config, zone.clone(), first, last);
+        let found = match self.voice {
+            Voice::Game => games::cached(&config.games, zone.clone(), first, last),
+            Voice::Neutral => Vec::new(),
+        };
+        appointments
+            .iter()
+            .flat_map(|appointment| {
+                let game = games::pick(&found, &config.games, appointment.day());
+                agenda::broken_rules(appointment, &self.projection, &config.rules, game.as_ref())
+                    .into_iter()
+                    .map(|(task, violation)| vamo_core::Offside {
+                        day: appointment.day(),
+                        task,
+                        appointment: appointment.title.clone(),
+                        violation,
+                    })
+            })
+            .collect()
     }
 
     /// `vamo show`: a ficha da tarefa e o histórico dela.
@@ -557,6 +623,24 @@ impl vamo_tui::Ledger for Session {
         }
         Ok(())
     }
+}
+
+/// Os hábitos de `first` a `last`, do habit-tracker da config. Hábito que
+/// não abriu vira aviso em `warnings`: a súmula das 4h sai mesmo assim.
+fn habits(
+    config: &Config,
+    first: Date,
+    last: Date,
+    warnings: &mut Vec<String>,
+) -> Vec<vamo_core::HabitCount> {
+    let counted = summary::habit_tracker(&config.habits).and_then(|tracker| match tracker {
+        Some(tracker) => Ok(tracker.count(first, last)?),
+        None => Ok(Vec::new()),
+    });
+    counted.unwrap_or_else(|error| {
+        warnings.push(format!("aviso: os hábitos não vieram: {error:#}"));
+        Vec::new()
+    })
 }
 
 /// As tarefas em colunas: ID, status, encaixe, área e título.

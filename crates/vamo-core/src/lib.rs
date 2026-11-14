@@ -40,6 +40,8 @@
 //!   como o dia ([`DayWindow`]).
 //! - [`Unbeaten`]: a invencibilidade, dias seguidos sem vencida, com o
 //!   recorde; cada dia fechado conta como um [`Outcome`].
+//! - [`WeekSummary`]: a rodada, o resumo da semana, com os impedimentos
+//!   ([`Offside`]) e os hábitos somados.
 //!
 //! # A agenda
 //!
@@ -98,6 +100,7 @@ mod summary;
 mod task;
 mod title;
 mod unbeaten;
+mod week;
 
 pub use appointment::{Agenda, Appointment, When};
 pub use area::Area;
@@ -120,3 +123,4 @@ pub use summary::{DaySummary, DayWindow, HabitCount, Habits};
 pub use task::Task;
 pub use title::NotebookTitle;
 pub use unbeaten::{CLUB_RECORD, Outcome, Unbeaten};
+pub use week::{Offside, WeekSummary};

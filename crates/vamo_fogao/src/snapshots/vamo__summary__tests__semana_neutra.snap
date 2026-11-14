@@ -1,0 +1,23 @@
+---
+source: crates/vamo_fogao/src/summary.rs
+expression: "week_text(&week, Voice::Neutral)"
+---
+Semana de 09/11 a 15/11
+
+2 concluídas · 1 adiada · 2 vencidas
+
+  segunda 09/11  1 concluída
+  terça   10/11  nada
+  quarta  11/11  1 concluída · 1 adiada · 1 vencida
+  quinta  12/11  nada
+  sexta   13/11  1 vencida
+  sábado  14/11  nada
+  domingo 15/11  nada
+
+Regras feridas (1)
+  13/11  T-003 Lavar o carro: foco depois do teto da noite (22:00)
+
+Hábitos
+  Água  38 copos
+
+Dias seguidos sem vencida: 0 · recorde 3

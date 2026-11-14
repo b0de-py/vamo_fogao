@@ -13,7 +13,7 @@ Comandos:
   import           Traz as tarefas do banco antigo, um markdown com a tabela de índice
   show             Mostra a ficha de uma tarefa, com o histórico
   curiosidade      Conta a curiosidade do dia, uma história do Botafogo
-  resumo           Fecha a súmula do dia: os gols, o que voltou pro banco e os hábitos
+  resumo           Fecha a súmula do dia (ou mostra a rodada da semana): gols, banco e hábitos
   agenda           Mostra os compromissos do dia, lidos da agenda
   sync             Lê a agenda e liga os eventos com rodapé vamo: às tarefas
   jogos            Mostra os próximos jogos do time, lidos do calendário de jogos

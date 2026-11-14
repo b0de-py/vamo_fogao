@@ -223,7 +223,7 @@ pub(crate) enum Command {
         banter: bool,
     },
 
-    /// Fecha a súmula do dia: os gols, o que voltou pro banco e os hábitos
+    /// Fecha a súmula do dia (ou mostra a rodada da semana): gols, banco e hábitos
     #[command(
         name = "resumo",
         override_usage = "vamo resumo [OPÇÕES]",
@@ -235,6 +235,10 @@ pub(crate) enum Command {
         /// fecha às 4h do dia seguinte)
         #[arg(long = "data", value_name = "DATA", value_parser = parse_date)]
         date: Option<jiff::civil::Date>,
+
+        /// A rodada: o resumo da semana (de segunda a domingo) do dia
+        #[arg(long = "semana")]
+        week: bool,
 
         /// Sai em JSON, no formato de exportação
         #[arg(long = "json")]

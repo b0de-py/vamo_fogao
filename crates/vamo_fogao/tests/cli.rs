@@ -993,6 +993,25 @@ mod resumo {
     }
 
     #[test]
+    fn the_week_goes_from_monday_to_sunday() {
+        let vamo = Vamo::new();
+        let out = vamo.ok(&["resumo", "--semana", "--data", "2026-01-07"]);
+        assert!(out.starts_with("Rodada de 05/01 a 11/01"), "{out}");
+        let json: serde_json::Value = serde_json::from_str(&vamo.ok(&[
+            "resumo",
+            "--semana",
+            "--data",
+            "2026-01-07",
+            "--json",
+        ]))
+        .unwrap();
+        assert_eq!(json["inicio"], "2026-01-05");
+        assert_eq!(json["fim"], "2026-01-11");
+        assert_eq!(json["dias"].as_array().unwrap().len(), 7);
+        assert_eq!(json["invencibilidade"]["recorde_do_clube"], 52);
+    }
+
+    #[test]
     fn a_day_that_is_still_open_is_not_saved() {
         let vamo = Vamo::new();
         let out = vamo.ok(&["resumo", "--data", "2099-01-05"]);

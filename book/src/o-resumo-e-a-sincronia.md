@@ -62,3 +62,15 @@ A conta é a da súmula, dia a dia (`Unbeaten::count`, em `crates/vamo-core/src/
 Duas escolhas merecem nota. As fixas ficam de fora: um dia sem marcar a água não quebra a sequência. E remarcar não é perder: tirar a tarefa do dia é decidir, não deixar vencer. A tarefa vencida quebra só o dia dela; no dia seguinte, com gol, a sequência recomeça, mesmo com o atraso ainda na tela.
 
 Como a sequência sai do log, ela não fica guardada em lugar nenhum: o binário conta do dia do primeiro evento até o último dia fechado, e a tela Hoje mostra embaixo do placar (`Invicto há 4 dias · recorde 12`). São alguns milissegundos mesmo com anos de log.
+
+## A rodada da semana
+
+```sh
+vamo resumo --semana                    # a semana do último dia fechado
+vamo resumo --semana --data 2026-11-11  # a semana desse dia
+vamo resumo --semana --json             # o mesmo, pro MCP
+```
+
+A semana vai de segunda a domingo, como na ISO 8601 (`WeekSummary::monday_of`). A rodada (`WeekSummary`, em `crates/vamo-core/src/week.rs`) junta a súmula de cada dia, numa linha por dia, os impedimentos, os hábitos somados e a invencibilidade no fim da semana, com o recorde do clube do lado. É o material da coletiva: a revisão semanal curta.
+
+Os impedimentos são as tarefas marcadas na agenda num horário que fere uma regra do tempo (`Offside`): a mesma conta do `vamo agenda`, feita na cópia local da agenda da semana inteira. A rodada não fica guardada; sai sempre do log, e uma semana que ainda não acabou avisa no fim.

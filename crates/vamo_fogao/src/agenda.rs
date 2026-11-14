@@ -7,7 +7,7 @@ use jiff::ToSpan;
 use jiff::civil::Date;
 use jiff::tz::TimeZone;
 use vamo_agenda::{Calendar, Freshness, IcsLink};
-use vamo_core::{Appointment, GameDay, Projection, TimeRules, When};
+use vamo_core::{Appointment, GameDay, Projection, TaskId, TimeRules, Violation, When};
 
 use crate::config::{AgendaConfig, AgendaSource, Config};
 use crate::paths;
@@ -235,6 +235,20 @@ pub(crate) fn violations(
     rules: &TimeRules,
     game: Option<&GameDay>,
 ) -> Vec<String> {
+    broken_rules(appointment, projection, rules, game)
+        .iter()
+        .map(|(id, violation)| format!("{id}: {violation}"))
+        .collect()
+}
+
+/// As regras que a tarefa do compromisso fere, com o ID dela: as do tempo
+/// e, em dia de jogo, a de só tarefa leve perto do horário.
+pub(crate) fn broken_rules(
+    appointment: &Appointment,
+    projection: &Projection,
+    rules: &TimeRules,
+    game: Option<&GameDay>,
+) -> Vec<(TaskId, Violation)> {
     let (Some(id), Some((start, end))) = (appointment.task, appointment.span()) else {
         return Vec::new();
     };
@@ -244,9 +258,9 @@ pub(crate) fn violations(
     let near_game = game.and_then(|game_day| game_day.check(&task, start, end));
     rules
         .check(&task, start, end)
-        .iter()
-        .chain(near_game.iter())
-        .map(|violation| format!("{id}: {violation}"))
+        .into_iter()
+        .chain(near_game)
+        .map(|violation| (id, violation))
         .collect()
 }
 

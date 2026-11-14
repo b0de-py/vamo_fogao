@@ -11,7 +11,9 @@ use jiff::Zoned;
 use jiff::civil::Date;
 use jiff::tz::TimeZone;
 use serde_json::{Value, json};
-use vamo_core::{DaySummary, DayWindow, Event, HabitCount, Task, Unbeaten};
+use vamo_core::{
+    CLUB_RECORD, DaySummary, DayWindow, Event, HabitCount, Task, Unbeaten, WeekSummary,
+};
 use vamo_store::{Habit, HabitTracker};
 use vamo_tui::Voice;
 
@@ -49,15 +51,14 @@ pub(crate) fn days(first: Date, last: Date, zone: &TimeZone) -> Result<Vec<(Date
         .collect()
 }
 
-/// A invencibilidade em `now`: do dia do primeiro evento do log até o último
-/// dia que fechou.
-pub(crate) fn unbeaten(events: &[Event], zone: &TimeZone, now: &Zoned) -> Result<Unbeaten> {
+/// A invencibilidade no fim de `last`, que precisa ser um dia fechado:
+/// conta do dia do primeiro evento do log até ele.
+pub(crate) fn unbeaten(events: &[Event], zone: &TimeZone, last: Date) -> Result<Unbeaten> {
     let Some(first) = events.iter().map(|event| event.at).min() else {
         return Ok(Unbeaten::default());
     };
     let first = first.to_zoned(zone.clone()).date();
-    let days = days(first, last_closed_day(now)?, zone)?;
-    Ok(Unbeaten::count(events, days))
+    Ok(Unbeaten::count(events, days(first, last, zone)?))
 }
 
 /// O habit-tracker da config, se a seção `[habitos]` existir.
@@ -140,7 +141,7 @@ pub(crate) fn text(summary: &DaySummary, voice: Voice) -> String {
         summary.day.weekday(),
         &summary.day.strftime("%d/%m").to_string(),
     )];
-    let [goals, checks, benched, stoppage, habits] = voice.summary_parts();
+    let [goals, checks, benched, stoppage, _] = voice.summary_parts();
     if summary.is_empty() {
         lines.push(String::new());
         lines.push(voice.summary_empty().to_owned());
@@ -164,21 +165,119 @@ pub(crate) fn text(summary: &DaySummary, voice: Voice) -> String {
     }
     if !summary.habits.is_empty() {
         lines.push(String::new());
-        lines.push(habits.to_owned());
-        let width = summary
-            .habits
-            .iter()
-            .map(|habit| habit.name.chars().count())
-            .max()
-            .unwrap_or(0);
-        lines.extend(
-            summary
-                .habits
-                .iter()
-                .map(|habit| format!("  {:<width$}  {} {}", habit.name, habit.count, unit(habit))),
-        );
+        lines.extend(habit_lines(&summary.habits, voice));
     }
     lines.join("\n")
+}
+
+/// A rodada em texto, pro terminal: uma linha por dia, os impedimentos, os
+/// hábitos da semana e a invencibilidade.
+pub(crate) fn week_text(week: &WeekSummary, voice: Voice) -> String {
+    let (Some(first), Some(last)) = (week.days.first(), week.days.last()) else {
+        return String::new();
+    };
+    let short = |day: Date| day.strftime("%d/%m").to_string();
+    let mut lines = vec![
+        voice.week_title(&short(first.day), &short(last.day)),
+        String::new(),
+        voice.summary_counts(week.goals(), week.benched(), week.stoppage()),
+        String::new(),
+    ];
+    for day in &week.days {
+        lines.push(format!(
+            "  {:<7} {}  {}",
+            voice.weekday(day.day.weekday()),
+            short(day.day),
+            voice.summary_counts(day.goals.len(), day.benched.len(), day.stoppage.len())
+        ));
+    }
+    if !week.offside.is_empty() {
+        lines.push(String::new());
+        lines.push(format!(
+            "{} ({})",
+            voice.offside_title(),
+            week.offside.len()
+        ));
+        lines.extend(week.offside.iter().map(|offside| {
+            format!(
+                "  {}  {} {}: {}",
+                short(offside.day),
+                offside.task,
+                offside.appointment,
+                offside.violation
+            )
+        }));
+    }
+    if !week.habits.is_empty() {
+        lines.push(String::new());
+        lines.extend(habit_lines(&week.habits, voice));
+    }
+    lines.push(String::new());
+    lines.push(voice.week_unbeaten(week.unbeaten.current, week.unbeaten.record, CLUB_RECORD));
+    lines.join("\n")
+}
+
+/// O título e uma linha por hábito, com os nomes alinhados.
+fn habit_lines(habits: &[HabitCount], voice: Voice) -> Vec<String> {
+    let [.., title] = voice.summary_parts();
+    let width = habits
+        .iter()
+        .map(|habit| habit.name.chars().count())
+        .max()
+        .unwrap_or(0);
+    let mut lines = vec![title.to_owned()];
+    lines.extend(
+        habits
+            .iter()
+            .map(|habit| format!("  {:<width$}  {} {}", habit.name, habit.count, unit(habit))),
+    );
+    lines
+}
+
+/// A rodada em JSON, pro MCP.
+pub(crate) fn week_json(week: &WeekSummary) -> Value {
+    let mut days: Vec<Value> = week.days.iter().map(json).collect();
+    // Os hábitos de cada dia vêm vazios na rodada: os da semana vão somados.
+    for day in &mut days {
+        if let Some(day) = day.as_object_mut() {
+            day.remove("habitos");
+            day.remove("versao");
+        }
+    }
+    json!({
+        "versao": 1,
+        "inicio": week.days.first().map(|day| day.day.to_string()),
+        "fim": week.days.last().map(|day| day.day.to_string()),
+        "gols": week.goals(),
+        "voltaram_pro_banco": week.benched(),
+        "acrescimos": week.stoppage(),
+        "dias": days,
+        "impedimentos": week.offside.iter().map(|offside| json!({
+            "dia": offside.day.to_string(),
+            "tarefa": offside.task.to_string(),
+            "compromisso": offside.appointment,
+            "regra": offside.violation.to_string(),
+        })).collect::<Vec<_>>(),
+        "habitos": habits_json(&week.habits),
+        "invencibilidade": {
+            "atual": week.unbeaten.current,
+            "recorde": week.unbeaten.record,
+            "recorde_do_clube": CLUB_RECORD,
+        },
+    })
+}
+
+fn habits_json(habits: &[HabitCount]) -> Vec<Value> {
+    habits
+        .iter()
+        .map(|habit| {
+            json!({
+                "nome": habit.name,
+                "unidade": habit.unit,
+                "quantidade": habit.count,
+            })
+        })
+        .collect()
 }
 
 /// A unidade no plural quando precisa. O plural é o do português mais
@@ -208,11 +307,7 @@ pub(crate) fn json(summary: &DaySummary) -> Value {
         "fixas": tasks(&summary.checks),
         "voltaram_pro_banco": tasks(&summary.benched),
         "acrescimos": tasks(&summary.stoppage),
-        "habitos": summary.habits.iter().map(|habit| json!({
-            "nome": habit.name,
-            "unidade": habit.unit,
-            "quantidade": habit.count,
-        })).collect::<Vec<_>>(),
+        "habitos": habits_json(&summary.habits),
     })
 }
 
@@ -343,6 +438,52 @@ pub(crate) mod tests {
         );
     }
 
+    /// Uma semana de exemplo, de 09/11 a 15/11, com o dia de exemplo na
+    /// quarta, um gol na segunda, a conta adiada pra sexta que venceu lá e um
+    /// impedimento.
+    fn example_week() -> WeekSummary {
+        let (mut log, _) = example_day();
+        let monday = date(2026, 11, 9);
+        log.at("2026-11-08T12:00:00Z");
+        let reading = log.add("Ler o capítulo novo", Status::Ready);
+        log.schedule(reading, monday);
+        log.at("2026-11-09T15:00:00Z");
+        log.finish(reading, monday);
+        let offside = vec![vamo_core::Offside {
+            day: date(2026, 11, 13),
+            task: "T-003".parse().unwrap(),
+            appointment: "Lavar o carro".to_owned(),
+            violation: vamo_core::Violation::AfterNightCap {
+                cap: jiff::civil::time(22, 0, 0, 0),
+            },
+        }];
+        WeekSummary::close(
+            &log.events,
+            days(monday, date(2026, 11, 15), &TimeZone::UTC).unwrap(),
+            offside,
+            vec![HabitCount {
+                name: "Água".to_owned(),
+                unit: "copo".to_owned(),
+                count: 38,
+            }],
+            Unbeaten {
+                current: 0,
+                record: 3,
+            },
+        )
+    }
+
+    #[test]
+    fn the_summary_of_an_example_week() {
+        let week = example_week();
+        insta::assert_snapshot!(week_text(&week, Voice::Game));
+        insta::assert_snapshot!("semana_neutra", week_text(&week, Voice::Neutral));
+        insta::assert_snapshot!(
+            "semana_json",
+            serde_json::to_string_pretty(&week_json(&week)).unwrap()
+        );
+    }
+
     #[test]
     fn a_day_without_tasks_says_so() {
         let day = date(2026, 11, 11);
@@ -384,11 +525,11 @@ pub(crate) mod tests {
         let now: Zoned = "2026-11-12T10:00[UTC]".parse().unwrap();
         // O dia 11 teve uma vencida; os dias de antes não tiveram gol.
         assert_eq!(
-            unbeaten(&log.events, &TimeZone::UTC, &now).unwrap(),
+            unbeaten(&log.events, &TimeZone::UTC, last_closed_day(&now).unwrap()).unwrap(),
             Unbeaten::default()
         );
         assert_eq!(
-            unbeaten(&[], &TimeZone::UTC, &now).unwrap(),
+            unbeaten(&[], &TimeZone::UTC, last_closed_day(&now).unwrap()).unwrap(),
             Unbeaten::default()
         );
     }
