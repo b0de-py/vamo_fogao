@@ -16,6 +16,7 @@ Cada escolha que muda o jeito do projeto ganha um registro curto: o contexto, a 
 | [0010](0010-google-agenda-por-oauth-atras-de-feature.md) | Ler o Google Agenda pela API, com OAuth e atrás de uma feature | aceita |
 | [0011](0011-lembretes-por-timer-e-notify-send.md) | Mandar os lembretes por um timer do systemd e pelo notify-send | aceita |
 | [0012](0012-formato-de-exportacao-versionado.md) | Versionar o formato de exportação com tipos serde e JSON Schema gerado | aceita |
+| [0013](0013-sincronia-por-arquivo-de-cada-maquina.md) | Sincronizar pelo git com um arquivo por máquina, renumerando a tarefa não exportada | aceita |
 
 ## Como escrever uma
 

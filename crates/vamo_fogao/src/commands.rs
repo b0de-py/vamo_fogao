@@ -113,6 +113,10 @@ fn games_list(config: &Config, today: Date) -> Result<String> {
     Ok(lines.join("\n"))
 }
 
+/// Quantas vezes o `vamo sync` tenta mandar o backup quando outra máquina
+/// manda no meio.
+const SYNC_ATTEMPTS: u32 = 3;
+
 /// O banco aberto, o log lido e o estado das tarefas calculado a partir dele.
 struct Session {
     store: Store,
@@ -322,12 +326,35 @@ impl Session {
         Ok(lines.join("\n"))
     }
 
-    /// `vamo sync`: baixa a agenda e liga cada evento com rodapé `vamo:` à
-    /// tarefa dele, que fica agendada no dia do evento.
+    /// `vamo sync`: junta o log com o das outras máquinas pelo backup, se a
+    /// config tiver a seção `[sincronia]`, e depois lê a agenda, se tiver a
+    /// `[agenda]`. O backup vem antes pra tarefa criada em outra máquina já
+    /// estar aqui quando a agenda apontar pra ela.
     fn sync(&mut self, config: &Config) -> Result<String> {
+        let mut lines = Vec::new();
+        if let Some(path) = &config.backup {
+            lines.extend(self.sync_backup(path)?);
+        }
+        match self.sync_agenda(config)? {
+            Some(agenda) => lines.push(agenda),
+            None if config.backup.is_some() => {}
+            None => bail!(
+                "nada pra sincronizar: ponha na config a agenda (a seção [agenda], com ics = \
+                 \"https://...\") ou o backup (a seção [sincronia], com repositorio = \"...\")"
+            ),
+        }
+        Ok(lines.join("\n"))
+    }
+
+    /// A metade da agenda do `vamo sync`: baixa a agenda e liga cada evento
+    /// com rodapé `vamo:` à tarefa dele, que fica agendada no dia do evento.
+    /// Sem agenda na config, `None`.
+    fn sync_agenda(&mut self, config: &Config) -> Result<Option<String>> {
         let today = jiff::Zoned::now().date();
         let (from, to) = agenda::sync_window(today)?;
-        let loaded = agenda::load(&config.agenda, from, to)?.ok_or_else(agenda::not_configured)?;
+        let Some(loaded) = agenda::load(&config.agenda, from, to)? else {
+            return Ok(None);
+        };
         let (appointments, warnings) = loaded.calendar.read(from, to);
 
         let mut lines: Vec<String> = warnings.iter().map(|w| format!("aviso: {w}")).collect();
@@ -381,7 +408,66 @@ impl Session {
             Ok(_) => {}
             Err(error) => lines.push(format!("aviso: os jogos não vieram: {error:#}")),
         }
-        Ok(lines.join("\n"))
+        Ok(Some(lines.join("\n")))
+    }
+
+    /// A metade do backup do `vamo sync`: traz o que as outras máquinas
+    /// mandaram, troca o número das tarefas daqui que colidem com as de lá,
+    /// junta os eventos e as marcações, escreve os arquivos desta máquina e
+    /// manda. Se outra máquina mandar no meio, o remoto recusa e a rodada se
+    /// repete do começo, até três vezes.
+    fn sync_backup(&mut self, path: &str) -> Result<Vec<String>> {
+        let dir = paths::expand_home(path)?;
+        let backup = vamo_sync::Backup::open(&dir, machine()?)
+            .wrap_err_with(|| format!("o backup em {} não abriu", dir.display()))?;
+        let mut lines = Vec::new();
+        for attempt in 1..=SYNC_ATTEMPTS {
+            backup.pull().wrap_err("não deu pra trazer o backup")?;
+            let snapshot = backup.read()?;
+            let own = machine()?;
+            for renumber in vamo_core::renumber_collisions(
+                &self.events,
+                &own,
+                &snapshot.exported,
+                &snapshot.remote,
+            ) {
+                self.store.renumber(&renumber.events, renumber.to)?;
+                lines.push(self.voice.renumbered(renumber.from, renumber.to));
+            }
+            let added = self.store.append(&snapshot.remote)?;
+            let mut marks = 0;
+            for mark in &snapshot.marks {
+                if self.store.merge_agenda_mark(mark)? {
+                    marks += 1;
+                }
+            }
+            self.reload()?;
+
+            backup.write(&self.events, &self.store.agenda_marks()?)?;
+            match backup.send() {
+                Ok(_) => {
+                    lines.push(self.voice.backup_synced(added, marks));
+                    return Ok(lines);
+                }
+                Err(vamo_sync::Error::Rejected) if attempt < SYNC_ATTEMPTS => {
+                    tracing::debug!(attempt, "o backup recusou o envio; trazendo de novo");
+                }
+                Err(error) => {
+                    return Err(error).wrap_err("não deu pra mandar o backup");
+                }
+            }
+        }
+        Err(eyre!(
+            "o backup recusou o envio {SYNC_ATTEMPTS} vezes seguidas"
+        ))
+    }
+
+    /// Lê o log de novo do banco, depois de a sincronia mexer nele.
+    fn reload(&mut self) -> Result<()> {
+        self.events = self.store.events()?;
+        self.projection = self.events.iter().collect();
+        self.agenda_checks = self.store.agenda_checks()?;
+        Ok(())
     }
 
     /// `vamo resumo`: a súmula de um dia. Dia que já fechou fica guardado
@@ -614,7 +700,8 @@ impl vamo_tui::Ledger for Session {
     }
 
     fn check_agenda(&mut self, day: Date, uid: &str, done: bool) -> Result<()> {
-        self.store.set_agenda_check(day, uid, done)?;
+        self.store
+            .set_agenda_check(day, uid, done, Timestamp::now())?;
         if done {
             self.agenda_checks.insert((day, uid.to_owned()));
         } else {

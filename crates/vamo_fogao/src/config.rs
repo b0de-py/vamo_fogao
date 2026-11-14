@@ -39,6 +39,9 @@ pub(crate) struct Config {
     pub(crate) games: GamesConfig,
     /// A seção `[habitos]`: de onde vêm os hábitos da súmula.
     pub(crate) habits: HabitsConfig,
+    /// `repositorio = "~/backup-vamo"`, na seção `[sincronia]`: o clone do
+    /// repositório privado de backup, por onde as máquinas se juntam.
+    pub(crate) backup: Option<String>,
 }
 
 /// A seção `[habitos]`: o habit-tracker, de onde a súmula tira os números
@@ -160,10 +163,11 @@ fn parse(text: &str) -> Result<Config> {
             "lembretes" => config.reminder_lead = reminders(value.get_ref())?,
             "jogos" => config.games = games(value.get_ref())?,
             "habitos" => config.habits = habits(value.get_ref())?,
+            "sincronia" => config.backup = Some(backup(value.get_ref())?),
             other => bail!(
                 "`{other}` não é um campo da config: os campos que existem são linguagem, \
-                 animacao e as seções [agenda], [tempo], [apelidos], [lembretes], [jogos] e \
-                 [habitos]"
+                 animacao e as seções [agenda], [tempo], [apelidos], [lembretes], [jogos], \
+                 [habitos] e [sincronia]"
             ),
         }
     }
@@ -289,6 +293,36 @@ fn habits(value: &DeValue<'_>) -> Result<HabitsConfig> {
         );
     }
     Ok(habits)
+}
+
+/// Lê a seção `[sincronia]`:
+///
+/// ```toml
+/// [sincronia]
+/// repositorio = "~/backup-vamo"
+/// ```
+fn backup(value: &DeValue<'_>) -> Result<String> {
+    let DeValue::Table(table) = value else {
+        bail!("`sincronia` é uma seção: escreva [sincronia] numa linha e os campos embaixo");
+    };
+    let mut path = None;
+    for (key, value) in table {
+        match key.get_ref().as_ref() {
+            "repositorio" => {
+                let DeValue::String(text) = value.get_ref() else {
+                    bail!(
+                        "`repositorio` é o caminho do clone do backup entre aspas, como \
+                         repositorio = \"~/backup-vamo\""
+                    );
+                };
+                path = Some(text.trim().to_owned());
+            }
+            other => bail!(
+                "`{other}` não é um campo da seção [sincronia]: o campo que existe é repositorio"
+            ),
+        }
+    }
+    path.ok_or_else(|| eyre!("a seção [sincronia] precisa do `repositorio`, o clone do backup"))
 }
 
 /// Lê a seção `[lembretes]`:
@@ -686,6 +720,14 @@ mod tests {
         assert!(parse("[habitos]\nconfig = \"x.json\"\n").is_err());
         assert!(parse("[habitos]\nbanco = \"x.db\"\n").is_err());
         assert!(parse("[habitos]\nbanco = 3\n").is_err());
+    }
+
+    #[test]
+    fn the_backup_comes_in_its_section() {
+        let config = parse("[sincronia]\nrepositorio = \"~/backup-vamo\"\n").unwrap();
+        assert_eq!(config.backup.as_deref(), Some("~/backup-vamo"));
+        assert!(parse("[sincronia]\n").is_err());
+        assert!(parse("[sincronia]\nrepo = \"x\"\n").is_err());
     }
 
     #[test]

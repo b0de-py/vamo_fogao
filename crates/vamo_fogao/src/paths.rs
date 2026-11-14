@@ -66,3 +66,15 @@ pub(crate) fn reminders_state() -> Result<PathBuf> {
     let dir = base.state_dir().unwrap_or_else(|| base.data_dir());
     Ok(dir.join(APP_DIR).join("lembretes"))
 }
+
+/// Troca o `~/` do começo de um caminho da config pela pasta pessoal.
+pub(crate) fn expand_home(path: &str) -> Result<PathBuf> {
+    match path.strip_prefix("~/") {
+        Some(rest) => {
+            let home = etcetera::home_dir()
+                .wrap_err("não achei a pasta pessoal: a variável HOME está definida?")?;
+            Ok(home.join(rest))
+        }
+        None => Ok(PathBuf::from(path)),
+    }
+}

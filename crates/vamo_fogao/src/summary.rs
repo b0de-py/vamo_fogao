@@ -4,8 +4,6 @@
 //! [`DaySummary`]. Aqui fica o que depende do mundo de fora: o fuso, que
 //! diz onde o dia começa e acaba, a config do habit-tracker e o texto.
 
-use std::path::PathBuf;
-
 use color_eyre::eyre::{Result, WrapErr, eyre};
 use jiff::Zoned;
 use jiff::civil::Date;
@@ -68,8 +66,8 @@ pub(crate) fn habit_tracker(config: &HabitsConfig) -> Result<Option<HabitTracker
     let (Some(database), Some(settings)) = (&config.database, &config.config) else {
         return Ok(None);
     };
-    let database = expand(database)?;
-    let settings = expand(settings)?;
+    let database = crate::paths::expand_home(database)?;
+    let settings = crate::paths::expand_home(settings)?;
     let text = std::fs::read_to_string(&settings).wrap_err_with(|| {
         format!(
             "não deu pra ler a config do habit-tracker em {}",
@@ -119,18 +117,6 @@ fn parse_habits(text: &str) -> Result<(Vec<Habit>, u8)> {
         })
         .collect::<Result<_>>()?;
     Ok((habits, turn))
-}
-
-/// Troca o `~/` do começo do caminho pela pasta pessoal.
-fn expand(path: &str) -> Result<PathBuf> {
-    match path.strip_prefix("~/") {
-        Some(rest) => {
-            let home = etcetera::home_dir()
-                .wrap_err("não achei a pasta pessoal: a variável HOME está definida?")?;
-            Ok(home.join(rest))
-        }
-        None => Ok(PathBuf::from(path)),
-    }
 }
 
 /// A súmula em texto, pro terminal.

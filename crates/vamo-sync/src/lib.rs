@@ -6,8 +6,16 @@
 //!
 //! O que sai do app tem um formato só, versionado, no módulo [`format`](mod@format): o
 //! log de eventos e as marcações em JSONL, e a súmula e a rodada em JSON.
+//!
+//! O [`Backup`] é o clone do repositório privado de backup. Cada máquina
+//! escreve só os arquivos dela, `eventos/<máquina>.jsonl` e
+//! `marcacoes/<máquina>.jsonl`, e lê os das outras. A regra de quem troca de
+//! número quando duas máquinas criam o mesmo `T-###` é do core
+//! ([`vamo_core::renumber_collisions`]); aqui só se lê e escreve.
 
+mod backup;
 mod error;
 pub mod format;
 
+pub use backup::{Backup, Pushed, Snapshot};
 pub use error::Error;

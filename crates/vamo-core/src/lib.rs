@@ -67,6 +67,13 @@
 //! - [`GameDay`]: o dia de jogo, com as tarefas do jogo e a regra de só
 //!   tarefa leve perto do horário.
 //!
+//! # A sincronia
+//!
+//! - [`renumber_collisions`]: as tarefas desta máquina que trocam de número
+//!   ([`Renumber`]) quando outra máquina criou uma com o mesmo `T-###`.
+//! - [`AgendaMark`]: uma marcação da agenda, que viaja entre as máquinas
+//!   com a mais recente ganhando.
+//!
 //! # As portas
 //!
 //! O que o core precisa do mundo de fora vira trait, e um adaptador
@@ -97,6 +104,7 @@ mod reminder;
 mod rules;
 mod status;
 mod summary;
+mod sync;
 mod task;
 mod title;
 mod unbeaten;
@@ -120,6 +128,7 @@ pub use reminder::{DEFAULT_LEAD, MAX_CATCH_UP, Reminder, ReminderWindow, reminde
 pub use rules::{Block, TimeRange, TimeRules, Violation, time_of_day};
 pub use status::Status;
 pub use summary::{DaySummary, DayWindow, HabitCount, Habits};
+pub use sync::{AgendaMark, Renumber, renumber_collisions};
 pub use task::Task;
 pub use title::NotebookTitle;
 pub use unbeaten::{CLUB_RECORD, Outcome, Unbeaten};

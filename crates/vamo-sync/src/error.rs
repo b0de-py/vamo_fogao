@@ -35,4 +35,56 @@ pub enum Error {
         #[source]
         source: serde_json::Error,
     },
+
+    /// Um arquivo do backup não pôde ser lido ou escrito.
+    #[error("não deu pra ler ou escrever {}", .path.display())]
+    Io {
+        /// O arquivo ou a pasta.
+        path: std::path::PathBuf,
+        /// O erro do sistema.
+        #[source]
+        source: std::io::Error,
+    },
+
+    /// O programa `git` não rodou.
+    #[error("o git não rodou: ele está instalado?")]
+    GitMissing {
+        /// O erro do sistema.
+        #[source]
+        source: std::io::Error,
+    },
+
+    /// Um comando do git falhou.
+    #[error("o `git {command}` falhou: {stderr}")]
+    Git {
+        /// O comando, sem o `git`.
+        command: String,
+        /// O que o git disse.
+        stderr: String,
+    },
+
+    /// O clone do backup não tem o remoto `origin`.
+    #[error(
+        "o repositório de backup em {} não tem o remoto origin: clone o repositório privado \
+         de backup ali",
+        .dir.display()
+    )]
+    NoRemote {
+        /// A pasta do clone.
+        dir: std::path::PathBuf,
+    },
+
+    /// O remoto do backup é o repositório público do vamo_fogao.
+    #[error(
+        "o remoto do backup é {url}, o repositório público do vamo_fogao: o backup tem os seus \
+         dados e precisa de um repositório privado"
+    )]
+    PublicRepository {
+        /// O endereço do remoto.
+        url: String,
+    },
+
+    /// O remoto recusou o envio porque outra máquina mandou antes.
+    #[error("o remoto recusou o envio: outra máquina mandou antes")]
+    Rejected,
 }

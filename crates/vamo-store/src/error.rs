@@ -77,6 +77,16 @@ pub enum Error {
     #[error("o trecho de dias dos hábitos passa do calendário")]
     Habits(#[source] jiff::Error),
 
+    /// O instante de uma marcação da agenda não é um instante válido.
+    #[error("a marcação da agenda tem o instante `{at}`, que não é válido")]
+    InvalidCheckInstant {
+        /// O texto guardado.
+        at: String,
+        /// O erro do jiff.
+        #[source]
+        source: jiff::Error,
+    },
+
     /// O dia de uma súmula guardada não é um dia válido.
     #[error("a súmula guardada do dia `{day}` não tem um dia válido")]
     InvalidSummaryDay {

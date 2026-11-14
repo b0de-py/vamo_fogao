@@ -549,6 +549,35 @@ impl Voice {
         }
     }
 
+    /// Quando uma tarefa desta máquina troca de número na sincronia, porque
+    /// outra máquina criou uma com o mesmo.
+    pub fn renumbered(self, from: TaskId, to: TaskId) -> String {
+        match self {
+            Self::Game => format!(
+                "{from} desta máquina trocou de camisa e agora é {to}: outra máquina já tinha \
+                 um {from}. Se a agenda aponta pra ele, troque o rodapé."
+            ),
+            Self::Neutral => format!(
+                "{from} desta máquina agora é {to}: outra máquina já tinha um {from}. Se a \
+                 agenda aponta pra ele, troque o rodapé."
+            ),
+        }
+    }
+
+    /// O resumo da sincronia pelo backup: quantos eventos e marcações
+    /// vieram das outras máquinas.
+    pub fn backup_synced(self, events: usize, marks: usize) -> String {
+        let events = match events {
+            1 => "1 evento".to_owned(),
+            n => format!("{n} eventos"),
+        };
+        let marks = match marks {
+            1 => "1 marcação".to_owned(),
+            n => format!("{n} marcações"),
+        };
+        format!("Backup sincronizado: {events} e {marks} das outras máquinas.")
+    }
+
     /// Quando a lista do `vamo list` não tem nenhuma tarefa.
     pub fn nothing_to_list(self) -> &'static str {
         match self {

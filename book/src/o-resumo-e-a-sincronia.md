@@ -95,3 +95,51 @@ Uma linha do log, com dados inventados:
 Aqui o `serde` aparece com derive pela primeira vez no projeto. Nos outros formatos (a config, o acervo, a API do Google) o código lê campo a campo, pra apontar o erro em português; num contrato entre versões do app, o que pesa é o leitor e o escritor serem o mesmo tipo. O `#[serde(tag = "tipo")]` no enum `ChangeLine` escreve cada variante como um objeto com o nome dela no campo `tipo`, e o `#[serde(deny_unknown_fields)]` faz campo desconhecido virar erro, não silêncio.
 
 **Versão nova lê export antigo.** Cada linha tem a `versao`; a maior que a conhecida é recusada com um pedido de atualizar o `vamo`. O schema de cada tipo sai dos mesmos tipos pelo `schemars` e fica guardado em `crates/vamo-sync/schema/v1/`: o teste `the_schema_of_each_type_matches_the_saved_one` quebra se um tipo mudar sem a `VERSION` subir. Os exemplos de cada versão, em `crates/vamo-sync/tests/fixtures/`, continuam sendo lidos a cada versão nova.
+
+## A sincronia entre PCs
+
+O backup é um repositório git **privado**, clonado em cada máquina. O repositório do vamo_fogao é público e não pode receber tarefa de verdade: o `vamo sync` recusa um remoto que termine em `vamo_fogao`. A decisão inteira está na [ADR 0013](https://github.com/b0de-py/vamo_fogao/blob/main/docs/adr/0013-sincronia-por-arquivo-de-cada-maquina.md).
+
+```sh
+git clone git@github.com:voce/backup-vamo.git ~/backup-vamo   # um repositório privado
+```
+
+```toml
+[sincronia]
+repositorio = "~/backup-vamo"
+```
+
+Com a seção na config, o `vamo sync` (o mesmo do timer de meia em meia hora) faz uma rodada antes de ler a agenda:
+
+1. traz o que as outras máquinas mandaram (`git fetch` e `git rebase`);
+2. lê os arquivos delas e troca o número das tarefas daqui que colidem com as de lá;
+3. guarda os eventos novos e junta as marcações da agenda;
+4. reescreve os arquivos desta máquina e manda (`git commit` e `git push`). Se outra máquina mandou no meio, o remoto recusa, e a rodada se repete.
+
+O repositório fica assim, um arquivo por máquina em cada pasta, no formato da seção anterior:
+
+```text
+backup-vamo/
+├── eventos/
+│   ├── notebook.jsonl
+│   └── pc.jsonl
+└── marcacoes/
+    ├── notebook.jsonl
+    └── pc.jsonl
+```
+
+Como cada máquina só escreve os arquivos dela, o git nunca vê conflito, e juntar é só guardar os eventos das outras: o `append` ignora o que já tem, e a projeção cuida da ordem (as três propriedades do [log de eventos](o-log-de-eventos.md)).
+
+### O mesmo `T-###` nas duas máquinas
+
+Cada máquina dá o próximo número que ela conhece, então o notebook e o PC, sem sincronizar, podem criar cada um o seu `T-007`. A regra (`renumber_collisions`, em `crates/vamo-core/src/sync.rs`) é: **troca de número quem ainda não exportou**. O que já está no backup outra máquina pode ter visto, escalado ou posto no rodapé da agenda; o que não foi exportado só esta máquina conhece. A tarefa vai com todos os eventos dela pro próximo número livre nos dois lados, e o `vamo sync` avisa:
+
+```text
+T-007 desta máquina trocou de camisa e agora é T-009: outra máquina já tinha um T-007. Se a agenda aponta pra ele, troque o rodapé.
+```
+
+Um teste de propriedade cria tarefas dos dois lados com os números se cruzando e confere que, depois de renumerar e juntar, nenhuma some. E os testes de ponta a ponta (`crates/vamo_fogao/tests/cli.rs`, módulo `sincronia`) rodam duas máquinas de verdade contra um remoto numa pasta temporária.
+
+### A marcação da agenda
+
+A marcação das atividades fixas da agenda mora fora do log (ADR 0009), mas agora viaja: cada marcação guarda o instante em que foi feita ou desfeita, desmarcar não apaga mais a linha, e na sincronia a mais recente de cada dia e evento ganha (`AgendaMark`).
