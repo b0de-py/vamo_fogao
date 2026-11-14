@@ -1,0 +1,12 @@
+texto = "3 x 1 no Palmeiras no Allianz Parque pelo Brasileirão de 2024, quatro dias antes da final da Libertadores."
+data = "2024-11-26"
+status = "verificado"
+tags = ["titulo:brasileiro", "adversario:palmeiras"]
+
+[[fontes]]
+nome = "Wikipédia em inglês: 2024 Botafogo FR season"
+url = "https://en.wikipedia.org/wiki/2024_Botafogo_FR_season"
+
+[[fontes]]
+nome = "Placar"
+url = "https://placar.com.br/brasileirao/botafogo-campeao-os-7-jogos-chave-do-titulo-do-brasileirao/"

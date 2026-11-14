@@ -1,0 +1,12 @@
+texto = "6 x 0 no Aurora, da Bolívia, no Nilton Santos, com quatro gols de Júnior Santos: o primeiro passo da Libertadores de 2024."
+data = "2024-02-28"
+status = "verificado"
+tags = ["titulo:libertadores", "idolo:junior-santos", "adversario:aurora"]
+
+[[fontes]]
+nome = "DataFogo"
+url = "https://datafogo.blogspot.com/2024/02/goleada-sobre-o-aurora-levou-o-botafogo.html"
+
+[[fontes]]
+nome = "Wikipédia em inglês: 2024 Botafogo FR season"
+url = "https://en.wikipedia.org/wiki/2024_Botafogo_FR_season"

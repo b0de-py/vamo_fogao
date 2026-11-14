@@ -1,0 +1,13 @@
+texto = "O Botafogo vende a sede de General Severiano à Companhia Vale do Rio Doce, o estádio vem abaixo e o futebol vai pra Marechal Hermes."
+data = "1977"
+status = "verificado"
+tags = ["epoca:1970"]
+notas = "O Diário do Rio dá a venda em 1977; a Wikipédia não dá o ano da venda, só a demolição do estádio em 1977, na gestão de Charles Borer. Outras fontes falam em 1976."
+
+[[fontes]]
+nome = "Diário do Rio"
+url = "https://diariodorio.com/historia-da-general-severiano-sede-do-botafogo/"
+
+[[fontes]]
+nome = "Wikipédia em inglês: Estádio General Severiano"
+url = "https://en.wikipedia.org/wiki/Est%C3%A1dio_General_Severiano"

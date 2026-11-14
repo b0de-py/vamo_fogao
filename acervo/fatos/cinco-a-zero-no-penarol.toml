@@ -1,0 +1,13 @@
+texto = "5 x 0 no Peñarol no Nilton Santos, todos os gols no segundo tempo, na ida da semifinal da Libertadores de 2024."
+data = "2024-10-23"
+status = "verificado"
+tags = ["titulo:libertadores", "adversario:penarol"]
+notas = "Na volta, em Montevidéu, o Peñarol venceu por 3 x 1."
+
+[[fontes]]
+nome = "ESPN"
+url = "https://global.espn.com/football/match/_/gameId/721572/penarol-botafogo"
+
+[[fontes]]
+nome = "KSL (Associated Press)"
+url = "https://www.ksl.com/article/sports/soccer/brazils-botafogo-nears-1st-copa-libertadores-final-after-5-0-rout-of-uruguays-penarol/51161609"

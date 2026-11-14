@@ -1,0 +1,13 @@
+texto = "Nasce Didi, o Folha Seca, em Campos dos Goytacazes: o Botafogo é o clube em que ele mais jogou, 313 partidas."
+data = "1928-10-08"
+status = "verificado"
+tags = ["idolo:didi"]
+notas = "O Terceiro Tempo dá o dia (\"nascia há exatos 98 anos\", em 08/10/2026); os 313 jogos vêm da Wikipédia."
+
+[[fontes]]
+nome = "Terceiro Tempo"
+url = "https://terceirotempo.uol.com.br/noticias/saudade-didi-o-folha-seca-bicampeao-mundial-nascia-ha-98-anos"
+
+[[fontes]]
+nome = "Wikipédia em português: Didi"
+url = "https://pt.wikipedia.org/wiki/Didi_(futebolista)"

@@ -1,0 +1,12 @@
+texto = "Nasce Garrincha, em Magé. O pai erra no cartório e registra 18 de outubro, mas o dia certo é 28."
+data = "1933-10-28"
+status = "verificado"
+tags = ["idolo:garrincha"]
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/botafogo/saudades-garrincha-faz-anos-seu-futebol-segue-driblando-tempo.html"
+
+[[fontes]]
+nome = "Goal"
+url = "https://www.goal.com/br/not%C3%ADcias/quando-comemorar-aniversario-uma-duvida-que-une-ronaldo-pele-e-garrincha/46pk1na6p1551knxn8w093ngc"

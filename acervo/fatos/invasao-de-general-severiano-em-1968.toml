@@ -1,0 +1,13 @@
+texto = "Com a polícia atrás de uns 200 estudantes, o Botafogo abre General Severiano pra abrigá-los, e a sede é invadida."
+data = "1968-06-20"
+status = "verificado"
+tags = ["epoca:1960"]
+notas = "O Ludopédio diz que o presidente Altemar Dutra de Castilho autorizou a entrada; a Agenda do Poder diz que ele mandou abrir os portões. A charge de Henfil no Jornal dos Sports de 22/06/1968 só tem o Ludopédio por enquanto."
+
+[[fontes]]
+nome = "Ludopédio: Ditadura e futebol, a invasão de General Severiano"
+url = "https://ludopedio.org.br/arquibancada/ditadura-e-futebol-a-invasao-de-general-severiano/"
+
+[[fontes]]
+nome = "Agenda do Poder"
+url = "https://agendadopoder.com.br/recordar-e-viver-quando-a-ditadura-invadiu-a-sede-do-botafogo-para-cacar-estudantes/"

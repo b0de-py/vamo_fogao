@@ -1,0 +1,12 @@
+texto = "5 x 1 no Juventude no Nilton Santos, na terceira rodada do Brasileirão do título de 2024."
+data = "2024-04-21"
+status = "verificado"
+tags = ["titulo:brasileiro", "adversario:juventude"]
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/botafogo/botafogo-atropela-o-juventude-no-brasileirao-em-noite-magica-do-coletivo.html"
+
+[[fontes]]
+nome = "Wikipédia em inglês: 2024 Botafogo FR season"
+url = "https://en.wikipedia.org/wiki/2024_Botafogo_FR_season"

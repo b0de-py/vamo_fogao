@@ -1,0 +1,12 @@
+texto = "Sem General Severiano, o Botafogo inaugura o estádio de Marechal Hermes com 2 x 1 na Portuguesa, gols de Dé e Mendonça."
+data = "1978-10-22"
+status = "verificado"
+tags = ["epoca:1970", "idolo:mendonca", "adversario:portuguesa"]
+
+[[fontes]]
+nome = "RSSSF Brasil"
+url = "https://rsssfbrasil.com/miscellaneous/botaretr.htm"
+
+[[fontes]]
+nome = "Terceiro Tempo"
+url = "https://terceirotempo.uol.com.br/que-fim-levou/estadio-marechal-hermes-3250"

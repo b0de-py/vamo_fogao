@@ -1,0 +1,12 @@
+texto = "Quarentinha, o maior artilheiro do Botafogo, não comemorava gol: dizia que era pago pra isso."
+status = "verificado"
+tags = ["idolo:quarentinha"]
+notas = "O JB conta que o biógrafo atribui a frieza à timidez, não à desculpa do dever."
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/tim4g/tim-quarentinha-maior-artilheiro-botafogo.html"
+
+[[fontes]]
+nome = "Jornal do Brasil"
+url = "https://www.jb.com.br/cultura/noticias/2008/12/05/amp/biografia-recupera-a-trajetoria-do-craque-quarentinha.html"

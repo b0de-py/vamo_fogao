@@ -1,0 +1,13 @@
+texto = "Perdendo de 2 x 0 e com um a menos, o Botafogo vira pra 3 x 2 em cima do Internacional, no Beira-Rio."
+data = "2022-06-19"
+status = "verificado"
+tags = ["adversario:internacional"]
+notas = "O gol da virada é de Hugo, nos acréscimos. O jogo termina em briga, com expulsões na súmula."
+
+[[fontes]]
+nome = "Gazeta Esportiva"
+url = "https://www.gazetaesportiva.com/campeonatos/brasileiro-serie-a/com-polemica-e-um-jogador-a-menos-botafogo-conquista-virada-historica-sobre-o-internacional/"
+
+[[fontes]]
+nome = "Jornal do Brasil"
+url = "https://www.jb.com.br/esportes/2022/06/1038133-gigante-roubado-e-com-um-a-menos-botafogo-vence-o-inter-no-beira-rio-com-virada-historica.html"

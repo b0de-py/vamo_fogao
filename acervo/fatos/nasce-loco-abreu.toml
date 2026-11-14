@@ -1,0 +1,12 @@
+texto = "Nasce Loco Abreu, em Minas, no Uruguai. Anos depois, ele diria: \"Desde 17 de outubro de 1976 nasci com moral\"."
+data = "1976-10-17"
+status = "verificado"
+tags = ["idolo:loco-abreu"]
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/todos-esportes/loco-abreu-segue-passos-tulio-levar-bota-vitoria.html"
+
+[[fontes]]
+nome = "Wikipédia em português: Sebastián Abreu"
+url = "https://pt.wikipedia.org/wiki/Sebasti%C3%A1n_Abreu"

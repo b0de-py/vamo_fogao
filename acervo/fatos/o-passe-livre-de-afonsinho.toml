@@ -1,0 +1,13 @@
+texto = "Barrado no Botafogo por causa da barba e do cabelo, Afonsinho vai à Justiça e vira o primeiro jogador do Brasil com passe livre."
+data = "1971-03"
+status = "verificado"
+tags = ["epoca:1970"]
+notas = "O Ludopédio diz que a vitória veio no Superior Tribunal de Justiça Desportiva; a Wikipédia diz só \"na justiça\"."
+
+[[fontes]]
+nome = "Ludopédio: Pelas barbas e pela honra de Afonsinho"
+url = "https://ludopedio.org.br/arquibancada/pelas-barbas-e-pela-honra-de-afonsinho/"
+
+[[fontes]]
+nome = "Wikipédia em português: Afonsinho"
+url = "https://pt.wikipedia.org/wiki/Afonsinho"

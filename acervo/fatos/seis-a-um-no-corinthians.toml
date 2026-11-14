@@ -1,0 +1,13 @@
+texto = "6 x 1 no Corinthians, pelo Rio-São Paulo de 1999: a maior vitória de mandante daquele torneio."
+data = "1999-01-24"
+status = "verificado"
+tags = ["adversario:corinthians"]
+notas = "O deepsearch dava 28 de janeiro; as duas fontes dizem 24."
+
+[[fontes]]
+nome = "RSSSF Brasil"
+url = "https://rsssfbrasil.com/tablesr/rjsp1999.htm"
+
+[[fontes]]
+nome = "Wikipédia em inglês: 1999 Torneio Rio-São Paulo"
+url = "https://en.wikipedia.org/wiki/1999_Torneio_Rio-S%C3%A3o_Paulo"

@@ -1,0 +1,12 @@
+texto = "4 x 1 no Flamengo no Nilton Santos, com dois de Matheus Martins, e o Botafogo volta à liderança do Brasileirão de 2024."
+data = "2024-08-18"
+status = "verificado"
+tags = ["titulo:brasileiro", "adversario:flamengo"]
+
+[[fontes]]
+nome = "Jornal do Brasil"
+url = "https://www.jb.com.br/esportes/2024/08/1051564-botafogo-goleia-o-flamengo-no-nilton-santos-e-retoma-lideranca-do-brasileirao.html"
+
+[[fontes]]
+nome = "Placar"
+url = "https://placar.com.br/brasileirao/botafogo-campeao-os-7-jogos-chave-do-titulo-do-brasileirao/"

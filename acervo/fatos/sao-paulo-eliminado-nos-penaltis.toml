@@ -1,0 +1,12 @@
+texto = "1 x 1 no MorumBIS, 5 x 4 nos pênaltis com defesa de John, e o Botafogo volta a uma semifinal de Libertadores depois de 51 anos."
+data = "2024-09-25"
+status = "verificado"
+tags = ["titulo:libertadores", "adversario:sao-paulo"]
+
+[[fontes]]
+nome = "Trivela"
+url = "https://trivela.com.br/america-do-sul/libertadores/botafogo-supera-sao-paulo-libertadores/"
+
+[[fontes]]
+nome = "Soccerway"
+url = "https://br.soccerway.com/noticias/futebol-copa-libertadores-botafogo-vence-sao-paulo-nos-penaltis-e-volta-as-semifinais-da-libertadores-apos-51-anos/KIaqX236"

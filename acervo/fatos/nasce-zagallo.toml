@@ -1,0 +1,12 @@
+texto = "Nasce Zagallo, em Atalaia, Alagoas. Por causa dele, o 9 de agosto é o Dia do Botafoguense, por lei estadual de 2014."
+data = "1931-08-09"
+status = "verificado"
+tags = ["idolo:zagallo"]
+
+[[fontes]]
+nome = "CBF"
+url = "https://www.cbf.com.br/selecao-brasileira/noticias/detalhes/selecao-masculina/zagallo-1-ano-sem-o-unico-tetracampeao-mundial-da-historia"
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/botafogo/dia-botafoguense-ilustres-falam-que-torcer-para.html"
