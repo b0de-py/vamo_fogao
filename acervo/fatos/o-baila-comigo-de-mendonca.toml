@@ -1,0 +1,13 @@
+texto = "3 x 1 no Flamengo pelas quartas do Brasileiro, e Mendonça dribla Júnior no gol que a torcida batiza de Baila Comigo, nome de uma música de Rita Lee."
+data = "1981-04-19"
+status = "verificado"
+tags = ["idolo:mendonca", "adversario:flamengo"]
+notas = "O Terceiro Tempo dá o dia; o Lance! conta o lance e a origem do nome. O Terceiro Tempo lembra que Baila Comigo também era a novela da Globo da época."
+
+[[fontes]]
+nome = "Terceiro Tempo"
+url = "https://terceirotempo.uol.com.br/noticias/saudade-o-golaco-baila-comigo-de-mendonca-que-nos-deixava-ha-cinco-anos"
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/fora-de-campo/ex-jogador-do-botafogo-recorda-gol-batizado-com-nome-de-musica-de-rita-lee.html"

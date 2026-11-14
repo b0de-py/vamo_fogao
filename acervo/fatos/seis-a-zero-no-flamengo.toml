@@ -1,12 +1,12 @@
-texto = "Botafogo 6 x 0 Flamengo, em 1972."
-data = "1972"
+texto = "6 x 0 no Flamengo no dia do aniversário do rival, com três gols de Jairzinho, um deles de letra."
+data = "1972-11-15"
 status = "verificado"
-tags = ["adversario:flamengo"]
-notas = "A Wikipédia diz que foi no dia do aniversário do Flamengo, 15 de novembro; falta uma segunda fonte pro dia."
+tags = ["adversario:flamengo", "idolo:jairzinho"]
+notas = "O dia e os gols de Jairzinho vêm do Lance!; a Wikipédia confirma o placar e o aniversário do Flamengo."
 
 [[fontes]]
 nome = "Lance!"
-url = "https://www.lance.com.br/lancepedia/piores-vexames-da-historia-do-botafogo.html"
+url = "https://www.lance.com.br/todos-esportes/historico-botafogo-flamengo-completa-anos.html"
 
 [[fontes]]
 nome = "Wikipédia em inglês: History of Botafogo FR"
