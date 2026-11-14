@@ -114,6 +114,8 @@ pub(crate) fn schedule(config: &Config, now: &jiff::Zoned) -> vamo_tui::Schedule
         // O dia de jogo depende da linguagem: quem chama põe.
         game: None,
         team: config.games.team().to_owned(),
+        // A invencibilidade vem do log, não da agenda: quem chama põe.
+        unbeaten: None,
     }
 }
 

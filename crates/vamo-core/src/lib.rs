@@ -38,6 +38,8 @@
 //! - [`DaySummary`]: a súmula, o resumo de um dia que fechou, com os
 //!   números dos hábitos ([`HabitCount`]) e o trecho do relógio que conta
 //!   como o dia ([`DayWindow`]).
+//! - [`Unbeaten`]: a invencibilidade, dias seguidos sem vencida, com o
+//!   recorde; cada dia fechado conta como um [`Outcome`].
 //!
 //! # A agenda
 //!
@@ -95,6 +97,7 @@ mod status;
 mod summary;
 mod task;
 mod title;
+mod unbeaten;
 
 pub use appointment::{Agenda, Appointment, When};
 pub use area::Area;
@@ -116,3 +119,4 @@ pub use status::Status;
 pub use summary::{DaySummary, DayWindow, HabitCount, Habits};
 pub use task::Task;
 pub use title::NotebookTitle;
+pub use unbeaten::{CLUB_RECORD, Outcome, Unbeaten};

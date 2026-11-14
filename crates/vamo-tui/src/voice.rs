@@ -417,6 +417,21 @@ impl Voice {
         format!("Agenda lida: {appointments}, {moved} pela agenda.")
     }
 
+    /// A invencibilidade, embaixo do placar da tela Hoje.
+    pub fn unbeaten(self, current: u32, record: u32) -> String {
+        let days = |n: u32| {
+            if n == 1 {
+                "1 dia".to_owned()
+            } else {
+                format!("{n} dias")
+            }
+        };
+        match self {
+            Self::Game => format!("Invicto há {} · recorde {record}", days(current)),
+            Self::Neutral => format!("Sem vencida há {} · recorde {record}", days(current)),
+        }
+    }
+
     /// O título da súmula de um dia, como "Súmula de quarta, 11/11".
     pub fn summary_title(self, weekday: Weekday, day: &str) -> String {
         let weekday = self.weekday(weekday);

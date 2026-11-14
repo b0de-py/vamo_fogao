@@ -11,7 +11,7 @@ use jiff::Zoned;
 use jiff::civil::Date;
 use jiff::tz::TimeZone;
 use serde_json::{Value, json};
-use vamo_core::{DaySummary, DayWindow, HabitCount, Task};
+use vamo_core::{DaySummary, DayWindow, Event, HabitCount, Task, Unbeaten};
 use vamo_store::{Habit, HabitTracker};
 use vamo_tui::Voice;
 
@@ -37,6 +37,27 @@ pub(crate) fn window(day: Date, zone: &TimeZone) -> Result<DayWindow> {
         .to_zoned(zone.clone())?
         .timestamp();
     Ok(DayWindow { start, end })
+}
+
+/// Os dias de `first` a `last`, os dois inclusos, cada um com o trecho do
+/// relógio dele no fuso.
+pub(crate) fn days(first: Date, last: Date, zone: &TimeZone) -> Result<Vec<(Date, DayWindow)>> {
+    first
+        .series(jiff::ToSpan::days(1))
+        .take_while(|day| *day <= last)
+        .map(|day| Ok((day, window(day, zone)?)))
+        .collect()
+}
+
+/// A invencibilidade em `now`: do dia do primeiro evento do log até o último
+/// dia que fechou.
+pub(crate) fn unbeaten(events: &[Event], zone: &TimeZone, now: &Zoned) -> Result<Unbeaten> {
+    let Some(first) = events.iter().map(|event| event.at).min() else {
+        return Ok(Unbeaten::default());
+    };
+    let first = first.to_zoned(zone.clone()).date();
+    let days = days(first, last_closed_day(now)?, zone)?;
+    Ok(Unbeaten::count(events, days))
 }
 
 /// O habit-tracker da config, se a seção `[habitos]` existir.
@@ -355,6 +376,21 @@ pub(crate) mod tests {
         let window = window(date(2026, 11, 11), &zone).unwrap();
         assert_eq!(window.start.to_string(), "2026-11-11T03:00:00Z");
         assert_eq!(window.end.to_string(), "2026-11-12T07:00:00Z");
+    }
+
+    #[test]
+    fn the_unbeaten_streak_runs_until_the_last_closed_day() {
+        let (log, _) = example_day();
+        let now: Zoned = "2026-11-12T10:00[UTC]".parse().unwrap();
+        // O dia 11 teve uma vencida; os dias de antes não tiveram gol.
+        assert_eq!(
+            unbeaten(&log.events, &TimeZone::UTC, &now).unwrap(),
+            Unbeaten::default()
+        );
+        assert_eq!(
+            unbeaten(&[], &TimeZone::UTC, &now).unwrap(),
+            Unbeaten::default()
+        );
     }
 
     #[test]

@@ -62,6 +62,11 @@ pub(crate) fn run(command: Command, voice: Voice, config: &Config) -> Result<Str
             let now = jiff::Zoned::now();
             let mut schedule = agenda::schedule(config, &now);
             schedule.game = games::today(&config.games, &now, voice);
+            schedule.unbeaten = Some(summary::unbeaten(
+                &session.events,
+                &TimeZone::system(),
+                &now,
+            )?);
             let setup = vamo_tui::Setup {
                 voice,
                 acervo: vamo_tui::Acervo { facts, banter },

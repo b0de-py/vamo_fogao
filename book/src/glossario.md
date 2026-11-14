@@ -28,6 +28,8 @@ O código fala inglês e a interface fala português, com a linguagem de jogo li
 | Banco | `Store` | O SQLite onde o log de eventos fica guardado. |
 | Súmula | `DaySummary` | O resumo de um dia que fechou: gols, fixas, o que voltou pro banco e os acréscimos. |
 | Apito final | `DayWindow` | O trecho do relógio que conta como o dia, da meia-noite às 4h seguintes. |
+| Invencibilidade | `Unbeaten` | Os dias seguidos com gol e sem vencida, e o recorde. |
+| Resultado do dia | `Outcome` | Vitória, derrota ou dia sem jogo, pra invencibilidade. |
 | Hábito | `HabitCount` | Quanto de um hábito o habit-tracker registrou, pela porta `Habits`. |
 
 ## Do acervo ao código

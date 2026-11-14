@@ -46,3 +46,19 @@ cp extras/systemd/vamo-resumo.* ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable --now vamo-resumo.timer
 ```
+
+## A invencibilidade
+
+Dias seguidos sem tarefa vencida, com o recorde guardado. O recorde a bater é o do clube: 52 jogos invicto, em 1977 e 1978 (`CLUB_RECORD`, no core).
+
+A conta é a da súmula, dia a dia (`Unbeaten::count`, em `crates/vamo-core/src/unbeaten.rs`). Cada dia fechado vira um `Outcome`:
+
+| Resultado | Quando | A sequência |
+|-----------|--------|-------------|
+| Vitória (`Win`) | Teve gol e nenhuma tarefa venceu. | Anda um. |
+| Derrota (`Loss`) | Uma tarefa escalada ficou no dia sem gol: passou do prazo sem ser feita nem remarcada. | Volta pro zero. |
+| Sem jogo (`Idle`) | Nada escalado, ou tudo remarcado, e nenhum gol. | Não anda nem quebra. |
+
+Duas escolhas merecem nota. As fixas ficam de fora: um dia sem marcar a água não quebra a sequência. E remarcar não é perder: tirar a tarefa do dia é decidir, não deixar vencer. A tarefa vencida quebra só o dia dela; no dia seguinte, com gol, a sequência recomeça, mesmo com o atraso ainda na tela.
+
+Como a sequência sai do log, ela não fica guardada em lugar nenhum: o binário conta do dia do primeiro evento até o último dia fechado, e a tela Hoje mostra embaixo do placar (`Invicto há 4 dias · recorde 12`). São alguns milissegundos mesmo com anos de log.

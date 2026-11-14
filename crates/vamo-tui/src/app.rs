@@ -704,6 +704,24 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn the_unbeaten_streak_goes_under_the_score() {
+        let mut app = new_app(Voice::Game);
+        app.schedule.unbeaten = Some(vamo_core::Unbeaten {
+            current: 4,
+            record: 12,
+        });
+        let screen = draw(&app, &crate::today::tests::example_day(), 100, 18);
+        assert!(
+            screen.contains("Invicto há 4 dias · recorde 12"),
+            "{screen}"
+        );
+
+        // Sem nenhuma sequência ainda, a linha não aparece.
+        app.schedule.unbeaten = Some(vamo_core::Unbeaten::default());
+        assert!(!draw(&app, &crate::today::tests::example_day(), 100, 18).contains("Invicto"));
+    }
+
+    #[test]
     fn opens_on_today() {
         let app = new_app(Voice::Game);
         assert_eq!(app.tab, Tab::Today);
