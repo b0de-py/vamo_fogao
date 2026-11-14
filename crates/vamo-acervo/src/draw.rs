@@ -75,8 +75,13 @@ impl<'a> Curiosity<'a> {
 ///
 /// Se algum fato aconteceu neste dia e mês, ele tem prioridade ("Neste
 /// dia"). Com mais de um, cada ano mostra um. Sem nenhum, sai o fato da vez
-/// num rodízio fixo, que passa por todos os fatos antes de repetir. `None`
-/// só quando não tem fato verificado nenhum.
+/// num rodízio fixo, que passa por todos antes de repetir. `None` só quando
+/// não tem fato verificado nenhum.
+///
+/// O fato com dia e mês fica fora do rodízio: ele é do dia dele. Muitos
+/// contam o acontecido no presente ("Nasce Garrincha"), e num dia qualquer
+/// pareceriam ser de hoje. Só se o acervo não tiver nenhum fato sem dia é
+/// que o rodízio usa os datados, pra curiosidade não sumir.
 ///
 /// ```
 /// use vamo_acervo::{Curiosity, Day, Fact, curiosity_of_the_day};
@@ -121,7 +126,22 @@ pub fn curiosity_of_the_day(facts: &[Fact], today: Day) -> Option<Curiosity<'_>>
         return Some(Curiosity::OnThisDay(on_this_day[index]));
     }
 
-    rotation(&verified, today).map(Curiosity::Drawn)
+    let undated: Vec<&Fact> = verified
+        .iter()
+        .copied()
+        .filter(|fact| !has_a_day(fact))
+        .collect();
+    let pool = if undated.is_empty() {
+        &verified
+    } else {
+        &undated
+    };
+    rotation(pool, today).map(Curiosity::Drawn)
+}
+
+/// Se o fato tem dia e mês, e portanto um dia certo pra aparecer.
+fn has_a_day(fact: &Fact) -> bool {
+    fact.date().is_some_and(|date| date.day().is_some())
 }
 
 /// O fato do confronto: um fato verificado sobre o adversário de hoje, no
@@ -382,6 +402,28 @@ mod tests {
         let pick = curiosity_of_the_day(&facts, day(2026, 5, 30)).unwrap();
         assert!(matches!(pick, Curiosity::OnThisDay(_)));
         assert_eq!(pick.fact().id().as_str(), "goleada");
+    }
+
+    #[test]
+    fn a_fact_with_a_day_stays_out_of_the_rotation() {
+        let mut facts = facts(3);
+        facts.push(fact("nasce-alguem", "1933-10-28", "verificado"));
+        for n in 0..60 {
+            let today = Day::from_number(day(2026, 1, 1).number() + n);
+            let pick = curiosity_of_the_day(&facts, today).unwrap();
+            if today.month == 10 && today.date == 28 {
+                assert!(matches!(pick, Curiosity::OnThisDay(_)));
+            } else {
+                assert_ne!(pick.fact().id().as_str(), "nasce-alguem");
+            }
+        }
+    }
+
+    #[test]
+    fn with_only_dated_facts_the_rotation_still_runs() {
+        let facts = [fact("so-com-dia", "1933-10-28", "verificado")];
+        let pick = curiosity_of_the_day(&facts, day(2026, 3, 3)).unwrap();
+        assert!(matches!(pick, Curiosity::Drawn(_)));
     }
 
     #[test]
