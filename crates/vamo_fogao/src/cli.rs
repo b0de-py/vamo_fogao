@@ -40,7 +40,8 @@ Config:
   é o link secreto da agenda (ou fonte = \"google\", com o vamo compilado
   com a feature google). Na seção [jogos], ics = \"https://...\" é a tabela
   de jogos do time. Na seção [habitos], banco e config são os caminhos do
-  banco e da config do habit-tracker, pros hábitos da súmula.
+  banco e da config do habit-tracker, pros hábitos da súmula. Na seção
+  [sincronia], repositorio é o clone do repositório privado de backup.
 
 Variáveis de ambiente:
   VAMO_LINGUAGEM   jogo ou neutra, o mesmo que --linguagem
@@ -257,7 +258,7 @@ pub(crate) enum Command {
         date: Option<jiff::civil::Date>,
     },
 
-    /// Lê a agenda e liga os eventos com rodapé vamo: às tarefas
+    /// Junta as máquinas pelo backup e liga a agenda às tarefas
     #[command(
         override_usage = "vamo sync",
         help_template = SUBCOMMAND_HELP_TEMPLATE,

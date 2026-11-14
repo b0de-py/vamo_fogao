@@ -205,6 +205,34 @@ pub struct MarkLine {
     pub em: String,
 }
 
+/// Um reforço: uma tarefa que chega de fora (do Claude, de outro projeto)
+/// pela branch `vamo-entrada` do backup, uma por linha do `reforcos.jsonl`.
+/// Só a chave e o título são obrigatórios; o resto tem o padrão do `vamo
+/// add`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ReinforcementLine {
+    /// A versão do formato.
+    pub versao: u32,
+    /// Uma chave única de quem mandou, como `claude-2026-11-14-filtro`. É
+    /// ela que impede o mesmo reforço de virar duas tarefas.
+    pub chave: String,
+    /// O título, no padrão do caderno: verbo na frente e até cinco palavras.
+    pub titulo: String,
+    /// A área. Sem ela, `geral`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub area: Option<String>,
+    /// O encaixe: `foco`, `brecha` ou `com-alguém`. Sem ele, `brecha`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub encaixe: Option<String>,
+    /// O status de partida. Sem ele, `pronta`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub status: Option<String>,
+    /// As notas: o detalhe que não cabe no título.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub notas: Option<String>,
+}
+
 /// Uma tarefa num resumo: o ID e o título.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -429,6 +457,7 @@ pub fn schemas() -> Vec<(&'static str, schemars::Schema)> {
     vec![
         ("evento.json", schemars::schema_for!(EventLine)),
         ("marcacao.json", schemars::schema_for!(MarkLine)),
+        ("reforco.json", schemars::schema_for!(ReinforcementLine)),
         ("resumo.json", schemars::schema_for!(SummaryDoc)),
         ("rodada.json", schemars::schema_for!(WeekDoc)),
     ]

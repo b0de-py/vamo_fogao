@@ -91,6 +91,27 @@ pub fn renumber_collisions(
     plan
 }
 
+/// O começo da linha das notas que marca de qual reforço a tarefa veio:
+/// `reforço: <chave>`.
+pub const REINFORCEMENT_NOTE: &str = "reforço: ";
+
+/// A linha das notas que marca a tarefa criada pelo reforço de `key`.
+pub fn reinforcement_note(key: &str) -> String {
+    format!("{REINFORCEMENT_NOTE}{key}")
+}
+
+impl Projection {
+    /// Se o reforço de chave `key` já virou tarefa, aqui ou em outra
+    /// máquina. A chave fica nas notas da tarefa, e as notas viajam com o
+    /// log: é isso que impede o mesmo reforço de virar duas tarefas, mesmo
+    /// lido por duas máquinas em dias diferentes.
+    pub fn has_reinforcement(&self, key: &str) -> bool {
+        let note = reinforcement_note(key);
+        self.tasks()
+            .any(|task| task.notes().lines().any(|line| line.trim() == note))
+    }
+}
+
 /// Uma marcação de atividade fixa da agenda, com o instante em que foi
 /// feita ou desfeita.
 ///
@@ -272,6 +293,24 @@ mod tests {
             let merged: Projection = moved.iter().chain(&remote).collect();
             proptest::prop_assert_eq!(merged.tasks().count(), (here + there) as usize);
         }
+    }
+
+    #[test]
+    fn a_reinforcement_is_found_by_the_note() {
+        let mut m = Machines { n: 0 };
+        let created = m.created("pc", 1, "Comprar o filtro");
+        let note = m.event(
+            "pc",
+            1,
+            Change::Notes(format!(
+                "Na loja da esquina\n\n{}",
+                reinforcement_note("claude-1")
+            )),
+        );
+        let projection: Projection = [&created, &note].into_iter().collect();
+        assert!(projection.has_reinforcement("claude-1"));
+        assert!(!projection.has_reinforcement("claude-2"));
+        assert!(!projection.has_reinforcement("claude"));
     }
 
     #[test]

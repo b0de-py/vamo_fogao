@@ -15,7 +15,7 @@
 use std::path::{Path, PathBuf};
 
 use vamo_core::Event;
-use vamo_sync::format::{self, EventLine, MarkLine, VERSION};
+use vamo_sync::format::{self, EventLine, MarkLine, ReinforcementLine, VERSION};
 
 fn schema_dir(version: u32) -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -71,6 +71,12 @@ fn every_old_export_is_still_read() {
         let marks = std::fs::read_to_string(dir.join("marcacoes.jsonl")).unwrap();
         for line in marks.lines() {
             let line: MarkLine = serde_json::from_str(line).unwrap();
+            format::check_version(line.versao).unwrap();
+        }
+
+        let reinforcements = std::fs::read_to_string(dir.join("reforcos.jsonl")).unwrap();
+        for line in reinforcements.lines() {
+            let line: ReinforcementLine = serde_json::from_str(line).unwrap();
             format::check_version(line.versao).unwrap();
         }
     }

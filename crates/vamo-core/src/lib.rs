@@ -73,6 +73,9 @@
 //!   ([`Renumber`]) quando outra máquina criou uma com o mesmo `T-###`.
 //! - [`AgendaMark`]: uma marcação da agenda, que viaja entre as máquinas
 //!   com a mais recente ganhando.
+//! - [`reinforcement_note`]: a linha das notas que diz de qual reforço a
+//!   tarefa veio, e [`Projection::has_reinforcement`], que impede o mesmo
+//!   reforço de virar duas tarefas.
 //!
 //! # As portas
 //!
@@ -128,7 +131,7 @@ pub use reminder::{DEFAULT_LEAD, MAX_CATCH_UP, Reminder, ReminderWindow, reminde
 pub use rules::{Block, TimeRange, TimeRules, Violation, time_of_day};
 pub use status::Status;
 pub use summary::{DaySummary, DayWindow, HabitCount, Habits};
-pub use sync::{AgendaMark, Renumber, renumber_collisions};
+pub use sync::{AgendaMark, REINFORCEMENT_NOTE, Renumber, reinforcement_note, renumber_collisions};
 pub use task::Task;
 pub use title::NotebookTitle;
 pub use unbeaten::{CLUB_RECORD, Outcome, Unbeaten};

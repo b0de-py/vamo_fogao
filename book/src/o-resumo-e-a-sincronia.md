@@ -143,3 +143,17 @@ Um teste de propriedade cria tarefas dos dois lados com os números se cruzando 
 ### A marcação da agenda
 
 A marcação das atividades fixas da agenda mora fora do log (ADR 0009), mas agora viaja: cada marcação guarda o instante em que foi feita ou desfeita, desmarcar não apaga mais a linha, e na sincronia a mais recente de cada dia e evento ganha (`AgendaMark`).
+
+## Os reforços
+
+Reforço é tarefa que chega de fora: do Claude, de outro projeto, de um script. Quem está fora não mexe no banco; põe uma linha no arquivo `reforcos.jsonl` da branch `vamo-entrada` do repositório de backup e manda. Só a `chave` e o `titulo` são obrigatórios; o resto tem o padrão do `vamo add` (área `geral`, encaixe `brecha`, status `pronta`). O schema está em `crates/vamo-sync/schema/v1/reforco.json`, e o exemplo é inventado:
+
+```json
+{"versao":1,"chave":"claude-2026-11-14-filtro","titulo":"Comprar o filtro novo","area":"casa","notas":"O da cozinha"}
+```
+
+Na rodada do `vamo sync`, depois de juntar os eventos das outras máquinas, cada reforço que ainda não virou tarefa vira, e a chave dele vai na última linha das notas (`reforço: claude-2026-11-14-filtro`). É essa linha que impede o reforço repetido de virar tarefa duplicada (`Projection::has_reinforcement`): as notas viajam com o log, então a máquina que ler o mesmo reforço depois já vê a tarefa que a outra criou.
+
+A entrada só se limpa depois que as tarefas novas foram pro backup, e o commit da limpeza sai em cima do que foi lido. Fica na entrada o que não deu pra ler (linha que não é JSON, título fora do padrão do caderno), com um aviso, pra quem mandou consertar.
+
+Uma corrida fica de fora, de propósito: se duas máquinas lerem o mesmo reforço novo ao mesmo tempo, antes de qualquer uma mandar, as duas criam a tarefa. A segunda a mandar tem o envio recusado, traz de novo e renumera a dela, então nada se perde, mas o reforço vira duas tarefas; é só descartar uma. Com o timer de meia em meia hora em cada PC, isso pede as duas sincronizando no mesmo segundo.

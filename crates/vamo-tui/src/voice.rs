@@ -564,6 +564,14 @@ impl Voice {
         }
     }
 
+    /// Quando um reforço da entrada vira tarefa.
+    pub fn reinforced(self, id: TaskId, title: &NotebookTitle) -> String {
+        match self {
+            Self::Game => format!("Reforço contratado: {id} {title}"),
+            Self::Neutral => format!("Tarefa recebida: {id} {title}"),
+        }
+    }
+
     /// O resumo da sincronia pelo backup: quantos eventos e marcações
     /// vieram das outras máquinas.
     pub fn backup_synced(self, events: usize, marks: usize) -> String {

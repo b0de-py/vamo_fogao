@@ -1155,6 +1155,132 @@ mod sincronia {
         );
     }
 
+    /// Manda reforços pra branch `vamo-entrada`, de um clone à parte, como
+    /// faria quem está fora do app.
+    fn send_reinforcements(remote: &Remote, lines: &str) {
+        let outside = tempfile::tempdir().expect("o sistema deveria criar uma pasta temporária");
+        let url = remote.dir.path().join("backup.git");
+        git(
+            outside.path(),
+            &[
+                "clone",
+                "--quiet",
+                url.to_str().expect("a pasta temporária tem nome UTF-8"),
+                "fora",
+            ],
+        );
+        let clone = outside.path().join("fora");
+        // Se a branch já existe, continua dela; se não, nasce sozinha.
+        let exists = Command::new("git")
+            .args(["rev-parse", "--verify", "--quiet", "origin/vamo-entrada"])
+            .current_dir(&clone)
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .env("GIT_CONFIG_GLOBAL", "/dev/null")
+            .output()
+            .expect("o git deveria estar instalado pra rodar os testes de sincronia")
+            .status
+            .success();
+        if exists {
+            git(
+                &clone,
+                &[
+                    "checkout",
+                    "--quiet",
+                    "-B",
+                    "vamo-entrada",
+                    "origin/vamo-entrada",
+                ],
+            );
+        } else {
+            git(&clone, &["checkout", "--quiet", "--orphan", "vamo-entrada"]);
+        }
+        let file = clone.join("reforcos.jsonl");
+        let mut text = std::fs::read_to_string(&file).unwrap_or_default();
+        text.push_str(lines);
+        std::fs::write(&file, text).expect("o arquivo da entrada deveria ser gravado");
+        git(&clone, &["add", "reforcos.jsonl"]);
+        git(
+            &clone,
+            &[
+                "-c",
+                "user.name=fora",
+                "-c",
+                "user.email=fora@exemplo",
+                "commit",
+                "--quiet",
+                "-m",
+                "Reforço",
+            ],
+        );
+        git(&clone, &["push", "--quiet", "origin", "vamo-entrada"]);
+    }
+
+    /// O `reforcos.jsonl` como está no remoto.
+    fn inbox(remote: &Remote) -> String {
+        let out = Command::new("git")
+            .args(["show", "vamo-entrada:reforcos.jsonl"])
+            .current_dir(remote.dir.path().join("backup.git"))
+            .output()
+            .expect("o git deveria estar instalado pra rodar os testes de sincronia");
+        text(&out.stdout)
+    }
+
+    #[test]
+    fn a_reinforcement_becomes_a_task_once() {
+        let remote = Remote::new();
+        let notebook = Vamo::on("notebook");
+        let pc = Vamo::on("pc");
+        remote.connect(&notebook);
+        remote.connect(&pc);
+        notebook.ok(&["sync"]);
+
+        send_reinforcements(
+            &remote,
+            concat!(
+                r#"{"versao":1,"chave":"fora-1","titulo":"Comprar o filtro novo","notas":"Na loja"}"#,
+                "\n",
+                r#"{"versao":1,"chave":"fora-1","titulo":"Comprar o filtro novo"}"#,
+                "\n",
+                r#"{"versao":1,"chave":"fora-2","titulo":"filtro"}"#,
+                "\n",
+                "isto não é json\n",
+            ),
+        );
+        let out = notebook.ok(&["sync"]);
+        assert!(
+            out.contains("Reforço contratado: T-001 Comprar o filtro novo"),
+            "{out}"
+        );
+        assert!(out.contains("o reforço fora-2 ficou na entrada"), "{out}");
+        assert!(
+            out.contains("a linha 4 da entrada de reforços ficou lá"),
+            "{out}"
+        );
+        // Ficou na entrada só o que não virou tarefa.
+        let left = inbox(&remote);
+        assert!(!left.contains("fora-1"), "{left}");
+        assert!(
+            left.contains("fora-2") && left.contains("isto não é json"),
+            "{left}"
+        );
+
+        // O mesmo reforço mandado de novo, lido pela outra máquina, não
+        // vira tarefa duplicada.
+        send_reinforcements(
+            &remote,
+            concat!(
+                r#"{"versao":1,"chave":"fora-1","titulo":"Comprar o filtro novo"}"#,
+                "\n"
+            ),
+        );
+        pc.ok(&["sync"]);
+        notebook.ok(&["sync"]);
+        let list = pc.ok(&["list"]);
+        assert_eq!(list.matches("Comprar o filtro novo").count(), 1, "{list}");
+        assert_eq!(list, notebook.ok(&["list"]));
+        assert!(pc.ok(&["show", "1"]).contains("reforço: fora-1"));
+    }
+
     #[test]
     fn the_public_repository_is_refused() {
         let notebook = Vamo::new();

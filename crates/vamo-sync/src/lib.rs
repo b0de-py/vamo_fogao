@@ -16,6 +16,8 @@
 mod backup;
 mod error;
 pub mod format;
+mod inbox;
 
 pub use backup::{Backup, Pushed, Snapshot};
 pub use error::Error;
+pub use inbox::{Cleared, INBOX_BRANCH, INBOX_FILE, Inbox, Rejected};

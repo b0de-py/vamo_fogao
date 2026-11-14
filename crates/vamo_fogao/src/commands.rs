@@ -442,10 +442,23 @@ impl Session {
                 }
             }
             self.reload()?;
+            let inbox = self.reinforcements(&backup, &mut lines)?;
 
             backup.write(&self.events, &self.store.agenda_marks()?)?;
             match backup.send() {
                 Ok(_) => {
+                    // A entrada só se limpa depois de as tarefas novas
+                    // estarem no backup: se o envio falhasse, o reforço
+                    // sumiria da entrada sem chegar nas outras máquinas.
+                    if let Some(inbox) = inbox.filter(|inbox| !inbox.is_empty())
+                        && backup.clear(&inbox)? == vamo_sync::Cleared::Later
+                    {
+                        lines.push(
+                            "aviso: chegou reforço no meio da leitura; a entrada se limpa na \
+                             próxima rodada"
+                                .to_owned(),
+                        );
+                    }
                     lines.push(self.voice.backup_synced(added, marks));
                     return Ok(lines);
                 }
@@ -460,6 +473,86 @@ impl Session {
         Err(eyre!(
             "o backup recusou o envio {SYNC_ATTEMPTS} vezes seguidas"
         ))
+    }
+
+    /// Os reforços da entrada do backup: cada um que ainda não virou tarefa
+    /// (aqui ou em outra máquina) vira, com a chave nas notas. O que o
+    /// domínio recusa fica na entrada, com um aviso.
+    fn reinforcements(
+        &mut self,
+        backup: &vamo_sync::Backup,
+        lines: &mut Vec<String>,
+    ) -> Result<Option<vamo_sync::Inbox>> {
+        let Some(mut inbox) = backup.inbox()? else {
+            return Ok(None);
+        };
+        for rejected in &inbox.rejected {
+            lines.push(format!(
+                "aviso: a linha {} da entrada de reforços ficou lá: {}",
+                rejected.line, rejected.reason
+            ));
+        }
+        for reinforcement in inbox.reinforcements.clone() {
+            if self.projection.has_reinforcement(&reinforcement.chave) {
+                continue;
+            }
+            match self.reinforce(&reinforcement) {
+                Ok(id) => {
+                    let task = self.task(id)?;
+                    lines.push(self.voice.reinforced(id, task.title()));
+                }
+                Err(error) => {
+                    lines.push(format!(
+                        "aviso: o reforço {} ficou na entrada: {error:#}",
+                        reinforcement.chave
+                    ));
+                    inbox.keep(&reinforcement);
+                }
+            }
+        }
+        Ok(Some(inbox))
+    }
+
+    /// Cria a tarefa de um reforço, com o padrão do `vamo add` no que ele
+    /// não diz e a chave dele na última linha das notas.
+    fn reinforce(
+        &mut self,
+        reinforcement: &vamo_sync::format::ReinforcementLine,
+    ) -> Result<TaskId> {
+        let title: NotebookTitle = reinforcement.titulo.parse()?;
+        let area: Area = reinforcement.area.as_deref().unwrap_or("geral").parse()?;
+        let fit: Fit = reinforcement
+            .encaixe
+            .as_deref()
+            .unwrap_or("brecha")
+            .parse()?;
+        let status: Status = reinforcement
+            .status
+            .as_deref()
+            .unwrap_or("pronta")
+            .parse()?;
+        let note = vamo_core::reinforcement_note(&reinforcement.chave);
+        let notes = match reinforcement.notas.as_deref().map(str::trim) {
+            Some(notes) if !notes.is_empty() => format!("{notes}\n\n{note}"),
+            _ => note,
+        };
+        let id = self
+            .projection
+            .next_id()
+            .ok_or_else(|| eyre!("os números de tarefa acabaram"))?;
+        self.record(
+            id,
+            vec![
+                Change::Created {
+                    title,
+                    area,
+                    fit,
+                    status,
+                },
+                Change::Notes(notes),
+            ],
+        )?;
+        Ok(id)
     }
 
     /// Lê o log de novo do banco, depois de a sincronia mexer nele.
