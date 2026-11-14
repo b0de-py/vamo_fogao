@@ -417,6 +417,52 @@ impl Voice {
         format!("Agenda lida: {appointments}, {moved} pela agenda.")
     }
 
+    /// O título da súmula de um dia, como "Súmula de quarta, 11/11".
+    pub fn summary_title(self, weekday: Weekday, day: &str) -> String {
+        let weekday = self.weekday(weekday);
+        match self {
+            Self::Game => format!("Súmula de {weekday}, {day}"),
+            Self::Neutral => format!("Resumo de {weekday}, {day}"),
+        }
+    }
+
+    /// Os títulos das partes da súmula: gols, fixas marcadas, as que
+    /// voltaram pro banco, os acréscimos e os hábitos.
+    pub fn summary_parts(self) -> [&'static str; 5] {
+        match self {
+            Self::Game => [
+                "Gols",
+                "Fixas marcadas",
+                "Voltaram pro banco",
+                "Acréscimos",
+                "Hábitos",
+            ],
+            Self::Neutral => [
+                "Concluídas",
+                "Fixas feitas",
+                "Adiadas",
+                "Vencidas",
+                "Hábitos",
+            ],
+        }
+    }
+
+    /// Quando o dia da súmula não teve tarefa nenhuma.
+    pub fn summary_empty(self) -> &'static str {
+        match self {
+            Self::Game => "Dia sem jogo: nenhuma tarefa escalada, nenhum gol.",
+            Self::Neutral => "Nenhuma tarefa no dia.",
+        }
+    }
+
+    /// Quando a súmula pedida é de um dia que ainda não fechou.
+    pub fn summary_still_open(self) -> &'static str {
+        match self {
+            Self::Game => "O jogo ainda não acabou: a súmula fecha às 4h e só aí fica guardada.",
+            Self::Neutral => "O dia ainda não fechou: o resumo fecha às 4h e só aí fica guardado.",
+        }
+    }
+
     /// Quando a lista do `vamo list` não tem nenhuma tarefa.
     pub fn nothing_to_list(self) -> &'static str {
         match self {

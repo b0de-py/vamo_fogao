@@ -5,6 +5,10 @@
 //! versionados, aplicados em ordem com `PRAGMA user_version` (veja o módulo
 //! de migrações).
 //!
+//! Também lê, só lendo, o banco do habit-tracker: é de lá que vêm os
+//! números dos hábitos da súmula ([`HabitTracker`], adaptador da porta
+//! [`Habits`](vamo_core::Habits)).
+//!
 //! O adaptador só traduz. Cada valor vai pro banco como o texto que o tipo do
 //! domínio escreve (`T-041`, `brecha`) e volta pelo `FromStr` do mesmo tipo,
 //! que confere de novo. Um banco mexido por fora vira erro na leitura, nunca
@@ -20,6 +24,7 @@
 //! ```
 
 mod error;
+mod habits;
 mod migrations;
 
 use std::collections::BTreeSet;
@@ -32,6 +37,7 @@ use rusqlite::{Connection, Row, params};
 use vamo_core::{Change, Event, EventStore};
 
 pub use error::Error;
+pub use habits::{Habit, HabitTracker};
 
 /// O banco do `vamo_fogao`.
 #[derive(Debug)]
@@ -133,6 +139,50 @@ impl Store {
             )?;
         }
         Ok(())
+    }
+}
+
+impl Store {
+    /// Guarda a súmula fechada de `day`, já no formato de exportação. Fechar
+    /// o mesmo dia de novo troca a súmula guardada: nunca fica mais de uma
+    /// por dia.
+    ///
+    /// # Errors
+    ///
+    /// Quando o SQLite falha.
+    pub fn save_summary(
+        &mut self,
+        day: Date,
+        closed_at: jiff::Timestamp,
+        content: &str,
+    ) -> Result<(), Error> {
+        self.conn.execute(
+            "INSERT INTO summaries (day, closed_at, content) VALUES (?1, ?2, ?3)
+             ON CONFLICT (day) DO UPDATE SET closed_at = ?2, content = ?3",
+            params![day.to_string(), closed_at.to_string(), content],
+        )?;
+        Ok(())
+    }
+
+    /// As súmulas guardadas, em ordem de dia, como `(dia, conteúdo)`.
+    ///
+    /// # Errors
+    ///
+    /// Quando o SQLite falha, ou um dia guardado não é um dia válido.
+    pub fn summaries(&self) -> Result<Vec<(Date, String)>, Error> {
+        let mut select = self
+            .conn
+            .prepare("SELECT day, content FROM summaries ORDER BY day")?;
+        let mut rows = select.query([])?;
+        let mut summaries = Vec::new();
+        while let Some(row) = rows.next()? {
+            let day: String = row.get(0)?;
+            let day = day
+                .parse()
+                .map_err(|source| Error::InvalidSummaryDay { day, source })?;
+            summaries.push((day, row.get(1)?));
+        }
+        Ok(summaries)
     }
 }
 

@@ -26,6 +26,9 @@ O código fala inglês e a interface fala português, com a linguagem de jogo li
 | Projeção | `Projection` | O estado das tarefas calculado a partir do log de eventos. |
 | Máquina | `Machine` | O nome do PC onde a mudança aconteceu. |
 | Banco | `Store` | O SQLite onde o log de eventos fica guardado. |
+| Súmula | `DaySummary` | O resumo de um dia que fechou: gols, fixas, o que voltou pro banco e os acréscimos. |
+| Apito final | `DayWindow` | O trecho do relógio que conta como o dia, da meia-noite às 4h seguintes. |
+| Hábito | `HabitCount` | Quanto de um hábito o habit-tracker registrou, pela porta `Habits`. |
 
 ## Do acervo ao código
 

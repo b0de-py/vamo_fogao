@@ -35,6 +35,9 @@
 //!
 //! - [`Lineup`]: a escalação de um dia, com o atraso e as fixas.
 //! - [`Score`]: o placar do dia.
+//! - [`DaySummary`]: a súmula, o resumo de um dia que fechou, com os
+//!   números dos hábitos ([`HabitCount`]) e o trecho do relógio que conta
+//!   como o dia ([`DayWindow`]).
 //!
 //! # A agenda
 //!
@@ -70,6 +73,7 @@
 //!   [`Appointment`]s.
 //! - [`Notifier`]: pra onde vão os avisos, as notificações do desktop.
 //! - [`Fixtures`]: de onde vêm os jogos do time, os [`Game`]s.
+//! - [`Habits`]: de onde vêm os números dos hábitos da súmula.
 
 mod appointment;
 mod area;
@@ -88,6 +92,7 @@ mod projection;
 mod reminder;
 mod rules;
 mod status;
+mod summary;
 mod task;
 mod title;
 
@@ -108,5 +113,6 @@ pub use projection::Projection;
 pub use reminder::{DEFAULT_LEAD, MAX_CATCH_UP, Reminder, ReminderWindow, reminders};
 pub use rules::{Block, TimeRange, TimeRules, Violation, time_of_day};
 pub use status::Status;
+pub use summary::{DaySummary, DayWindow, HabitCount, Habits};
 pub use task::Task;
 pub use title::NotebookTitle;

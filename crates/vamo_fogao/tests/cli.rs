@@ -948,3 +948,56 @@ mod games {
         insta::assert_snapshot!(vamo.ok(&["jogos", "--data", "2026-11-01"]));
     }
 }
+
+mod resumo {
+    use super::*;
+
+    #[test]
+    fn closing_the_same_day_twice_keeps_one_summary() {
+        let vamo = Vamo::new();
+        vamo.ok(&["add", "Trocar o filtro"]);
+        let first = vamo.ok(&["resumo", "--data", "2026-01-05"]);
+        let second = vamo.ok(&["resumo", "--data", "2026-01-05"]);
+        assert_eq!(first, second);
+
+        let store = vamo_store::Store::open(&vamo.database()).unwrap();
+        let summaries = store.summaries().unwrap();
+        assert_eq!(summaries.len(), 1);
+        assert_eq!(summaries[0].0, jiff::civil::date(2026, 1, 5));
+    }
+
+    #[test]
+    fn the_summary_does_not_touch_the_tasks() {
+        use vamo_core::EventStore;
+        let vamo = Vamo::new();
+        vamo.ok(&["add", "Trocar o filtro"]);
+        let before = vamo_store::Store::open(&vamo.database())
+            .unwrap()
+            .events()
+            .unwrap();
+        vamo.ok(&["resumo", "--data", "2026-01-05"]);
+        let after = vamo_store::Store::open(&vamo.database())
+            .unwrap()
+            .events()
+            .unwrap();
+        assert_eq!(before, after);
+    }
+
+    #[test]
+    fn the_json_carries_the_version() {
+        let vamo = Vamo::new();
+        let out = vamo.ok(&["resumo", "--data", "2026-01-05", "--json"]);
+        let json: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(json["versao"], 1);
+        assert_eq!(json["dia"], "2026-01-05");
+    }
+
+    #[test]
+    fn a_day_that_is_still_open_is_not_saved() {
+        let vamo = Vamo::new();
+        let out = vamo.ok(&["resumo", "--data", "2099-01-05"]);
+        assert!(out.contains("a súmula fecha às 4h"), "{out}");
+        let store = vamo_store::Store::open(&vamo.database()).unwrap();
+        assert_eq!(store.summaries().unwrap(), []);
+    }
+}

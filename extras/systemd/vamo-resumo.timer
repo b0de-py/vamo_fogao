@@ -1,0 +1,13 @@
+# Roda o vamo-resumo.service às 4h, o apito final do dia. Com o PC
+# desligado às 4h, roda assim que ele ligar (Persistent). Pra ligar:
+#
+#   systemctl --user enable --now vamo-resumo.timer
+[Unit]
+Description=Súmula do dia do vamo_fogao, às 4h
+
+[Timer]
+OnCalendar=*-*-* 04:00:00
+Persistent=true
+
+[Install]
+WantedBy=timers.target

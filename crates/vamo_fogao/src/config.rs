@@ -37,6 +37,20 @@ pub(crate) struct Config {
     pub(crate) reminder_lead: Option<SignedDuration>,
     /// A seção `[jogos]`: o calendário de jogos do time.
     pub(crate) games: GamesConfig,
+    /// A seção `[habitos]`: de onde vêm os hábitos da súmula.
+    pub(crate) habits: HabitsConfig,
+}
+
+/// A seção `[habitos]`: o habit-tracker, de onde a súmula tira os números
+/// dos hábitos. Sem a seção, a súmula sai sem hábitos.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub(crate) struct HabitsConfig {
+    /// `banco = "~/.local/share/habit-tracker/habits.db"`: o banco SQLite do
+    /// habit-tracker.
+    pub(crate) database: Option<String>,
+    /// `config = "~/.../config.json"`: a config do habit-tracker, com o
+    /// nome e a unidade de cada hábito e a hora da virada do dia.
+    pub(crate) config: Option<String>,
 }
 
 /// O time da torcida, quando a config não diz outro.
@@ -145,9 +159,11 @@ fn parse(text: &str) -> Result<Config> {
             "apelidos" => config.aliases = aliases(value.get_ref())?,
             "lembretes" => config.reminder_lead = reminders(value.get_ref())?,
             "jogos" => config.games = games(value.get_ref())?,
+            "habitos" => config.habits = habits(value.get_ref())?,
             other => bail!(
                 "`{other}` não é um campo da config: os campos que existem são linguagem, \
-                 animacao e as seções [agenda], [tempo], [apelidos], [lembretes] e [jogos]"
+                 animacao e as seções [agenda], [tempo], [apelidos], [lembretes], [jogos] e \
+                 [habitos]"
             ),
         }
     }
@@ -237,6 +253,42 @@ fn games(value: &DeValue<'_>) -> Result<GamesConfig> {
         }
     }
     Ok(games)
+}
+
+/// Lê a seção `[habitos]`:
+///
+/// ```toml
+/// [habitos]
+/// banco = "~/.local/share/habit-tracker/habits.db"
+/// config = "~/habit-tracker/config.json"
+/// ```
+fn habits(value: &DeValue<'_>) -> Result<HabitsConfig> {
+    let DeValue::Table(table) = value else {
+        bail!("`habitos` é uma seção: escreva [habitos] numa linha e os campos embaixo");
+    };
+    let mut habits = HabitsConfig::default();
+    for (key, value) in table {
+        let field = key.get_ref().as_ref();
+        let DeValue::String(path) = value.get_ref() else {
+            bail!("`{field}` dos hábitos é um caminho entre aspas, como {field} = \"~/...\"");
+        };
+        let path = Some(path.trim().to_owned());
+        match field {
+            "banco" => habits.database = path,
+            "config" => habits.config = path,
+            other => bail!(
+                "`{other}` não é um campo da seção [habitos]: os campos que existem são banco \
+                 e config"
+            ),
+        }
+    }
+    if habits.database.is_none() || habits.config.is_none() {
+        bail!(
+            "a seção [habitos] precisa do `banco` e da `config`: o banco e a config do \
+             habit-tracker"
+        );
+    }
+    Ok(habits)
 }
 
 /// Lê a seção `[lembretes]`:
@@ -616,6 +668,24 @@ mod tests {
         ] {
             assert!(parse(wrong).is_err(), "{wrong}");
         }
+    }
+
+    #[test]
+    fn the_habits_come_in_their_section() {
+        let config = parse(
+            "[habitos]\nbanco = \"~/habitos/habitos.db\"\nconfig = \"~/habitos/config.json\"\n",
+        )
+        .unwrap();
+        assert_eq!(
+            config.habits,
+            HabitsConfig {
+                database: Some("~/habitos/habitos.db".to_owned()),
+                config: Some("~/habitos/config.json".to_owned()),
+            }
+        );
+        assert!(parse("[habitos]\nconfig = \"x.json\"\n").is_err());
+        assert!(parse("[habitos]\nbanco = \"x.db\"\n").is_err());
+        assert!(parse("[habitos]\nbanco = 3\n").is_err());
     }
 
     #[test]

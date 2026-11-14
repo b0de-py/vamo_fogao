@@ -9,6 +9,10 @@ use uuid::Builder;
 use vamo_core::{Change, Event, EventId, EventStore, Fit, Status, TaskId};
 use vamo_store::{Error, Store};
 
+/// A versão do esquema depois de todas as migrações. Migração nova sobe
+/// este número.
+const LATEST_SCHEMA: u32 = 4;
+
 /// Um banco numa pasta que ainda não existe, dentro de uma pasta temporária
 /// que some no fim do teste.
 fn temp_db() -> (TempDir, PathBuf) {
@@ -62,7 +66,7 @@ fn a_new_database_is_created_and_migrated_from_zero() {
     let store = Store::open(&path).unwrap();
 
     assert!(path.exists());
-    assert_eq!(store.schema_version().unwrap(), 3);
+    assert_eq!(store.schema_version().unwrap(), LATEST_SCHEMA);
     assert_eq!(store.events().unwrap(), []);
 }
 
@@ -158,7 +162,7 @@ fn a_database_from_a_newer_version_is_refused_and_left_alone() {
         result,
         Err(Error::NewerSchema {
             found: 99,
-            known: 3
+            known: LATEST_SCHEMA
         })
     ));
     let version: u32 = Connection::open(&path)
@@ -236,7 +240,7 @@ fn a_database_from_the_first_version_is_migrated_with_its_events() {
         .unwrap();
     }
     let mut store = Store::open(&path).unwrap();
-    assert_eq!(store.schema_version().unwrap(), 3);
+    assert_eq!(store.schema_version().unwrap(), LATEST_SCHEMA);
     let old = store.events().unwrap();
     assert_eq!(old.len(), 1);
     assert_eq!(old[0].change, Change::Status(Status::Ready));
@@ -277,5 +281,27 @@ fn agenda_checks_are_kept_per_day_and_event() {
             .into_iter()
             .collect::<Vec<_>>(),
         [(day.tomorrow().unwrap(), "caminhada@exemplo".to_owned())]
+    );
+}
+
+#[test]
+fn closing_the_same_day_twice_keeps_one_summary() {
+    let mut store = Store::in_memory().unwrap();
+    let day = jiff::civil::date(2026, 11, 11);
+    let first: jiff::Timestamp = "2026-11-12T07:00:00Z".parse().unwrap();
+    let second: jiff::Timestamp = "2026-11-12T09:30:00Z".parse().unwrap();
+
+    store.save_summary(day, first, r#"{"gols":1}"#).unwrap();
+    store.save_summary(day, second, r#"{"gols":2}"#).unwrap();
+    store
+        .save_summary(jiff::civil::date(2026, 11, 10), first, "{}")
+        .unwrap();
+
+    assert_eq!(
+        store.summaries().unwrap(),
+        [
+            (jiff::civil::date(2026, 11, 10), "{}".to_owned()),
+            (day, r#"{"gols":2}"#.to_owned()),
+        ]
     );
 }

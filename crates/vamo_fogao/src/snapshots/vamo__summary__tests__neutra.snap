@@ -1,0 +1,21 @@
+---
+source: crates/vamo_fogao/src/summary.rs
+expression: "text(&summary, Voice::Neutral)"
+---
+Resumo de quarta, 11/11
+
+Concluídas (1)
+  T-001  Trocar o filtro da água
+
+Fixas feitas (1)
+  T-004  Regar as plantas
+
+Adiadas (1)
+  T-002  Pagar a conta de luz
+
+Vencidas (1)
+  T-003  Lavar o carro
+
+Hábitos
+  Água     6 copos
+  Leitura  1 capítulo

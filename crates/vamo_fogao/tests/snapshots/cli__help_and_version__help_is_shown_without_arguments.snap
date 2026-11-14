@@ -13,6 +13,7 @@ Comandos:
   import           Traz as tarefas do banco antigo, um markdown com a tabela de índice
   show             Mostra a ficha de uma tarefa, com o histórico
   curiosidade      Conta a curiosidade do dia, uma história do Botafogo
+  resumo           Fecha a súmula do dia: os gols, o que voltou pro banco e os hábitos
   agenda           Mostra os compromissos do dia, lidos da agenda
   sync             Lê a agenda e liga os eventos com rodapé vamo: às tarefas
   jogos            Mostra os próximos jogos do time, lidos do calendário de jogos
@@ -34,7 +35,8 @@ Config:
   VAMO_LINGUAGEM ganham da config. Na seção [agenda], ics = "https://..."
   é o link secreto da agenda (ou fonte = "google", com o vamo compilado
   com a feature google). Na seção [jogos], ics = "https://..." é a tabela
-  de jogos do time.
+  de jogos do time. Na seção [habitos], banco e config são os caminhos do
+  banco e da config do habit-tracker, pros hábitos da súmula.
 
 Variáveis de ambiente:
   VAMO_LINGUAGEM   jogo ou neutra, o mesmo que --linguagem

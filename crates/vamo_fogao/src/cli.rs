@@ -39,7 +39,8 @@ Config:
   VAMO_LINGUAGEM ganham da config. Na seção [agenda], ics = \"https://...\"
   é o link secreto da agenda (ou fonte = \"google\", com o vamo compilado
   com a feature google). Na seção [jogos], ics = \"https://...\" é a tabela
-  de jogos do time.
+  de jogos do time. Na seção [habitos], banco e config são os caminhos do
+  banco e da config do habit-tracker, pros hábitos da súmula.
 
 Variáveis de ambiente:
   VAMO_LINGUAGEM   jogo ou neutra, o mesmo que --linguagem
@@ -220,6 +221,24 @@ pub(crate) enum Command {
         /// Mostra a resenha do dia, a zoeira, no lugar do fato
         #[arg(long = "resenha")]
         banter: bool,
+    },
+
+    /// Fecha a súmula do dia: os gols, o que voltou pro banco e os hábitos
+    #[command(
+        name = "resumo",
+        override_usage = "vamo resumo [OPÇÕES]",
+        help_template = SUBCOMMAND_HELP_TEMPLATE,
+        next_help_heading = "Opções"
+    )]
+    Summary {
+        /// O dia, como 2026-11-11 (sem ela, o último dia que fechou: o dia
+        /// fecha às 4h do dia seguinte)
+        #[arg(long = "data", value_name = "DATA", value_parser = parse_date)]
+        date: Option<jiff::civil::Date>,
+
+        /// Sai em JSON, no formato de exportação
+        #[arg(long = "json")]
+        json: bool,
     },
 
     /// Mostra os compromissos do dia, lidos da agenda

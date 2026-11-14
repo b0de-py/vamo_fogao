@@ -11,8 +11,8 @@ use jiff::tz::TimeZone;
 use uuid::Uuid;
 use vamo_agenda::{Footer, Freshness};
 use vamo_core::{
-    Area, Change, Event, EventId, EventStore, Fit, Machine, NotebookTitle, Notifier, Projection,
-    ReminderWindow, Skipped, Status, Task, TaskId,
+    Area, Change, DaySummary, Event, EventId, EventStore, Fit, Habits, Machine, NotebookTitle,
+    Notifier, Projection, ReminderWindow, Skipped, Status, Task, TaskId,
 };
 use vamo_store::Store;
 
@@ -20,7 +20,7 @@ use crate::cli::{AcervoCommand, Command};
 use crate::config::Config;
 use crate::import::{self, Plan};
 use crate::paths;
-use crate::{acervo, agenda, bar, games, remind};
+use crate::{acervo, agenda, bar, games, remind, summary};
 use vamo_tui::Voice;
 
 /// Roda um comando e devolve o que mostrar na saída.
@@ -48,6 +48,7 @@ pub(crate) fn run(command: Command, voice: Voice, config: &Config) -> Result<Str
             Session::open(voice)?.agenda(config, day)
         }
         Command::Sync => Session::open(voice)?.sync(config),
+        Command::Summary { date, json } => Session::open(voice)?.summary(config, date, json),
         Command::Games { date } => {
             games_list(config, date.unwrap_or_else(|| jiff::Zoned::now().date()))
         }
@@ -365,6 +366,56 @@ impl Session {
             }
             Ok(_) => {}
             Err(error) => lines.push(format!("aviso: os jogos não vieram: {error:#}")),
+        }
+        Ok(lines.join("\n"))
+    }
+
+    /// `vamo resumo`: a súmula de um dia. Dia que já fechou fica guardado
+    /// no banco, uma súmula por dia: rodar de novo só troca a guardada.
+    /// Só lê as tarefas, não muda nenhuma.
+    fn summary(&mut self, config: &Config, day: Option<Date>, json: bool) -> Result<String> {
+        let zone = TimeZone::system();
+        let now = jiff::Zoned::now().with_time_zone(zone.clone());
+        let day = match day {
+            Some(day) => day,
+            None => summary::last_closed_day(&now)?,
+        };
+        let window = summary::window(day, &zone)?;
+
+        // Hábito que não abriu vira aviso: a súmula das 4h sai mesmo assim.
+        let mut warnings = Vec::new();
+        let habits = match summary::habit_tracker(&config.habits) {
+            Ok(None) => Vec::new(),
+            Ok(Some(tracker)) => tracker.count(day, day).unwrap_or_else(|error| {
+                warnings.push(format!("aviso: os hábitos não vieram: {error}"));
+                Vec::new()
+            }),
+            Err(error) => {
+                warnings.push(format!("aviso: os hábitos não vieram: {error:#}"));
+                Vec::new()
+            }
+        };
+
+        let closed = DaySummary::close(&self.events, day, window, habits);
+        let exported = summary::json(&closed);
+        let finished = now.timestamp() >= window.end;
+        if finished {
+            self.store
+                .save_summary(day, now.timestamp(), &exported.to_string())?;
+        }
+
+        if json {
+            // O JSON sai limpo pra quem lê; o aviso vai pra saída de erro.
+            for warning in &warnings {
+                eprintln!("{warning}");
+            }
+            return Ok(exported.to_string());
+        }
+        let mut lines = warnings;
+        lines.push(summary::text(&closed, self.voice));
+        if !finished {
+            lines.push(String::new());
+            lines.push(self.voice.summary_still_open().to_owned());
         }
         Ok(lines.join("\n"))
     }

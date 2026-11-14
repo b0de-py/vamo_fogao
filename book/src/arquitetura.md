@@ -24,7 +24,7 @@ Do lado esquerdo ficam os adaptadores que **chamam** o domínio: a CLI, a TUI e 
 |-------|-------|------------|
 | `vamo-core` | O domínio: tarefa, status, encaixe, regras do tempo, brechas, título do caderno e as portas. | nenhum crate do workspace |
 | `vamo-acervo` | O museu de bolso: fatos, validador e sorteio da curiosidade do dia. | nenhum crate do workspace |
-| `vamo-store` | Guarda o log de eventos em SQLite. | `vamo-core` |
+| `vamo-store` | Guarda o log de eventos e as súmulas em SQLite, e lê os hábitos do habit-tracker. | `vamo-core` |
 | `vamo-agenda` | Lê a agenda (link ICS ou, com a feature `google`, a API do Google) e o rodapé `vamo:` dos eventos. | `vamo-core` |
 | `vamo-sync` | Exporta o log de eventos e sincroniza as máquinas pelo git. | `vamo-core` |
 | `vamo-tui` | As telas, o tema e o fogo. | `vamo-core`, `vamo-acervo` |
