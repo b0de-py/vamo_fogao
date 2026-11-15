@@ -20,6 +20,7 @@ mod bench;
 mod bigtext;
 mod card;
 mod curiosity;
+mod dayline;
 mod fire;
 mod glow;
 mod hud;

@@ -1521,6 +1521,12 @@ pub(crate) mod tests {
         assert!(screen.contains(&big_score("0 x 1")), "{screen}");
         assert_snapshot!(screen);
 
+        // Numa tela alta, a linha do dia entra embaixo do placar: a reunião
+        // e a tarefa agendada em bloco, o almoço protegido e as brechas.
+        let tall = draw(&app, &ledger, 100, 34);
+        assert!(tall.contains("L I N H A   D O   D I A"), "{tall}");
+        assert_snapshot!("the_day_line", tall);
+
         // A reunião recorrente é a fixa da agenda: marcar conta no placar
         // e não cria tarefa.
         app.on_key(key(KeyCode::Char(' ')), &mut ledger);
