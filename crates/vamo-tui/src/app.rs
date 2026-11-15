@@ -31,7 +31,7 @@ use crate::schedule::Schedule;
 use crate::star::Star;
 use crate::today::{self, Today};
 use crate::when::parse_day;
-use crate::{Density, Effects, Ledger, Setup, Voice, card, hud, theme};
+use crate::{Density, Effects, Ledger, Setup, Voice, card, glow, hud, theme};
 
 /// O que aconteceu depois de uma ação de quem usa.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -185,6 +185,8 @@ pub(crate) struct App {
     fire_area: Cell<(u16, u16)>,
     /// Quantos passos do fogo ainda faltam no grito de gol.
     flash: u8,
+    /// Quantos passos faltam pro brilho da linha escolhida assentar.
+    glow: u8,
 }
 
 /// Se a janela da TUI está à vista, pelo foco que o terminal avisa.
@@ -249,6 +251,7 @@ impl App {
             fire: Fire::new(fire::SEED),
             fire_area: Cell::new((0, 0)),
             flash: 0,
+            glow: 0,
         }
     }
 
@@ -262,7 +265,8 @@ impl App {
     /// alguém mexendo há pouco (ou um gol sendo gritado). Quando não está,
     /// quem roda a TUI só espera um evento e não gasta CPU.
     pub(crate) fn animating(&self, now: Instant) -> bool {
-        let awake = self.flash > 0 || self.awake_until.is_some_and(|until| now < until);
+        let awake =
+            self.flash > 0 || self.glow > 0 || self.awake_until.is_some_and(|until| now < until);
         self.animated() && self.window == Window::Visible && awake
     }
 
@@ -313,6 +317,7 @@ impl App {
         if let Some(tip) = &mut self.tip {
             tip.shown = tip.shown.saturating_add(TIP_LETTERS_PER_STEP);
         }
+        self.glow = self.glow.saturating_sub(1);
         let (columns, rows) = self.fire_area.get();
         self.fire.resize(columns, rows);
         let strength = if self.flash > 0 {
@@ -379,6 +384,19 @@ impl App {
         if self.help {
             self.help = false;
             return;
+        }
+        // O cursor andou (ou a tela trocou): a linha escolhida acende de
+        // novo. Só com os efeitos no cheio; nos outros, ela já chega assentada.
+        let moves = matches!(
+            key.code,
+            KeyCode::Up
+                | KeyCode::Down
+                | KeyCode::Char('j' | 'k' | '1'..='4')
+                | KeyCode::Tab
+                | KeyCode::BackTab
+        );
+        if moves && self.effects == Effects::Full {
+            self.glow = glow::STEPS;
         }
         match key.code {
             KeyCode::Char('q') => self.quit = true,
@@ -567,6 +585,7 @@ impl App {
 
         self.render_header(frame, header);
         self.render_body(frame, body, ledger);
+        glow::settle(body, frame.buffer_mut(), self.glow);
         let footer_line = match (&self.prompt, &self.message) {
             (Some(prompt), _) => Line::from(vec![
                 Span::styled(prompt.label(self.voice), theme::selected()),
@@ -1072,6 +1091,40 @@ pub(crate) mod tests {
         let mut app = fresh_app();
         app.effects = Effects::Light;
         assert!(draw(&app, &ledger, 90, 18).contains(&tip));
+    }
+
+    #[test]
+    fn the_chosen_line_glows_when_the_cursor_moves_and_then_rests() {
+        let (mut app, mut ledger, now) = burning();
+        app.effects = Effects::Full;
+        assert_eq!(app.glow, 0);
+        app.on_key(key(KeyCode::Char('j')), &mut ledger);
+        assert_eq!(app.glow, glow::STEPS);
+        // Enquanto assenta, a TUI anima mesmo depois do tempo de ociosa.
+        let later = now + IDLE + Duration::from_secs(1);
+        assert!(app.animating(later));
+        for _ in 0..glow::STEPS {
+            app.tick(&ledger, later);
+        }
+        // Assentou: o brilho acabou e a TUI volta a dormir.
+        assert_eq!(app.glow, 0);
+        assert!(!app.animating(later));
+        // Tecla que não anda com o cursor não acende nada.
+        app.on_key(key(KeyCode::Char('?')), &mut ledger);
+        assert_eq!(app.glow, 0);
+    }
+
+    #[test]
+    fn without_full_effects_the_chosen_line_arrives_at_rest() {
+        for effects in [Effects::Light, Effects::Off] {
+            let mut app = new_app(Voice::Game);
+            let mut ledger = crate::today::tests::example_day();
+            app.effects = effects;
+            app.on_key(key(KeyCode::Char('j')), &mut ledger);
+            assert_eq!(app.glow, 0, "{effects}");
+            // A linha escolhida continua marcada, com a barra.
+            assert!(draw(&app, &ledger, 100, 12).contains('▌'));
+        }
     }
 
     #[test]
