@@ -20,6 +20,8 @@ mod bench;
 mod card;
 mod curiosity;
 mod fire;
+mod glow;
+mod hud;
 mod ledger;
 mod matchday;
 mod museum;
@@ -133,8 +135,13 @@ fn main_loop<L: Ledger>(
         // mexendo há 3 segundos), a TUI fica no `read` até chegar um evento:
         // não gasta CPU. Com o fogo queimando, espera no máximo até o
         // próximo passo.
-        let ready = if app.animating(Instant::now()) {
+        // A dica do rodapé tem hora pra sumir: mesmo parada, a TUI acorda
+        // nessa hora pra tirar a dica da tela.
+        let now = Instant::now();
+        let ready = if app.animating(now) {
             event::poll(TICK.saturating_sub(last_tick.elapsed()))?
+        } else if let Some(deadline) = app.deadline() {
+            event::poll(deadline.saturating_duration_since(now))?
         } else {
             true
         };
@@ -164,6 +171,7 @@ fn main_loop<L: Ledger>(
             }
         }
         let now = Instant::now();
+        app.expire(now);
         if app.animating(now) && now.duration_since(last_tick) >= TICK {
             app.tick(ledger, now);
             last_tick = now;

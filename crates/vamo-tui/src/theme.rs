@@ -27,6 +27,9 @@ pub(crate) const LINE: Color = Color::Rgb(0x2a, 0x2a, 0x2a);
 pub(crate) const WHITE: Color = Color::Rgb(0xff, 0xff, 0xff);
 /// O destaque: a tela atual, a linha escolhida, os links.
 pub(crate) const ACCENT: Color = Color::Rgb(0x00, 0xd9, 0xff);
+/// O fundo da linha escolhida depois que o brilho assenta: o ciano do
+/// destaque bem escuro, pra linha continuar marcada sem gritar.
+pub(crate) const CURSOR_REST: Color = Color::Rgb(0x00, 0x38, 0x42);
 /// O segundo destaque, pra o acervo e a resenha.
 pub(crate) const MAGENTA: Color = Color::Rgb(0xc5, 0x86, 0xc0);
 /// O que deu certo: tarefa concluída.
@@ -37,8 +40,19 @@ pub(crate) const PLASMA: Color = Color::Rgb(0xff, 0xff, 0x00);
 
 /// Todas as cores do tema, pro teste que garante que nenhuma é vermelha.
 #[cfg(test)]
-const ALL: [Color; 11] = [
-    BACKGROUND, SURFACE, TEXT, MUTED, SOFT, LINE, WHITE, ACCENT, MAGENTA, GREEN, PLASMA,
+const ALL: [Color; 12] = [
+    BACKGROUND,
+    SURFACE,
+    TEXT,
+    MUTED,
+    SOFT,
+    LINE,
+    WHITE,
+    ACCENT,
+    CURSOR_REST,
+    MAGENTA,
+    GREEN,
+    PLASMA,
 ];
 
 /// O estilo de base de toda a tela.
@@ -82,7 +96,8 @@ pub(crate) fn selected() -> Style {
     Style::new().fg(ACCENT).add_modifier(Modifier::BOLD)
 }
 
-/// O fundo da linha com o cursor numa lista.
+/// A marca da linha com o cursor numa lista. As telas pintam a linha com
+/// este estilo, e o `glow::settle` troca pela cor do momento do brilho.
 pub(crate) fn cursor() -> Style {
     Style::new()
         .fg(BACKGROUND)
@@ -106,6 +121,12 @@ pub(crate) fn shout() -> Style {
         .fg(BACKGROUND)
         .bg(WHITE)
         .add_modifier(Modifier::BOLD)
+}
+
+/// Uma tecla no rodapé: branco em negrito num fundo um tom acima do vidro,
+/// pra parecer a tampa de uma tecla.
+pub(crate) fn keycap() -> Style {
+    Style::new().fg(WHITE).bg(LINE).add_modifier(Modifier::BOLD)
 }
 
 /// O acervo e a resenha.
