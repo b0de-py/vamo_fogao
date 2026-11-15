@@ -55,15 +55,34 @@ Pra cada tarefa, na ordem das sub-issues:
    <Por que a mudança existe e o que ela muda.>
 
    Closes #<sub-issue>
+
+   Co-Authored-By: Claude <modelo> <noreply@anthropic.com>
    ```
 
-4. Push logo em seguida: `git push -u origin feature/fase-N`.
+   O autor é o Raul, pelo git configurado na máquina dele; o Claude entra só no rodapé.
 
-Se uma tarefa crescer além do escopo, quebre em sub-issues novas em vez de misturar tudo num commit. Decisão de arquitetura ganha ADR em `docs/adr/` no mesmo commit.
+4. Push logo em seguida. O SSH da máquina pede senha, então o push vai por HTTPS com a credencial do `gh`:
+
+   ```sh
+   git -c credential.helper='!gh auth git-credential' push -u https://github.com/b0de-py/vamo_fogao.git feature/fase-N
+   ```
+
+Tarefa que aparece no meio da fase (um pedido do Raul, um ajuste no acervo) vira sub-issue nova do épico, com commit próprio. Se uma tarefa crescer além do escopo, quebre em sub-issues novas em vez de misturar tudo num commit. Decisão de arquitetura ganha ADR em `docs/adr/` no mesmo commit.
 
 ## 3. Fechar a fase
 
 Abra o PR pra `main` com o título "Fase N: Nome (Codinome)" e o corpo no modelo de PR, com um `Closes #` pro épico e pra cada sub-issue. Mande o link pro Raul e pare aí: o merge é dele.
+
+No texto do PR, liste as decisões de produto tomadas no caminho, pra ele conferir antes do merge.
+
+Depois que o Raul der o merge, reinstale o `vamo` da `main` na máquina dele, sem esperar pedido:
+
+```sh
+git switch main && git pull
+cargo install --path crates/vamo_fogao --locked
+```
+
+Se a fase mexe em config, timer ou barra, faça backup do arquivo antes de mudar (`config.toml.bak.fase-N`) e mostre funcionando: ele gosta de ver como ficou.
 
 ## O que nunca fazer
 
