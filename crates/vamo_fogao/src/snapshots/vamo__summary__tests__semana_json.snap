@@ -103,6 +103,6 @@ expression: pretty(&week_json(&week))
     "recorde": 3,
     "recorde_do_clube": 52
   },
-  "versao": 1,
+  "versao": 2,
   "voltaram_pro_banco": 1
 }

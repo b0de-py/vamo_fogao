@@ -999,7 +999,7 @@ mod resumo {
         let vamo = Vamo::new();
         let out = vamo.ok(&["resumo", "--data", "2026-01-05", "--json"]);
         let json: serde_json::Value = serde_json::from_str(&out).unwrap();
-        assert_eq!(json["versao"], 1);
+        assert_eq!(json["versao"], 2);
         assert_eq!(json["dia"], "2026-01-05");
     }
 
@@ -1305,5 +1305,58 @@ mod sincronia {
     fn nothing_configured_says_what_to_add() {
         let err = Vamo::new().fails(&["sync"], 1);
         assert!(err.contains("[sincronia]"), "{err}");
+    }
+}
+
+mod repeat {
+    use super::*;
+
+    #[test]
+    fn a_task_can_be_born_with_an_interval() {
+        let vamo = Vamo::new();
+        vamo.ok(&["add", "Fechar o mês", "--volta", "1m"]);
+
+        let shown = vamo.ok(&["show", "1"]);
+        assert!(shown.contains("volta    todo mês"), "{shown}");
+    }
+
+    #[test]
+    fn the_interval_can_be_set_and_removed_later() {
+        let vamo = Vamo::new();
+        vamo.ok(&["add", "Regar as plantas"]);
+
+        let said = vamo.ok(&["volta", "1", "2s"]);
+        assert!(said.contains("volta a cada 2 semanas"), "{said}");
+        assert!(
+            vamo.ok(&["show", "1"])
+                .contains("volta    a cada 2 semanas")
+        );
+
+        let said = vamo.ok(&["volta", "1", "nunca"]);
+        assert!(said.contains("não volta mais"), "{said}");
+        assert!(!vamo.ok(&["show", "1"]).contains("volta    "));
+    }
+
+    #[test]
+    fn a_goal_on_a_task_that_comes_back_still_closes_it_for_now() {
+        let vamo = Vamo::new();
+        vamo.ok(&["add", "Fechar o mês", "--volta", "1m"]);
+        vamo.ok(&["done", "1"]);
+
+        // Concluída, ela some da lista até o dia de voltar.
+        assert_eq!(
+            vamo.ok(&["list"]),
+            "Ninguém no banco. Pra contratar: vamo add <título>\n"
+        );
+        assert!(vamo.ok(&["list", "--todas"]).contains("concluída"));
+    }
+
+    #[test]
+    fn a_bad_interval_brings_the_explanation() {
+        let vamo = Vamo::new();
+        vamo.ok(&["add", "Fechar o mês"]);
+
+        let error = vamo.fails(&["volta", "1", "amanhã"], 2);
+        assert!(error.contains("não é um intervalo"), "{error}");
     }
 }

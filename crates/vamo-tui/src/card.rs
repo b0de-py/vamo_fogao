@@ -86,6 +86,9 @@ pub(crate) fn render(
             ),
         ),
     ];
+    if let Some(interval) = task.repeat() {
+        lines.push(field(voice.field(Field::Repeat), Voice::interval(interval)));
+    }
     let mut notes = task.notes().lines();
     if let Some(first) = notes.next() {
         lines.push(field(voice.field(Field::Notes), first.to_owned()));

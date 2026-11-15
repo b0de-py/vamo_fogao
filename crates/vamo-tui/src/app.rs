@@ -561,7 +561,9 @@ impl App {
                 Some(task) => {
                     card::render(frame, area, &task, ledger.events(), &self.zone, self.voice);
                 }
-                None => self.bench.render(frame, area, projection, self.voice),
+                None => self
+                    .bench
+                    .render(frame, area, projection, self.today, self.voice),
             },
             Tab::Museum => self
                 .museum

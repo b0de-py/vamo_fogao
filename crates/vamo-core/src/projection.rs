@@ -5,7 +5,9 @@ use std::collections::BTreeMap;
 use jiff::Timestamp;
 use jiff::civil::Date;
 
-use crate::{Area, Change, Error, Event, EventId, Fit, NotebookTitle, Status, Task, TaskId};
+use crate::{
+    Area, Change, Error, Event, EventId, Fit, Interval, NotebookTitle, Status, Task, TaskId,
+};
 
 /// O estado de todas as tarefas, calculado a partir dos eventos.
 ///
@@ -98,6 +100,7 @@ impl Projection {
             Change::Status(status) => write(&mut draft.status, status, stamp),
             Change::Notes(notes) => write(&mut draft.notes, notes, stamp),
             Change::Day(day) => write(&mut draft.day, day, stamp),
+            Change::Repeat(repeat) => write(&mut draft.repeat, repeat, stamp),
             // A marcação por tarefa saiu com o status recorrente (ADR 0014).
             // O evento continua válido no log pra os arquivos antigos
             // carregarem, mas não muda mais nada.
@@ -147,6 +150,54 @@ impl Projection {
             changes.push(Change::Day(Some(today)));
         }
         Ok(changes)
+    }
+
+    /// A mudança que define de quanto em quanto tempo a tarefa volta depois
+    /// do gol (`None` tira).
+    ///
+    /// # Errors
+    ///
+    /// [`Error::UnknownTask`] se a tarefa não existir.
+    pub fn set_repeat(&self, id: TaskId, repeat: Option<Interval>) -> Result<Change, Error> {
+        self.task(id).ok_or(Error::UnknownTask { id })?;
+        Ok(Change::Repeat(repeat))
+    }
+
+    /// As tarefas que voltam pro banco em `today`: concluídas, com
+    /// intervalo, cujo dia de voltar já chegou. Cada uma vem com as mudanças
+    /// que a devolvem: pronta, sem dia. Quem chama grava no log; como a
+    /// tarefa deixa de estar concluída, rodar de novo não repete nada.
+    ///
+    /// O core não lê o relógio: o `today` chega de fora.
+    ///
+    /// ```
+    /// use jiff::civil::date;
+    /// use vamo_core::Projection;
+    ///
+    /// assert!(Projection::new().resurface(date(2026, 11, 15)).is_empty());
+    /// ```
+    pub fn resurface(&self, today: Date) -> Vec<(TaskId, Vec<Change>)> {
+        self.tasks()
+            .filter(|task| task.returns_on().is_some_and(|day| day <= today))
+            .map(|task| {
+                (
+                    task.id(),
+                    vec![Change::Status(Status::Ready), Change::Day(None)],
+                )
+            })
+            .collect()
+    }
+
+    /// As concluídas que ainda estão dormindo: voltam depois de `today`.
+    /// Na ordem em que voltam, e com o dia de voltar ao lado.
+    pub fn coming_back(&self, today: Date) -> Vec<(Task, Date)> {
+        let mut sleeping: Vec<(Task, Date)> = self
+            .tasks()
+            .filter_map(|task| Some((task.returns_on().filter(|&day| day > today)?, task)))
+            .map(|(day, task)| (task, day))
+            .collect();
+        sleeping.sort_by_key(|(task, day)| (*day, task.id()));
+        sleeping
     }
 
     /// As mudanças que escalam a tarefa pra um dia: ela fica agendada. Se
@@ -223,6 +274,7 @@ struct Draft {
     status: Option<Latest<Status>>,
     notes: Option<Latest<String>>,
     day: Option<Latest<Option<Date>>>,
+    repeat: Option<Latest<Option<Interval>>>,
 }
 
 impl Draft {
@@ -243,6 +295,9 @@ impl Draft {
         }
         if let Some(day) = &self.day {
             task.set_day(day.value);
+        }
+        if let Some(repeat) = &self.repeat {
+            task.set_repeat(repeat.value);
         }
         Some(task)
     }
@@ -506,6 +561,11 @@ mod tests {
                 day: jiff::civil::date(2026, 11, day),
                 done
             }),
+            prop::option::of(prop::sample::select(vec![
+                Interval::Weeks(2),
+                Interval::Months(1),
+            ]))
+            .prop_map(Change::Repeat),
         ];
 
         prop::collection::vec((1..=3u32, 0..4i64, change), 0..40).prop_map(|items| {
@@ -519,6 +579,76 @@ mod tests {
 
     fn tasks(projection: &Projection) -> Vec<Task> {
         projection.tasks().collect()
+    }
+
+    /// Uma tarefa que já saiu com gol em `day` e volta de `interval` em
+    /// `interval`.
+    fn goal_with_interval(day: Date, interval: Interval) -> Projection {
+        projection(&[
+            event(1, 0, 7, created("Fechar o mês")),
+            event(2, 1, 7, Change::Repeat(Some(interval))),
+            event(3, 2, 7, Change::Status(Status::Done)),
+            event(4, 3, 7, Change::Day(Some(day))),
+        ])
+    }
+
+    #[test]
+    fn a_goal_task_comes_back_when_the_interval_passes() {
+        let day = jiff::civil::date(2026, 11, 15);
+        let projection = goal_with_interval(day, Interval::Months(1));
+        let id = TaskId::new(7).unwrap();
+
+        // Antes do dia, a tarefa dorme e aparece na lista de quem volta.
+        let eve = jiff::civil::date(2026, 12, 14);
+        assert_eq!(projection.resurface(eve), []);
+        let sleeping = projection.coming_back(eve);
+        assert_eq!(sleeping.len(), 1);
+        assert_eq!(sleeping[0].1, jiff::civil::date(2026, 12, 15));
+
+        // No dia, ela volta pro banco: pronta e sem dia.
+        let back = projection.resurface(jiff::civil::date(2026, 12, 15));
+        assert_eq!(
+            back,
+            [(id, vec![Change::Status(Status::Ready), Change::Day(None)])]
+        );
+        assert_eq!(projection.coming_back(jiff::civil::date(2026, 12, 15)), []);
+    }
+
+    #[test]
+    fn resurfacing_twice_does_nothing_the_second_time() {
+        let day = jiff::civil::date(2026, 11, 15);
+        let mut projection = goal_with_interval(day, Interval::Weeks(2));
+        let today = jiff::civil::date(2026, 12, 1);
+        for (n, (id, changes)) in (10..).zip(projection.resurface(today)) {
+            for (k, change) in (n..).zip(changes) {
+                projection.apply(&event(k * 10, 10, id.number(), change));
+            }
+        }
+        let task = projection.task(TaskId::new(7).unwrap()).unwrap();
+        assert_eq!(task.status(), Status::Ready);
+        assert_eq!(task.day(), None);
+        assert_eq!(projection.resurface(today), []);
+    }
+
+    #[test]
+    fn a_task_without_interval_never_comes_back() {
+        let projection = projection(&[
+            event(1, 0, 7, created("Pagar a conta")),
+            event(2, 1, 7, Change::Status(Status::Done)),
+            event(3, 2, 7, Change::Day(Some(jiff::civil::date(2026, 11, 15)))),
+        ]);
+        assert_eq!(projection.resurface(jiff::civil::date(2030, 1, 1)), []);
+        assert_eq!(projection.coming_back(jiff::civil::date(2026, 11, 16)), []);
+    }
+
+    #[test]
+    fn only_a_closed_task_sleeps() {
+        // Tem intervalo, mas ainda não deu o gol: nada dorme.
+        let projection = projection(&[
+            event(1, 0, 7, created("Fechar o mês")),
+            event(2, 1, 7, Change::Repeat(Some(Interval::Months(1)))),
+        ]);
+        assert_eq!(projection.coming_back(jiff::civil::date(2026, 11, 15)), []);
     }
 
     proptest! {

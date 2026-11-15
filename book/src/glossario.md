@@ -16,6 +16,7 @@ O código fala inglês e a interface fala português, com a linguagem de jogo li
 | Brecha | `Gap` | Uma janela livre no expediente, onde cabe uma tarefa curta. |
 | Compromisso | `Appointment` | Um evento da agenda, já no horário local, com a recorrência resolvida. |
 | Rodapé | `Footer` | A linha `vamo: T-041 \| ...` na descrição do evento, que liga ele à tarefa. |
+| Tarefa que volta | `Interval` | Tarefa sem horário que, depois do gol, espera um intervalo (`1m`, `2s`) e volta pro banco sozinha. |
 | Atividade fixa da agenda | `FixedActivity` | Um compromisso recorrente, de marcar na tela Hoje sem virar tarefa. |
 | Regras do tempo | `TimeRules` | Expediente, teto da noite e blocos protegidos, da seção `[tempo]` da config. |
 | Regra ferida | `Violation` | O que uma tarefa marcada num horário fere: o teto da noite ou um bloco protegido. |

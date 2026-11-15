@@ -9,7 +9,7 @@ use std::str::FromStr;
 
 use jiff::civil::Weekday;
 use vamo_acervo::{Banter, Curiosity, Tag};
-use vamo_core::{Change, NotebookTitle, TaskId};
+use vamo_core::{Change, Interval, NotebookTitle, TaskId};
 
 use crate::Animation;
 use crate::app::Tab;
@@ -26,6 +26,7 @@ pub(crate) enum Field {
     Fit,
     Status,
     Day,
+    Repeat,
     Notes,
 }
 
@@ -306,6 +307,11 @@ impl Voice {
         }
     }
 
+    /// O título da faixa das tarefas que dormem até voltar pro banco.
+    pub(crate) fn bench_coming_back(self) -> &'static str {
+        "Voltam em breve"
+    }
+
     /// Quando nenhuma tarefa passa no filtro.
     pub(crate) fn bench_empty(self) -> &'static str {
         match self {
@@ -388,6 +394,8 @@ impl Voice {
                 Self::Game => "saiu da escalação".to_owned(),
                 Self::Neutral => "sem dia marcado".to_owned(),
             },
+            Change::Repeat(Some(interval)) => format!("volta {}", Self::interval(*interval)),
+            Change::Repeat(None) => "deixou de voltar".to_owned(),
             Change::Check { day, done: true } => format!("feita em {}", day.strftime("%d/%m/%Y")),
             Change::Check { day, done: false } => {
                 format!("desmarcada em {}", day.strftime("%d/%m/%Y"))
@@ -651,7 +659,18 @@ impl Voice {
             Field::Fit => "encaixe",
             Field::Status => "status",
             Field::Day => "dia",
+            Field::Repeat => "volta",
             Field::Notes => "notas",
+        }
+    }
+
+    /// O intervalo de volta em palavras: `todo mês`, `a cada 2 semanas`.
+    pub fn interval(interval: Interval) -> String {
+        match interval {
+            Interval::Months(1) => "todo mês".to_owned(),
+            Interval::Months(n) => format!("a cada {n} meses"),
+            Interval::Weeks(1) => "toda semana".to_owned(),
+            Interval::Weeks(n) => format!("a cada {n} semanas"),
         }
     }
 

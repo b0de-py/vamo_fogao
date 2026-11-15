@@ -13,6 +13,9 @@ use crate::prompt::{Prompt, Purpose};
 use crate::voice::Field;
 use crate::{Ledger, Voice, theme};
 
+/// Quantas tarefas dormindo a faixa "voltam em breve" mostra.
+const MAX_SLEEPING: usize = 4;
+
 /// O cursor e o filtro do Banco.
 #[derive(Debug, Default)]
 pub(crate) struct Bench {
@@ -72,6 +75,7 @@ impl Bench {
         frame: &mut Frame<'_>,
         area: Rect,
         projection: &Projection,
+        today: Date,
         voice: Voice,
     ) {
         let tasks = self.visible(projection);
@@ -90,6 +94,36 @@ impl Bench {
             ])),
             top,
         );
+        // As que dormem até voltar ficam numa faixa embaixo, com a data.
+        let sleeping: Vec<(Task, Date)> = projection
+            .coming_back(today)
+            .into_iter()
+            .filter(|(task, _)| self.filter.is_empty() || matches(task, &self.filter))
+            .collect();
+        let shown = sleeping.len().min(MAX_SLEEPING);
+        let (rest, strip) = if sleeping.is_empty() {
+            (rest, None)
+        } else {
+            let height = u16::try_from(shown + 1).unwrap_or(u16::MAX);
+            let [rest, strip] =
+                Layout::vertical([Constraint::Fill(1), Constraint::Length(height)]).areas(rest);
+            (rest, Some(strip))
+        };
+        if let Some(strip) = strip {
+            let mut lines = vec![Line::styled(voice.bench_coming_back(), theme::heading())];
+            lines.extend(sleeping.iter().take(shown).map(|(task, day)| {
+                Line::styled(
+                    format!(
+                        "  {}  {}  {}",
+                        task.id(),
+                        day.strftime("%d/%m"),
+                        task.title()
+                    ),
+                    theme::muted(),
+                )
+            }));
+            frame.render_widget(Paragraph::new(lines), strip);
+        }
         if tasks.is_empty() {
             frame.render_widget(
                 Paragraph::new(Line::styled(voice.bench_empty(), theme::muted())),
@@ -261,6 +295,21 @@ pub(crate) mod tests {
         let mut ledger = bench();
         let app = open_bench(&mut ledger);
         assert_snapshot!(draw(&app, &ledger, 90, 12));
+    }
+
+    #[test]
+    fn a_task_that_comes_back_sleeps_in_its_own_strip() {
+        let mut ledger = bench();
+        let id = ledger.add("Fechar o mês", "casa", Fit::Gap, Status::Ready);
+        let repeat = ledger
+            .projection()
+            .set_repeat(id, Some("1m".parse().unwrap()))
+            .unwrap();
+        let finish = ledger.projection().finish(id, today()).unwrap();
+        ledger.record(id, vec![repeat]).unwrap();
+        ledger.record(id, finish).unwrap();
+        let app = open_bench(&mut ledger);
+        assert_snapshot!(draw(&app, &ledger, 90, 14));
     }
 
     #[test]

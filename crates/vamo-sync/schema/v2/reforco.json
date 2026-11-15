@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "ReinforcementLine",
+  "description": "Um reforço: uma tarefa que chega de fora (do Claude, de outro projeto)\npela branch `vamo-entrada` do backup, uma por linha do `reforcos.jsonl`.\nSó a chave e o título são obrigatórios; o resto tem o padrão do `vamo\nadd`.",
+  "type": "object",
+  "properties": {
+    "area": {
+      "description": "A área. Sem ela, `geral`.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "chave": {
+      "description": "Uma chave única de quem mandou, como `claude-2026-11-14-filtro`. É\nela que impede o mesmo reforço de virar duas tarefas.",
+      "type": "string"
+    },
+    "encaixe": {
+      "description": "O encaixe: `foco`, `brecha` ou `com-alguém`. Sem ele, `brecha`.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "notas": {
+      "description": "As notas: o detalhe que não cabe no título.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "status": {
+      "description": "O status de partida. Sem ele, `pronta`.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "titulo": {
+      "description": "O título, no padrão do caderno: verbo na frente e até cinco palavras.",
+      "type": "string"
+    },
+    "versao": {
+      "description": "A versão do formato.",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "versao",
+    "chave",
+    "titulo"
+  ]
+}

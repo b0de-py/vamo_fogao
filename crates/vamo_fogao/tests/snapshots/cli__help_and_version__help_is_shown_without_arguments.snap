@@ -10,6 +10,7 @@ Comandos:
   add              Põe uma tarefa nova no banco
   list             Lista as tarefas em jogo (sem as concluídas e as descartadas)
   done             Conclui uma tarefa: gol!
+  volta            Define de quanto em quanto tempo uma tarefa volta depois do gol
   import           Traz as tarefas do banco antigo, um markdown com a tabela de índice
   show             Mostra a ficha de uma tarefa, com o histórico
   curiosidade      Conta a curiosidade do dia, uma história do Botafogo

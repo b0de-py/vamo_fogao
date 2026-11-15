@@ -259,8 +259,8 @@ impl EventStore for Store {
             // O `OR IGNORE` deixa de fora o evento cujo ID já está no banco.
             let mut insert = tx.prepare(
                 "INSERT OR IGNORE INTO events
-                     (id, at, machine, task, kind, title, area, fit, status, notes, day, checked)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+                     (id, at, machine, task, kind, title, area, fit, status, notes, day, checked, repeat)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
             )?;
             for event in events {
                 let columns = Columns::from(&event.change);
@@ -277,6 +277,7 @@ impl EventStore for Store {
                     columns.notes,
                     columns.day,
                     columns.checked,
+                    columns.repeat,
                 ])?;
             }
         }
@@ -286,7 +287,7 @@ impl EventStore for Store {
 
     fn events(&self) -> Result<Vec<Event>, Error> {
         let mut select = self.conn.prepare(
-            "SELECT seq, id, at, machine, task, kind, title, area, fit, status, notes, day, checked
+            "SELECT seq, id, at, machine, task, kind, title, area, fit, status, notes, day, checked, repeat
              FROM events
              ORDER BY seq",
         )?;
@@ -308,6 +309,7 @@ const STATUS: &str = "status";
 const NOTES: &str = "notes";
 const DAY: &str = "day";
 const CHECK: &str = "check";
+const REPEAT: &str = "repeat";
 
 /// As colunas de uma mudança. A criação preenche quatro; as outras mudanças
 /// preenchem só a delas.
@@ -320,6 +322,7 @@ struct Columns {
     notes: Option<String>,
     day: Option<String>,
     checked: Option<bool>,
+    repeat: Option<String>,
 }
 
 impl From<&Change> for Columns {
@@ -333,6 +336,7 @@ impl From<&Change> for Columns {
             notes: None,
             day: None,
             checked: None,
+            repeat: None,
         };
         match change {
             Change::Created {
@@ -371,6 +375,10 @@ impl From<&Change> for Columns {
                 day: day.map(|day| day.to_string()),
                 ..empty(DAY)
             },
+            Change::Repeat(interval) => Columns {
+                repeat: interval.map(|interval| interval.to_string()),
+                ..empty(REPEAT)
+            },
             Change::Check { day, done } => Columns {
                 day: Some(day.to_string()),
                 checked: Some(*done),
@@ -402,6 +410,11 @@ fn read_event(row: &Row<'_>) -> Result<Event, Error> {
         DAY => match row.get::<_, Option<String>>("day")? {
             Some(day) => Change::Day(Some(date(&day, seq)?)),
             None => Change::Day(None),
+        },
+        // Sem intervalo, a tarefa deixou de voltar.
+        REPEAT => match row.get::<_, Option<String>>("repeat")? {
+            Some(_) => Change::Repeat(Some(value(row, seq, "repeat")?)),
+            None => Change::Repeat(None),
         },
         CHECK => Change::Check {
             day: date(&text(row, seq, "day")?, seq)?,

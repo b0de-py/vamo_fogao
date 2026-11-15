@@ -60,6 +60,13 @@ pub enum Error {
         input: String,
     },
 
+    /// O texto não é um intervalo de volta.
+    #[error("`{input}` não é um intervalo: escreva como 1m (todo mês) ou 2s (a cada duas semanas)")]
+    InvalidInterval {
+        /// O texto recebido.
+        input: String,
+    },
+
     /// O texto não é uma hora do dia.
     #[error("`{input}` não é uma hora: escreva como 22:00 ou 22h")]
     InvalidTime {

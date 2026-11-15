@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use clap::builder::{PossibleValuesParser, TypedValueParser};
 use clap::error::{ContextKind, ErrorKind};
 use clap::{ArgAction, Parser, Subcommand};
-use vamo_core::{Area, Fit, Status, TaskId};
+use vamo_core::{Area, Fit, Interval, Status, TaskId};
 
 use vamo_tui::Voice;
 
@@ -146,6 +146,11 @@ pub(crate) enum Command {
         /// As notas: o detalhe que não cabe no título
         #[arg(short = 'n', long = "notas", value_name = "NOTAS")]
         notes: Option<String>,
+
+        /// De quanto em quanto tempo a tarefa volta depois do gol: 1m (todo
+        /// mês), 2s (a cada duas semanas)
+        #[arg(long = "volta", value_name = "INTERVALO")]
+        repeat: Option<Interval>,
     },
 
     /// Lista as tarefas em jogo (sem as concluídas e as descartadas)
@@ -178,6 +183,22 @@ pub(crate) enum Command {
         /// O ID da tarefa, como T-041 ou só 41
         #[arg(value_name = "ID", value_parser = parse_task_id, help_heading = "Argumentos")]
         id: TaskId,
+    },
+
+    /// Define de quanto em quanto tempo uma tarefa volta depois do gol
+    #[command(
+        override_usage = "vamo volta <ID> <INTERVALO>",
+        help_template = SUBCOMMAND_HELP_TEMPLATE,
+        next_help_heading = "Opções"
+    )]
+    Volta {
+        /// O ID da tarefa, como T-041 ou só 41
+        #[arg(value_name = "ID", value_parser = parse_task_id, help_heading = "Argumentos")]
+        id: TaskId,
+
+        /// 1m (todo mês), 2s (a cada duas semanas) ou nunca (deixa de voltar)
+        #[arg(value_name = "INTERVALO", value_parser = parse_repeat, help_heading = "Argumentos")]
+        repeat: Repeat,
     },
 
     /// Traz as tarefas do banco antigo, um markdown com a tabela de índice
@@ -388,6 +409,20 @@ fn parse_date(text: &str) -> Result<jiff::civil::Date, String> {
 
 /// Lê o ID de uma tarefa com um pouco de folga pra quem digita: além de
 /// `T-041`, aceita `t-041` e o número sozinho (`41`).
+/// Lê o intervalo de `vamo volta`: `1m`, `2s` ou `nunca`.
+fn parse_repeat(text: &str) -> Result<Repeat, vamo_core::Error> {
+    if text == "nunca" {
+        Ok(Repeat(None))
+    } else {
+        text.parse().map(|interval| Repeat(Some(interval)))
+    }
+}
+
+/// O intervalo de `vamo volta`, ou nenhum quando o pedido é `nunca`. Um tipo
+/// à parte porque o clap trata `Option` de argumento como "pode faltar".
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct Repeat(pub Option<Interval>);
+
 fn parse_task_id(text: &str) -> Result<TaskId, vamo_core::Error> {
     let canonical = if !text.is_empty() && text.bytes().all(|b| b.is_ascii_digit()) {
         format!("T-{text}")

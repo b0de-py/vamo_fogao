@@ -25,7 +25,7 @@ use crate::Error;
 
 /// A versão do formato que esta versão do vamo escreve. Sobe a cada mudança
 /// em qualquer tipo deste módulo.
-pub const VERSION: u32 = 1;
+pub const VERSION: u32 = 2;
 
 /// Uma linha do log de eventos exportado.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -90,7 +90,13 @@ pub enum ChangeLine {
         /// O dia, como `2026-11-11`.
         dia: Option<String>,
     },
-    /// Uma recorrente foi marcada ou desmarcada num dia.
+    /// O intervalo em que a tarefa volta depois do gol mudou (versão 2).
+    Volta {
+        /// O intervalo, como `1m` (todo mês) ou `2s` (a cada duas semanas).
+        /// `null` tira: a tarefa deixa de voltar.
+        intervalo: Option<String>,
+    },
+    /// Uma marcação por tarefa (versões antigas; hoje a projeção ignora).
     Marcacao {
         /// O dia da marcação.
         dia: String,
@@ -130,6 +136,9 @@ impl From<&Event> for EventLine {
             },
             Change::Day(day) => ChangeLine::Dia {
                 dia: day.map(|day| day.to_string()),
+            },
+            Change::Repeat(interval) => ChangeLine::Volta {
+                intervalo: interval.map(|interval| interval.to_string()),
             },
             Change::Check { day, done } => ChangeLine::Marcacao {
                 dia: day.to_string(),
@@ -172,6 +181,9 @@ impl TryFrom<EventLine> for Event {
             ChangeLine::Status { status } => Change::Status(status.parse()?),
             ChangeLine::Notas { notas } => Change::Notes(notas),
             ChangeLine::Dia { dia } => Change::Day(dia.as_deref().map(date).transpose()?),
+            ChangeLine::Volta { intervalo } => {
+                Change::Repeat(intervalo.as_deref().map(str::parse).transpose()?)
+            }
             ChangeLine::Marcacao { dia, feita } => Change::Check {
                 day: date(&dia)?,
                 done: feita,

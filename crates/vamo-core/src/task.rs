@@ -2,7 +2,7 @@
 
 use jiff::civil::Date;
 
-use crate::{Area, Error, Fit, NotebookTitle, Status, TaskId};
+use crate::{Area, Error, Fit, Interval, NotebookTitle, Status, TaskId};
 
 /// Uma tarefa: o que fazer, de que área, que espaço pede e em que pé está.
 ///
@@ -39,6 +39,7 @@ pub struct Task {
     status: Status,
     notes: String,
     day: Option<Date>,
+    repeat: Option<Interval>,
 }
 
 impl Task {
@@ -55,6 +56,7 @@ impl Task {
             status,
             notes: String::new(),
             day: None,
+            repeat: None,
         }
     }
 
@@ -98,6 +100,25 @@ impl Task {
     /// O dia em que a tarefa está escalada, se estiver.
     pub fn day(&self) -> Option<Date> {
         self.day
+    }
+
+    /// De quanto em quanto tempo a tarefa volta depois do gol, se volta.
+    pub fn repeat(&self) -> Option<Interval> {
+        self.repeat
+    }
+
+    /// O dia em que a tarefa concluída volta pro banco: o dia do gol mais o
+    /// intervalo. `None` se ela não está concluída ou não volta.
+    pub fn returns_on(&self) -> Option<Date> {
+        if self.status != Status::Done {
+            return None;
+        }
+        self.repeat?.after(self.day?)
+    }
+
+    /// Define o intervalo de volta, ou tira com `None`.
+    pub fn set_repeat(&mut self, repeat: Option<Interval>) {
+        self.repeat = repeat;
     }
 
     /// Escala a tarefa pra um dia, ou tira da escalação com `None`.

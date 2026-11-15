@@ -11,8 +11,9 @@ use jiff::tz::TimeZone;
 use uuid::Uuid;
 use vamo_agenda::{Footer, Freshness};
 use vamo_core::{
-    Area, Change, DaySummary, Event, EventId, EventStore, Fit, Habits, Machine, NotebookTitle,
-    Notifier, Projection, ReminderWindow, Skipped, Status, Task, TaskId, WeekSummary,
+    Area, Change, DaySummary, Event, EventId, EventStore, Fit, Habits, Interval, Machine,
+    NotebookTitle, Notifier, Projection, ReminderWindow, Skipped, Status, Task, TaskId,
+    WeekSummary,
 };
 use vamo_store::Store;
 
@@ -32,11 +33,13 @@ pub(crate) fn run(command: Command, voice: Voice, config: &Config) -> Result<Str
             fit,
             status,
             notes,
-        } => Session::open(voice)?.add(&title.join(" "), area, fit, status, notes),
+            repeat,
+        } => Session::open(voice)?.add(&title.join(" "), area, fit, status, notes, repeat),
         Command::List { all, area, status } => {
             Ok(Session::open(voice)?.list(all, area.as_ref(), status))
         }
         Command::Done { id } => Session::open(voice)?.done(id),
+        Command::Volta { id, repeat } => Session::open(voice)?.set_repeat(id, repeat.0),
         Command::Show { id } => Session::open(voice)?.show(id),
         Command::Import { file, dry_run } => Session::open(voice)?.import(&file, dry_run),
         Command::Curiosidade { date, banter } => {
@@ -137,13 +140,27 @@ impl Session {
         let events = store.events()?;
         let projection = events.iter().collect();
         let agenda_checks = store.agenda_checks()?;
-        Ok(Self {
+        let mut session = Self {
             store,
             events,
             projection,
             voice,
             agenda_checks,
-        })
+        };
+        session.resurface()?;
+        Ok(session)
+    }
+
+    /// Devolve pro banco as tarefas que voltam hoje. Roda ao abrir o banco,
+    /// em todo comando (inclusive o da barra e o do timer de lembretes),
+    /// então a tarefa reaparece no dia certo sem ninguém pedir.
+    fn resurface(&mut self) -> Result<()> {
+        let today = jiff::Zoned::now().date();
+        for (id, changes) in self.projection.resurface(today) {
+            tracing::debug!(%id, "a tarefa voltou pro banco");
+            self.record(id, changes)?;
+        }
+        Ok(())
     }
 
     /// `vamo add`: cria a tarefa com o próximo ID livre.
@@ -154,6 +171,7 @@ impl Session {
         fit: Fit,
         status: Status,
         notes: Option<String>,
+        repeat: Option<Interval>,
     ) -> Result<String> {
         let title: NotebookTitle = title.parse()?;
         let id = self
@@ -170,10 +188,33 @@ impl Session {
         if let Some(notes) = notes {
             changes.push(Change::Notes(notes));
         }
+        if repeat.is_some() {
+            changes.push(Change::Repeat(repeat));
+        }
         self.record(id, changes)?;
 
         let task = self.task(id)?;
         Ok(self.voice.added(task.id(), task.title()))
+    }
+
+    /// `vamo volta`: define (ou tira) o intervalo de volta da tarefa.
+    fn set_repeat(&mut self, id: TaskId, repeat: Option<Interval>) -> Result<String> {
+        let change = self.projection.set_repeat(id, repeat)?;
+        self.record(id, vec![change])?;
+        let task = self.task(id)?;
+        Ok(match repeat {
+            Some(interval) => format!(
+                "{} {} volta {} depois do gol.",
+                task.id(),
+                task.title(),
+                Voice::interval(interval)
+            ),
+            None => format!(
+                "{} {} não volta mais depois do gol.",
+                task.id(),
+                task.title()
+            ),
+        })
     }
 
     /// `vamo list`: as tarefas em jogo, ou as do filtro pedido.
@@ -679,6 +720,9 @@ impl Session {
             format!("encaixe  {}", task.fit()),
             format!("status   {}", task.status()),
         ];
+        if let Some(interval) = task.repeat() {
+            lines.push(format!("volta    {}", Voice::interval(interval)));
+        }
         // Nota de várias linhas fica alinhada embaixo da primeira.
         let mut notes = task.notes().lines();
         if let Some(first) = notes.next() {
