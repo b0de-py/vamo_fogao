@@ -3,8 +3,8 @@ source: crates/vamo-tui/src/voice.rs
 expression: screens
 ---
 ── Hoje
-" vamo_fogao   1 Hoje  2 Caderno  3 Tarefas  4 Museu                                                 "
-"────────────────────────────────────────────────────────────────────────────────────────────────────"
+" vamo_fogao   1 HOJE  2 Caderno  3 Tarefas  4 Museu                                                 "
+"─────────────━━━━━━━━───────────────────────────────────────────────────────────────────────────────"
 "                                                                                                    "
 " Hoje · quarta, 11/11                                                                Feitas: 1 de 2 "
 "                                                                                                    "
@@ -19,8 +19,8 @@ expression: screens
 "tab troca de tela · ? ajuda · q sai                                                                 "
 
 ── Hoje com a piada
-" vamo_fogao   1 Hoje  2 Caderno  3 Tarefas  4 Museu                                                 "
-"────────────────────────────────────────────────────────────────────────────────────────────────────"
+" vamo_fogao   1 HOJE  2 Caderno  3 Tarefas  4 Museu                                                 "
+"─────────────━━━━━━━━───────────────────────────────────────────────────────────────────────────────"
 "                                                                                                    "
 " Hoje · quarta, 11/11                                                                Feitas: 1 de 2 "
 "                                                                                                    "
@@ -35,8 +35,8 @@ expression: screens
 "tab troca de tela · ? ajuda · q sai                                                                 "
 
 ── Caderno
-" vamo_fogao   1 Hoje  2 Caderno  3 Tarefas  4 Museu                                                 "
-"────────────────────────────────────────────────────────────────────────────────────────────────────"
+" vamo_fogao   1 Hoje  2 CADERNO  3 Tarefas  4 Museu                                                 "
+"─────────────────────━━━━━━━━━━━────────────────────────────────────────────────────────────────────"
 "                                                                                                    "
 " Caderno · 11/11                                                                                    "
 "                                                                                                    "
@@ -51,8 +51,8 @@ expression: screens
 "tab troca de tela · ? ajuda · q sai                                                                 "
 
 ── Tarefas
-" vamo_fogao   1 Hoje  2 Caderno  3 Tarefas  4 Museu                                                 "
-"────────────────────────────────────────────────────────────────────────────────────────────────────"
+" vamo_fogao   1 Hoje  2 Caderno  3 TAREFAS  4 Museu                                                 "
+"────────────────────────────────━━━━━━━━━━━─────────────────────────────────────────────────────────"
 "                                                                                                    "
 " Tarefas · 3 · abertas (/ filtra, todas traz as encerradas)                                         "
 "                                                                                                    "
@@ -67,8 +67,8 @@ expression: screens
 "tab troca de tela · ? ajuda · q sai                                                                 "
 
 ── Ficha
-" vamo_fogao   1 Hoje  2 Caderno  3 Tarefas  4 Museu                                                 "
-"────────────────────────────────────────────────────────────────────────────────────────────────────"
+" vamo_fogao   1 Hoje  2 Caderno  3 TAREFAS  4 Museu                                                 "
+"────────────────────────────────━━━━━━━━━━━─────────────────────────────────────────────────────────"
 "                                                                                                    "
 " ┏━                                                                                              ━┓ "
 " ┃ T-002 Revisar o capítulo dois                                                                  ┃ "
@@ -83,8 +83,8 @@ expression: screens
 "tab troca de tela · ? ajuda · q sai                                                                 "
 
 ── Museu
-" vamo_fogao   1 Hoje  2 Caderno  3 Tarefas  4 Museu                                                 "
-"────────────────────────────────────────────────────────────────────────────────────────────────────"
+" vamo_fogao   1 Hoje  2 Caderno  3 Tarefas  4 MUSEU                                                 "
+"───────────────────────────────────────────━━━━━━━━━────────────────────────────────────────────────"
 "                                                                                                    "
 " Museu · por data (o: por tema · z: piadas)                                                         "
 "                                                                                                    "
@@ -99,8 +99,8 @@ expression: screens
 "tab troca de tela · ? ajuda · q sai                                                                 "
 
 ── Museu por tema
-" vamo_fogao   1 Hoje  2 Caderno  3 Tarefas  4 Museu                                                 "
-"────────────────────────────────────────────────────────────────────────────────────────────────────"
+" vamo_fogao   1 Hoje  2 Caderno  3 Tarefas  4 MUSEU                                                 "
+"───────────────────────────────────────────━━━━━━━━━────────────────────────────────────────────────"
 "                                                                                                    "
 " Museu · por tema (o: por data · z: piadas)                                                         "
 "                                                                                                    "
@@ -115,8 +115,8 @@ expression: screens
 "tab troca de tela · ? ajuda · q sai                                                                 "
 
 ── Ajuda
-" vamo_fogao   1 Hoje  2 Caderno  3 Tarefas  4 Museu                                                 "
-"────────────────────────────────────────────────────────────────────────────────────────────────────"
+" vamo_fogao   1 Hoje  2 Caderno  3 Tarefas  4 MUSEU                                                 "
+"───────────────────────────────────────────━━━━━━━━━────────────────────────────────────────────────"
 "                                                                                                    "
 " Museu · por tema (o: ┏━ Ajuda                                              ━┓                      "
 "                      ┃ j, k, setas     sobe e desce na lista                ┃                      "

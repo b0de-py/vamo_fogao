@@ -2,8 +2,8 @@
 source: crates/vamo-tui/src/app.rs
 expression: screen
 ---
-" vamo_fogao   1 Hoje  2 Caderno  3 Banco  4 Museu                               "
-"────────────────────────────────────────────────────────────────────────────────"
+" vamo_fogao   1 HOJE  2 Caderno  3 Banco  4 Museu                               "
+"─────────────━━━━━━━━───────────────────────────────────────────────────────────"
 "                                                                                "
 " Hoje · quarta, 11/11                                            Placar: 0 de 1 "
 "                                                                                "

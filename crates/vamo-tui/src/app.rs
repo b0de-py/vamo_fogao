@@ -12,7 +12,7 @@ use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+use ratatui::widgets::{Block, Clear, Paragraph};
 
 use jiff::civil::Date;
 
@@ -553,26 +553,42 @@ impl App {
     }
 
     /// O nome do app e as abas, com uma linha embaixo.
+    ///
+    /// A aba da tela atual se destaca de três jeitos, pra não depender só
+    /// de cor: fica em caixa-alta, com o fundo aceso, e o trecho da linha
+    /// embaixo dela engrossa.
     fn render_header(&self, frame: &mut Frame<'_>, area: Rect) {
+        let [tabs_area, rule_area] =
+            Layout::vertical([Constraint::Length(1), Constraint::Length(1)]).areas(area);
         let mut spans = vec![
             Span::styled(" vamo_fogao ", theme::heading()),
             Span::raw(" "),
         ];
+        // Onde a aba atual começa e quanto mede, pra linha de baixo.
+        let mut current = (0, 0);
         for (number, tab) in (1..).zip(Tab::ALL) {
-            let style = if tab == self.tab {
-                theme::selected()
+            let name = self.voice.tab(tab);
+            let span = if tab == self.tab {
+                let label = format!(" {number} {} ", name.to_uppercase());
+                let start: usize = spans.iter().map(Span::width).sum();
+                current = (start, Span::raw(label.as_str()).width());
+                Span::styled(label, theme::cursor())
             } else {
-                theme::muted()
+                Span::styled(format!(" {number} {name} "), theme::muted())
             };
-            spans.push(Span::styled(
-                format!(" {number} {} ", self.voice.tab(tab)),
-                style,
-            ));
+            spans.push(span);
         }
-        let block = Block::new()
-            .borders(Borders::BOTTOM)
-            .border_style(theme::line());
-        frame.render_widget(Paragraph::new(Line::from(spans)).block(block), area);
+        frame.render_widget(Paragraph::new(Line::from(spans)), tabs_area);
+
+        let width = usize::from(rule_area.width);
+        let (start, len) = (current.0.min(width), current.1);
+        let end = (start + len).min(width);
+        let rule = Line::from(vec![
+            Span::styled("─".repeat(start), theme::line()),
+            Span::styled("━".repeat(end - start), theme::selected()),
+            Span::styled("─".repeat(width - end), theme::line()),
+        ]);
+        frame.render_widget(Paragraph::new(rule), rule_area);
     }
 
     /// O miolo da tela atual.
