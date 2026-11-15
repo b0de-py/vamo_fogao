@@ -95,7 +95,8 @@ pub(crate) fn run(command: Command, voice: Voice, config: &Config) -> Result<Str
                 voice,
                 acervo: vamo_tui::Acervo { facts, banter },
                 time_zone: TimeZone::system(),
-                animation: config.animation.unwrap_or_default(),
+                effects: config.effects(),
+                density: config.visual.density.unwrap_or_default(),
                 schedule,
             };
             vamo_tui::run(&mut session, setup).wrap_err("a TUI não conseguiu usar o terminal")?;

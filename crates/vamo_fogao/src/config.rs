@@ -12,7 +12,7 @@ use jiff::SignedDuration;
 use jiff::civil::Weekday;
 use toml::de::{DeTable, DeValue};
 use vamo_core::{Area, Block, TimeRange, TimeRules};
-use vamo_tui::{Animation, Voice};
+use vamo_tui::{Density, Effects, Voice};
 
 /// O que a config escolhe. Cada campo é `None` quando o arquivo não fala
 /// dele, pra linha de comando e o ambiente poderem ter a palavra final.
@@ -20,8 +20,12 @@ use vamo_tui::{Animation, Voice};
 pub(crate) struct Config {
     /// `linguagem = "jogo"` ou `"neutra"`.
     pub(crate) voice: Option<Voice>,
-    /// `animacao = false` apaga o fogo da TUI.
-    pub(crate) animation: Option<Animation>,
+    /// `animacao = false`, o jeito antigo de apagar o fogo da TUI. Continua
+    /// valendo pra config que já existe não quebrar; o `efeitos` da seção
+    /// `[visual]` ganha dele.
+    pub(crate) animation: Option<Effects>,
+    /// A seção `[visual]`: quanto a tela se mexe e quanto ela respira.
+    pub(crate) visual: VisualConfig,
     /// A seção `[agenda]`.
     pub(crate) agenda: AgendaConfig,
     /// A seção `[tempo]`: as regras do tempo.
@@ -42,6 +46,23 @@ pub(crate) struct Config {
     /// `repositorio = "~/backup-vamo"`, na seção `[sincronia]`: o clone do
     /// repositório privado de backup, por onde as máquinas se juntam.
     pub(crate) backup: Option<String>,
+}
+
+impl Config {
+    /// Quanto a TUI se mexe: o `efeitos` da seção `[visual]`, depois o
+    /// `animacao` antigo e, sem nenhum dos dois, o padrão.
+    pub(crate) fn effects(&self) -> Effects {
+        self.visual.effects.or(self.animation).unwrap_or_default()
+    }
+}
+
+/// A seção `[visual]`: a cara da TUI.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct VisualConfig {
+    /// `efeitos = "cheio"`, `"leve"` ou `"nenhum"`: quanto a tela se mexe.
+    pub(crate) effects: Option<Effects>,
+    /// `densidade = "compacta"` ou `"confortavel"`: quanto a tela respira.
+    pub(crate) density: Option<Density>,
 }
 
 /// A seção `[habitos]`: o habit-tracker, de onde a súmula tira os números
@@ -155,8 +176,9 @@ fn parse(text: &str) -> Result<Config> {
                 let DeValue::Boolean(on) = value.get_ref() else {
                     bail!("`animacao` é true ou false, sem aspas, como animacao = false");
                 };
-                config.animation = Some(if *on { Animation::On } else { Animation::Off });
+                config.animation = Some(if *on { Effects::Full } else { Effects::Off });
             }
+            "visual" => config.visual = visual(value.get_ref())?,
             "agenda" => config.agenda = agenda(value.get_ref())?,
             "tempo" => (config.rules, config.min_gap) = rules(value.get_ref())?,
             "apelidos" => config.aliases = aliases(value.get_ref())?,
@@ -166,12 +188,47 @@ fn parse(text: &str) -> Result<Config> {
             "sincronia" => config.backup = Some(backup(value.get_ref())?),
             other => bail!(
                 "`{other}` não é um campo da config: os campos que existem são linguagem, \
-                 animacao e as seções [agenda], [tempo], [apelidos], [lembretes], [jogos], \
-                 [habitos] e [sincronia]"
+                 animacao e as seções [visual], [agenda], [tempo], [apelidos], [lembretes], \
+                 [jogos], [habitos] e [sincronia]"
             ),
         }
     }
     Ok(config)
+}
+
+/// Lê a seção `[visual]`:
+///
+/// ```toml
+/// [visual]
+/// efeitos = "leve"
+/// densidade = "confortavel"
+/// ```
+fn visual(value: &DeValue<'_>) -> Result<VisualConfig> {
+    let DeValue::Table(table) = value else {
+        bail!("`visual` é uma seção: escreva [visual] numa linha e os campos embaixo");
+    };
+    let mut visual = VisualConfig::default();
+    for (key, value) in table {
+        match key.get_ref().as_ref() {
+            "efeitos" => {
+                let DeValue::String(name) = value.get_ref() else {
+                    bail!("`efeitos` é um texto entre aspas, como efeitos = \"leve\"");
+                };
+                visual.effects = Some(name.parse()?);
+            }
+            "densidade" => {
+                let DeValue::String(name) = value.get_ref() else {
+                    bail!("`densidade` é um texto entre aspas, como densidade = \"confortavel\"");
+                };
+                visual.density = Some(name.parse()?);
+            }
+            other => bail!(
+                "`{other}` não é um campo da seção [visual]: os campos que existem são efeitos \
+                 e densidade"
+            ),
+        }
+    }
+    Ok(visual)
 }
 
 /// Lê a seção `[agenda]`.
@@ -560,13 +617,49 @@ mod tests {
     #[test]
     fn the_animation_can_be_turned_off() {
         let config = parse("linguagem = \"jogo\"\nanimacao = false\n").unwrap();
-        assert_eq!(config.animation, Some(Animation::Off));
+        assert_eq!(config.animation, Some(Effects::Off));
+        assert_eq!(config.effects(), Effects::Off);
         assert_eq!(config.voice, Some(Voice::Game));
         assert_eq!(
             parse("animacao = true").unwrap().animation,
-            Some(Animation::On)
+            Some(Effects::Full)
         );
         assert!(parse("animacao = \"não\"").is_err());
+    }
+
+    #[test]
+    fn the_visual_section_chooses_the_effects_and_the_density() {
+        let config = parse("[visual]\nefeitos = \"leve\"\ndensidade = \"confortavel\"\n").unwrap();
+        assert_eq!(config.effects(), Effects::Light);
+        assert_eq!(config.visual.density, Some(Density::Comfortable));
+    }
+
+    #[test]
+    fn without_the_visual_section_the_defaults_hold() {
+        let config = parse("").unwrap();
+        assert_eq!(config.effects(), Effects::Full);
+        assert_eq!(config.visual.density, None);
+    }
+
+    #[test]
+    fn the_effects_win_over_the_old_animation_field() {
+        let config = parse("animacao = false\n[visual]\nefeitos = \"cheio\"\n").unwrap();
+        assert_eq!(config.effects(), Effects::Full);
+        let config = parse("animacao = true\n[visual]\nefeitos = \"nenhum\"\n").unwrap();
+        assert_eq!(config.effects(), Effects::Off);
+    }
+
+    #[test]
+    fn a_wrong_value_in_the_visual_section_says_which_ones_exist() {
+        let error = parse("[visual]\nefeitos = \"forte\"").unwrap_err();
+        assert!(error.to_string().contains("cheio, leve e nenhum"));
+        let error = parse("[visual]\ndensidade = \"apertada\"").unwrap_err();
+        assert!(error.to_string().contains("compacta e confortavel"));
+        let error = parse("[visual]\nefeitos = true").unwrap_err();
+        assert!(error.to_string().contains("entre aspas"));
+        let error = parse("[visual]\nbrilho = 3").unwrap_err();
+        assert!(error.to_string().contains("efeitos e densidade"));
+        assert!(parse("visual = \"leve\"").is_err());
     }
 
     #[test]

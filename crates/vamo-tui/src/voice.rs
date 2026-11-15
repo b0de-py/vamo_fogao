@@ -11,7 +11,7 @@ use jiff::civil::Weekday;
 use vamo_acervo::{Banter, Curiosity, Tag};
 use vamo_core::{Change, Interval, NotebookTitle, TaskId};
 
-use crate::Animation;
+use crate::Effects;
 use crate::app::Tab;
 use crate::museum::Shelf;
 use crate::today::Group;
@@ -856,7 +856,7 @@ impl Voice {
         self,
         tab: Tab,
         card: bool,
-        animation: Animation,
+        effects: Effects,
     ) -> Vec<(&'static str, &'static str)> {
         let back_to_bench = self.pick(
             "tira do dia e devolve pro banco",
@@ -945,7 +945,7 @@ impl Voice {
             ("?", "abre e fecha esta ajuda"),
             ("q, ctrl+c", self.pick("encerra a partida", "sai")),
         ]);
-        if animation == Animation::On {
+        if effects.animated() {
             rows.push(("clique", "atiça o fogo do fundo"));
         }
         rows

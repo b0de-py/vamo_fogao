@@ -30,7 +30,7 @@ use crate::schedule::Schedule;
 use crate::star::Star;
 use crate::today::{self, Today};
 use crate::when::parse_day;
-use crate::{Animation, Ledger, Setup, Voice, card, theme};
+use crate::{Effects, Ledger, Setup, Voice, card, theme};
 
 /// O que aconteceu depois de uma ação de quem usa.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -141,7 +141,7 @@ pub(crate) struct App {
     message: Option<Message>,
     help: bool,
     quit: bool,
-    animation: Animation,
+    effects: Effects,
     /// Se a janela está à vista. Quando some (outro workspace, outra
     /// janela por cima), o fogo pausa.
     window: Window,
@@ -204,7 +204,7 @@ impl App {
             message: None,
             help: false,
             quit: false,
-            animation: setup.animation,
+            effects: setup.effects,
             window: Window::Visible,
             awake_until: None,
             fire: Fire::new(fire::SEED),
@@ -216,7 +216,7 @@ impl App {
     /// Se a animação está ligada na config. Desligada, a TUI nem pede os
     /// eventos do mouse ao terminal.
     pub(crate) fn animated(&self) -> bool {
-        self.animation == Animation::On
+        self.effects.animated()
     }
 
     /// Se o fogo está queimando em `now`: com animação, a janela à vista e
@@ -615,9 +615,7 @@ impl App {
 
     /// A ajuda, numa caixa por cima da tela.
     fn render_help(&self, frame: &mut Frame<'_>, area: Rect) {
-        let rows = self
-            .voice
-            .help(self.tab, self.card.is_some(), self.animation);
+        let rows = self.voice.help(self.tab, self.card.is_some(), self.effects);
         let key_width = rows
             .iter()
             .map(|(key, _)| key.chars().count())
@@ -756,7 +754,8 @@ pub(crate) mod tests {
                 time_zone: TimeZone::UTC,
                 // Os snapshots das telas não mostram o fogo; os testes do
                 // fogo ligam a animação.
-                animation: Animation::Off,
+                effects: Effects::Off,
+                density: crate::Density::default(),
                 schedule: Schedule::default(),
             },
             today(),
@@ -828,7 +827,7 @@ pub(crate) mod tests {
     /// em que ele acordou.
     fn burning() -> (App, MemoryLedger, Instant) {
         let mut app = new_app(Voice::Game);
-        app.animation = Animation::On;
+        app.effects = Effects::Full;
         let now = Instant::now();
         app.wake(now);
         (app, crate::today::tests::example_day(), now)
@@ -959,7 +958,7 @@ pub(crate) mod tests {
         let (mut app, mut ledger, _) = burning();
         app.on_key(key(KeyCode::Char('?')), &mut ledger);
         assert!(draw(&app, &ledger, 70, 18).contains("atiça o fogo"));
-        app.animation = Animation::Off;
+        app.effects = Effects::Off;
         assert!(!draw(&app, &ledger, 70, 18).contains("atiça o fogo"));
     }
 
@@ -977,7 +976,7 @@ pub(crate) mod tests {
         assert_eq!(app.fire, before);
 
         app.set_window(Window::Visible);
-        app.animation = Animation::Off;
+        app.effects = Effects::Off;
         assert!(!app.animating(now));
         app.tick(&ledger, now);
         assert_eq!(app.fire, before);

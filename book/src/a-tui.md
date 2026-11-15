@@ -58,7 +58,7 @@ As cores vão do quase preto ao cinza, sempre com R, G e B iguais.
 
 ### Quanto custa
 
-O fogo só gasta CPU enquanto queima. O laço principal (`main_loop` em `lib.rs`) dá um passo a cada 40 ms (25 quadros por segundo) enquanto a animação está ligada, a janela tem foco e alguém mexeu nos últimos 3 segundos. Fora disso, o laço volta a esperar um evento e o processo fica parado. Queimando numa janela grande, a TUI manda perto de 1,5 MB por segundo pro terminal: num terminal local não pesa, mas por SSH vale desligar com `animacao = false`.
+O fogo só gasta CPU enquanto queima. O laço principal (`main_loop` em `lib.rs`) dá um passo a cada 40 ms (25 quadros por segundo) enquanto a animação está ligada, a janela tem foco e alguém mexeu nos últimos 3 segundos. Fora disso, o laço volta a esperar um evento e o processo fica parado. Queimando numa janela grande, a TUI manda perto de 1,5 MB por segundo pro terminal: num terminal local não pesa, mas por SSH vale desligar com `efeitos = "nenhum"` na seção `[visual]`.
 
 ## A config
 
@@ -67,9 +67,20 @@ O arquivo `~/.config/vamo_fogao/config.toml` é opcional:
 ```toml
 # jogo (o padrão) ou neutra
 linguagem = "neutra"
-# false apaga o fogo e solta o mouse
-animacao = false
+
+[visual]
+# cheio (o padrão), leve ou nenhum
+efeitos = "leve"
+# compacta (o padrão) ou confortavel
+densidade = "confortavel"
 ```
+
+A seção `[visual]` é a cara da TUI:
+
+- `efeitos` diz quanto a tela se mexe. `cheio` liga tudo. `leve` deixa só o fogo do fundo, sem cenas nem transições. `nenhum` apaga o fogo e solta o mouse: a TUI só acorda quando chega uma tecla.
+- `densidade` diz quanto a tela respira: `compacta` cola uma linha na outra, e `confortavel` dá margem nas caixas e espaço entre os blocos. Por enquanto a config só guarda a escolha: as telas passam a ler a densidade na tarefa [#105](https://github.com/b0de-py/vamo_fogao/issues/105).
+
+Todo efeito pergunta pelo `efeitos` antes de animar (`Effects` em `visual.rs`), então dá pra desligar tudo num lugar só. O `animacao = false` das versões antigas continua valendo como `efeitos = "nenhum"`; quando os dois aparecem, o `efeitos` ganha.
 
 `vamo --linguagem` e a variável `VAMO_LINGUAGEM` ganham da config. Um campo que o `vamo` não conhece é erro, pra erro de digitação não passar em silêncio.
 
