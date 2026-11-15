@@ -368,6 +368,10 @@ impl App {
         let (columns, rows) = self.fire_area.get();
         self.fire.resize(columns, rows);
         let score = self.score(ledger);
+        // O momento do dia muda o fogo: em dia de jogo ele sobe e deita com
+        // o vento; com tarefa atrasada, baixa e fica parado.
+        let game_day = self.schedule.game.is_some();
+        let late = !Lineup::new(ledger.projection(), self.today).late.is_empty();
         let strength = if self.intro > 0 {
             // Na abertura, o fogo sobe com tudo.
             1.0
@@ -383,13 +387,17 @@ impl App {
             }
             self.flash -= 1;
             1.0
-        } else if score.planned == 0 {
-            0.0
         } else {
-            // Contagens de tarefa do dia cabem com folga num u32.
-            f64::from(u32::try_from(score.done).unwrap_or(u32::MAX))
-                / f64::from(u32::try_from(score.planned).unwrap_or(u32::MAX))
+            let ratio = if score.planned == 0 {
+                0.0
+            } else {
+                // Contagens de tarefa do dia cabem com folga num u32.
+                f64::from(u32::try_from(score.done).unwrap_or(u32::MAX))
+                    / f64::from(u32::try_from(score.planned).unwrap_or(u32::MAX))
+            };
+            fire::embers(ratio, game_day, late)
         };
+        self.fire.set_wind(fire::Wind::of(game_day, late));
         self.fire.step(strength);
     }
 
