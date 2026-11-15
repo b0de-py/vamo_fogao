@@ -22,8 +22,6 @@ pub struct Lineup {
     /// As escaladas pra um dia que já passou e que não foram concluídas: o
     /// atraso.
     pub late: Vec<Task>,
-    /// As recorrentes, as atividades fixas que se marcam todo dia.
-    pub fixed: Vec<Task>,
 }
 
 /// O placar do dia: quanto já foi feito do que estava previsto.
@@ -43,12 +41,10 @@ impl Lineup {
             today,
             planned: Vec::new(),
             late: Vec::new(),
-            fixed: Vec::new(),
         };
         for task in projection.tasks() {
             match (task.status(), task.day()) {
                 (Status::Dropped, _) => {}
-                (Status::Recurring, _) => lineup.fixed.push(task),
                 (_, Some(day)) if day == today => lineup.planned.push(task),
                 (status, Some(day)) if day < today && status != Status::Done => {
                     lineup.late.push(task);
@@ -66,7 +62,7 @@ impl Lineup {
 
     /// Se não tem nada no dia: nem escalada, nem atraso, nem fixa.
     pub fn is_empty(&self) -> bool {
-        self.planned.is_empty() && self.late.is_empty() && self.fixed.is_empty()
+        self.planned.is_empty() && self.late.is_empty()
     }
 
     /// O placar do dia.
@@ -76,14 +72,9 @@ impl Lineup {
             .iter()
             .filter(|task| task.status() == Status::Done)
             .count();
-        let checks = self
-            .fixed
-            .iter()
-            .filter(|task| task.is_checked(self.today))
-            .count();
         Score {
-            done: goals + checks,
-            planned: self.planned.len() + self.fixed.len(),
+            done: goals,
+            planned: self.planned.len(),
         }
     }
 }
@@ -155,7 +146,6 @@ mod tests {
         let today = log.add("Trocar o filtro", Status::Ready);
         let late = log.add("Pagar a conta", Status::Ready);
         let tomorrow = log.add("Lavar o carro", Status::Ready);
-        let water = log.add("Beber água", Status::Recurring);
         let dropped = log.add("Pintar a parede", Status::Ready);
         log.add("Ler o livro", Status::Ready);
 
@@ -172,16 +162,13 @@ mod tests {
         let lineup = Lineup::new(&log.projection, TODAY);
         assert_eq!(titles(&lineup.planned), ["Trocar o filtro"]);
         assert_eq!(titles(&lineup.late), ["Pagar a conta"]);
-        assert_eq!(titles(&lineup.fixed), ["Beber água"]);
-        assert_eq!(lineup.fixed[0].id(), water);
     }
 
     #[test]
-    fn the_score_counts_goals_and_checks() {
+    fn the_score_counts_goals() {
         let mut log = Log::new();
         let first = log.add("Trocar o filtro", Status::Ready);
         let second = log.add("Pagar a conta", Status::Ready);
-        let water = log.add("Beber água", Status::Recurring);
         for id in [first, second] {
             let changes = log.projection.schedule(id, TODAY).unwrap();
             log.record(id, changes);
@@ -190,29 +177,17 @@ mod tests {
             Lineup::new(&log.projection, TODAY).score(),
             Score {
                 done: 0,
-                planned: 3
+                planned: 2
             }
         );
 
         let changes = log.projection.finish(first, TODAY).unwrap();
         log.record(first, changes);
-        let change = log.projection.check(water, TODAY, true).unwrap();
-        log.record(water, vec![change]);
         assert_eq!(
             Lineup::new(&log.projection, TODAY).score(),
             Score {
-                done: 2,
-                planned: 3
-            }
-        );
-
-        // A marcação é do dia: amanhã a fixa começa desmarcada.
-        let tomorrow = Lineup::new(&log.projection, date(2026, 11, 12));
-        assert_eq!(
-            tomorrow.score(),
-            Score {
-                done: 0,
-                planned: 1
+                done: 1,
+                planned: 2
             }
         );
     }
@@ -278,15 +253,5 @@ mod tests {
             log.projection.schedule(id, TODAY),
             Err(crate::Error::InvalidTransition { .. })
         ));
-    }
-
-    #[test]
-    fn only_recurring_tasks_are_checked() {
-        let mut log = Log::new();
-        let id = log.add("Trocar o filtro", Status::Ready);
-        assert_eq!(
-            log.projection.check(id, TODAY, true),
-            Err(crate::Error::NotRecurring { id })
-        );
     }
 }

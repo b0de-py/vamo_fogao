@@ -286,7 +286,6 @@ mod tests {
             (1, "Revisar o orçamento", Status::Ready),
             (2, "Ligar pro encanador", Status::Ready),
             (3, "Separar roupa pra doação", Status::Ready),
-            (4, "Regar as plantas", Status::Recurring),
         ];
         for (id, title, status) in tasks {
             record(
@@ -369,7 +368,7 @@ mod tests {
             team: "Botafogo",
             now: today().at(10, 30, 0, 0),
         });
-        assert_eq!(bar.text(Voice::Game), "⭐ 1 x 2 · jogo às 21:30");
+        assert_eq!(bar.text(Voice::Game), "⭐ 1 x 1 · jogo às 21:30");
         assert_eq!(bar.classes(), ["andando", "atraso", "jogo"]);
         let json = serde_json::to_string_pretty(&bar.json(Voice::Game)).unwrap();
         insta::assert_snapshot!(json);
@@ -378,8 +377,8 @@ mod tests {
     #[test]
     fn the_neutral_voice_has_no_ball() {
         let bar = bar(&projection(), &appointments());
-        assert_eq!(bar.text(Voice::Game), "⭐ 1 x 2");
-        assert_eq!(bar.text(Voice::Neutral), "1/3");
+        assert_eq!(bar.text(Voice::Game), "⭐ 1 x 1");
+        assert_eq!(bar.text(Voice::Neutral), "1/2");
     }
 
     #[test]

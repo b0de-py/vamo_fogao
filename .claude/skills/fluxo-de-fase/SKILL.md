@@ -17,7 +17,7 @@ Pré-requisito: `gh` autenticado (`gh auth status`). Sem ele não dá pra criar 
 
 ## 1. Abrir a fase
 
-As fases 0 a 7, o Extra e o Acervo já têm épico e sub-issues. Confira antes de criar qualquer coisa:
+As fases 0 a 8, o Extra e o Acervo já têm épico e sub-issues. Confira antes de criar qualquer coisa:
 
 ```sh
 gh issue list --label épico --state all

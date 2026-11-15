@@ -317,12 +317,19 @@ mod done {
     #[test]
     fn the_status_rule_still_holds() {
         let vamo = Vamo::new();
-        vamo.ok(&["add", "Ler o livro", "--status", "ideia"]);
+        vamo.ok(&["add", "Ler o livro", "--status", "descartada"]);
 
         assert_eq!(
             vamo.fails(&["done", "1"], 1),
-            "Deu ruim: \n   0: não dá pra passar de ideia pra concluída\n"
+            "Deu ruim: \n   0: não dá pra passar de descartada pra concluída\n"
         );
+    }
+
+    #[test]
+    fn an_idea_scores_straight_away() {
+        let vamo = Vamo::new();
+        vamo.ok(&["add", "Ler o livro", "--status", "ideia"]);
+        assert!(vamo.ok(&["done", "1"]).starts_with("GOOOL!"));
     }
 
     #[test]
@@ -999,7 +1006,7 @@ mod resumo {
         let vamo = Vamo::new();
         let out = vamo.ok(&["resumo", "--data", "2026-01-05", "--json"]);
         let json: serde_json::Value = serde_json::from_str(&out).unwrap();
-        assert_eq!(json["versao"], 1);
+        assert_eq!(json["versao"], 2);
         assert_eq!(json["dia"], "2026-01-05");
     }
 
@@ -1305,5 +1312,164 @@ mod sincronia {
     fn nothing_configured_says_what_to_add() {
         let err = Vamo::new().fails(&["sync"], 1);
         assert!(err.contains("[sincronia]"), "{err}");
+    }
+}
+
+mod repeat {
+    use super::*;
+
+    #[test]
+    fn a_task_can_be_born_with_an_interval() {
+        let vamo = Vamo::new();
+        vamo.ok(&["add", "Fechar o mês", "--volta", "1m"]);
+
+        let shown = vamo.ok(&["show", "1"]);
+        assert!(shown.contains("volta    todo mês"), "{shown}");
+    }
+
+    #[test]
+    fn the_interval_can_be_set_and_removed_later() {
+        let vamo = Vamo::new();
+        vamo.ok(&["add", "Regar as plantas"]);
+
+        let said = vamo.ok(&["volta", "1", "2s"]);
+        assert!(said.contains("volta a cada 2 semanas"), "{said}");
+        assert!(
+            vamo.ok(&["show", "1"])
+                .contains("volta    a cada 2 semanas")
+        );
+
+        let said = vamo.ok(&["volta", "1", "nunca"]);
+        assert!(said.contains("não volta mais"), "{said}");
+        assert!(!vamo.ok(&["show", "1"]).contains("volta    "));
+    }
+
+    #[test]
+    fn a_goal_on_a_task_that_comes_back_still_closes_it_for_now() {
+        let vamo = Vamo::new();
+        vamo.ok(&["add", "Fechar o mês", "--volta", "1m"]);
+        vamo.ok(&["done", "1"]);
+
+        // Concluída, ela some da lista até o dia de voltar.
+        assert_eq!(
+            vamo.ok(&["list"]),
+            "Ninguém no banco. Pra contratar: vamo add <título>\n"
+        );
+        assert!(vamo.ok(&["list", "--todas"]).contains("concluída"));
+    }
+
+    #[test]
+    fn a_bad_interval_brings_the_explanation() {
+        let vamo = Vamo::new();
+        vamo.ok(&["add", "Fechar o mês"]);
+
+        let error = vamo.fails(&["volta", "1", "amanhã"], 2);
+        assert!(error.contains("não é um intervalo"), "{error}");
+    }
+}
+
+mod play {
+    use super::*;
+
+    fn with_a_play() -> Vamo {
+        let vamo = Vamo::new();
+        vamo.ok(&[
+            "add",
+            "Fechar o mês",
+            "--passo",
+            "Pedir as datas + Recebi as datas + Recebi o e-mail",
+            "--passo",
+            "Montar o rascunho @48h",
+            "--passo",
+            "Revisar o rascunho @pedir",
+        ]);
+        vamo
+    }
+
+    #[test]
+    fn the_list_shows_only_the_step_of_the_turn() {
+        let vamo = with_a_play();
+        let list = vamo.ok(&["list"]);
+        assert!(list.contains("Fechar o mês · Pedir as datas"), "{list}");
+        assert!(!list.contains("Montar"), "{list}");
+    }
+
+    #[test]
+    fn the_ticket_shows_the_steps_and_the_items() {
+        let vamo = with_a_play();
+        vamo.ok(&["item", "1", "2"]);
+
+        let shown = vamo.ok(&["show", "1"]);
+        assert!(shown.contains("[>] Pedir as datas"), "{shown}");
+        assert!(shown.contains("1 [ ] Recebi as datas"), "{shown}");
+        assert!(shown.contains("2 [x] Recebi o e-mail"), "{shown}");
+        assert!(
+            shown.contains("[ ] Montar o rascunho  (48h depois do anterior)"),
+            "{shown}"
+        );
+        assert!(shown.contains("(a data é pedida)"), "{shown}");
+    }
+
+    #[test]
+    fn a_step_only_closes_with_all_its_items() {
+        let vamo = with_a_play();
+        vamo.ok(&["item", "1", "1"]);
+
+        let error = vamo.fails(&["done", "1"], 1);
+        assert!(error.contains("ainda espera: Recebi o e-mail"), "{error}");
+
+        vamo.ok(&["item", "1", "2"]);
+        let said = vamo.ok(&["done", "1"]);
+        assert!(
+            said.contains("passo fechado. Agora: Montar o rascunho"),
+            "{said}"
+        );
+    }
+
+    #[test]
+    fn the_step_that_asks_for_a_date_refuses_without_it() {
+        let vamo = with_a_play();
+        vamo.ok(&["item", "1", "1"]);
+        vamo.ok(&["item", "1", "2"]);
+        vamo.ok(&["done", "1"]);
+
+        let error = vamo.fails(&["done", "1"], 1);
+        assert!(error.contains("pede a data"), "{error}");
+
+        let said = vamo.ok(&["done", "1", "--data", "2099-01-15"]);
+        assert!(said.contains("Agora: Revisar o rascunho"), "{said}");
+    }
+
+    #[test]
+    fn waiting_takes_the_play_out_and_back() {
+        let vamo = with_a_play();
+        assert!(vamo.ok(&["espera", "1"]).contains("aguarda"));
+        assert!(vamo.ok(&["show", "1"]).contains("aguardando"));
+        assert!(vamo.ok(&["espera", "1"]).contains("voltou a andar"));
+    }
+
+    #[test]
+    fn a_task_that_is_not_a_play_refuses_the_play_commands() {
+        let vamo = Vamo::new();
+        vamo.ok(&["add", "Ler o livro"]);
+        assert!(vamo.fails(&["espera", "1"], 1).contains("não é uma jogada"));
+        assert!(
+            vamo.fails(&["item", "1", "1"], 1)
+                .contains("não é uma jogada")
+        );
+    }
+
+    #[test]
+    fn the_last_step_is_the_goal() {
+        let vamo = Vamo::new();
+        vamo.ok(&["add", "Fechar o mês", "--passo", "Montar o rascunho"]);
+        assert!(vamo.ok(&["done", "1"]).starts_with("GOOOL!"));
+    }
+
+    #[test]
+    fn a_bad_step_is_refused_with_the_explanation() {
+        let vamo = Vamo::new();
+        let error = vamo.fails(&["add", "Fechar o mês", "--passo", "Montar @amanhã"], 2);
+        assert!(error.contains("não é um passo"), "{error}");
     }
 }

@@ -13,6 +13,9 @@ use crate::prompt::{Prompt, Purpose};
 use crate::voice::Field;
 use crate::{Ledger, Voice, theme};
 
+/// Quantas tarefas dormindo a faixa "voltam em breve" mostra.
+const MAX_SLEEPING: usize = 4;
+
 /// O cursor e o filtro do Banco.
 #[derive(Debug, Default)]
 pub(crate) struct Bench {
@@ -72,6 +75,7 @@ impl Bench {
         frame: &mut Frame<'_>,
         area: Rect,
         projection: &Projection,
+        today: Date,
         voice: Voice,
     ) {
         let tasks = self.visible(projection);
@@ -90,6 +94,49 @@ impl Bench {
             ])),
             top,
         );
+        // As que dormem até voltar ficam numa faixa embaixo, com a data.
+        let sleeping: Vec<(Task, Date)> = projection
+            .coming_back(today)
+            .into_iter()
+            .filter(|(task, _)| self.filter.is_empty() || matches(task, &self.filter))
+            .collect();
+        // As jogadas que esperam algo de fora, com o que falta.
+        let waiting: Vec<&Task> = tasks.iter().filter(|task| task.is_waiting()).collect();
+        let mut strip_lines: Vec<Line<'static>> = Vec::new();
+        if !waiting.is_empty() {
+            strip_lines.push(Line::styled(voice.bench_waiting(), theme::heading()));
+            for task in waiting.iter().take(MAX_SLEEPING) {
+                strip_lines.push(Line::styled(
+                    format!("  {}  {}", task.id(), waiting_text(task)),
+                    theme::muted(),
+                ));
+            }
+        }
+        if !sleeping.is_empty() {
+            strip_lines.push(Line::styled(voice.bench_coming_back(), theme::heading()));
+            for (task, day) in sleeping.iter().take(MAX_SLEEPING) {
+                strip_lines.push(Line::styled(
+                    format!(
+                        "  {}  {}  {}",
+                        task.id(),
+                        day.strftime("%d/%m"),
+                        task.title()
+                    ),
+                    theme::muted(),
+                ));
+            }
+        }
+        let (rest, strip) = if strip_lines.is_empty() {
+            (rest, None)
+        } else {
+            let height = u16::try_from(strip_lines.len()).unwrap_or(u16::MAX);
+            let [rest, strip] =
+                Layout::vertical([Constraint::Fill(1), Constraint::Length(height)]).areas(rest);
+            (rest, Some(strip))
+        };
+        if let Some(strip) = strip {
+            frame.render_widget(Paragraph::new(strip_lines), strip);
+        }
         if tasks.is_empty() {
             frame.render_widget(
                 Paragraph::new(Line::styled(voice.bench_empty(), theme::muted())),
@@ -135,6 +182,47 @@ impl Bench {
     }
 }
 
+/// O que a jogada em espera aguarda: o título e os itens do passo que
+/// faltam marcar.
+fn waiting_text(task: &Task) -> String {
+    let missing: Vec<&str> = task
+        .current_step()
+        .map(|step| {
+            step.items()
+                .iter()
+                .enumerate()
+                .filter(|&(index, _)| !task.progress().is_item_checked(index))
+                .map(|(_, item)| item.as_str())
+                .collect()
+        })
+        .unwrap_or_default();
+    if missing.is_empty() {
+        label(task)
+    } else {
+        format!("{} (falta: {})", label(task), missing.join(", "))
+    }
+}
+
+/// O título da tarefa como as telas mostram: numa jogada em andamento, com o
+/// passo da vez.
+pub(crate) fn label(task: &Task) -> String {
+    match task.current_step() {
+        Some(step) if task.status() != Status::Done => {
+            format!("{} · {}", task.title(), step.title())
+        }
+        _ => task.title().to_string(),
+    }
+}
+
+/// Se fechar o passo da vez pede a data do próximo: a tela abre a linha de
+/// digitar o dia antes de gravar.
+pub(crate) fn asks_date(projection: &Projection, task: &Task, today: Date) -> bool {
+    matches!(
+        projection.finish(task.id(), today),
+        Err(vamo_core::Error::StepNeedsDate { .. })
+    )
+}
+
 /// As teclas que agem sobre uma tarefa. Valem no Banco e na Ficha.
 pub(crate) fn task_key<L: Ledger>(
     key: KeyEvent,
@@ -153,6 +241,9 @@ pub(crate) fn task_key<L: Ledger>(
         KeyCode::Char(' ') if task.status() == Status::Done => projection
             .status_change(id, Status::Ready)
             .map(|change| vec![change]),
+        KeyCode::Char(' ') if asks_date(projection, task, today) => {
+            return Some(Action::Ask(Prompt::new(Purpose::StepDate(id), "")));
+        }
         KeyCode::Char(' ') => {
             let feedback = match record(ledger, id, projection.finish(id, today)) {
                 Feedback::Done => Feedback::Goal(id),
@@ -182,7 +273,7 @@ fn row(task: &Task, cursor: bool) -> Row<'static> {
         Cell::from(task.fit().as_str()),
         Cell::from(task.area().to_string()),
         Cell::from(Span::styled(day, theme::soft())),
-        Cell::from(task.title().to_string()),
+        Cell::from(label(task)),
     ])
     .style(style);
     if cursor {
@@ -261,6 +352,71 @@ pub(crate) mod tests {
         let mut ledger = bench();
         let app = open_bench(&mut ledger);
         assert_snapshot!(draw(&app, &ledger, 90, 12));
+    }
+
+    #[test]
+    fn a_task_that_comes_back_sleeps_in_its_own_strip() {
+        let mut ledger = bench();
+        let id = ledger.add("Fechar o mês", "casa", Fit::Gap, Status::Ready);
+        let repeat = ledger
+            .projection()
+            .set_repeat(id, Some("1m".parse().unwrap()))
+            .unwrap();
+        let finish = ledger.projection().finish(id, today()).unwrap();
+        ledger.record(id, vec![repeat]).unwrap();
+        ledger.record(id, finish).unwrap();
+        let app = open_bench(&mut ledger);
+        assert_snapshot!(draw(&app, &ledger, 90, 14));
+    }
+
+    /// Uma jogada inventada de dois passos: o primeiro pede dois itens, o
+    /// segundo pede a data.
+    fn the_play(ledger: &mut MemoryLedger) -> vamo_core::TaskId {
+        let id = ledger.add("Fechar o mês", "casa", Fit::Gap, Status::Ready);
+        let plan = "Pedir as datas + Recebi as datas + Recebi o e-mail\nRevisar o rascunho @pedir"
+            .parse()
+            .unwrap();
+        let changes = ledger.projection().set_plan(id, Some(plan)).unwrap();
+        ledger.record(id, changes).unwrap();
+        id
+    }
+
+    #[test]
+    fn a_waiting_play_leaves_the_schedule_and_shows_what_is_missing() {
+        let mut ledger = bench();
+        let id = the_play(&mut ledger);
+        let change = ledger.projection().toggle_item(id, 0).unwrap();
+        ledger.record(id, vec![change]).unwrap();
+        let changes = ledger.projection().set_waiting(id, true).unwrap();
+        ledger.record(id, changes).unwrap();
+
+        let app = open_bench(&mut ledger);
+        let screen = draw(&app, &ledger, 90, 14);
+        assert!(screen.contains("Aguardando"), "{screen}");
+        assert!(screen.contains("falta: Recebi o e-mail"), "{screen}");
+    }
+
+    #[test]
+    fn closing_a_step_that_needs_a_date_asks_for_it_first() {
+        let mut ledger = bench();
+        let id = the_play(&mut ledger);
+        for index in [0, 1] {
+            let change = ledger.projection().toggle_item(id, index).unwrap();
+            ledger.record(id, vec![change]).unwrap();
+        }
+        let mut app = open_bench(&mut ledger);
+        // O cursor desce até a jogada (a última do banco) e fecha o passo.
+        for _ in 0..10 {
+            app.on_key(key(KeyCode::Down), &mut ledger);
+        }
+        app.on_key(key(KeyCode::Char(' ')), &mut ledger);
+        let screen = draw(&app, &ledger, 90, 14);
+        assert!(screen.contains("dia ("), "{screen}");
+
+        type_text(&mut app, &mut ledger, "25/12");
+        let task = ledger.projection().task(id).unwrap();
+        assert_eq!(task.current_step().unwrap().title(), "Revisar o rascunho");
+        assert_eq!(task.status(), Status::Scheduled);
     }
 
     #[test]

@@ -11,7 +11,7 @@ use vamo_store::{Error, Store};
 
 /// A versão do esquema depois de todas as migrações. Migração nova sobe
 /// este número.
-const LATEST_SCHEMA: u32 = 5;
+const LATEST_SCHEMA: u32 = 7;
 
 /// Um banco numa pasta que ainda não existe, dentro de uma pasta temporária
 /// que some no fim do teste.
@@ -99,6 +99,15 @@ fn every_kind_of_change_comes_back_the_same() {
         event(7, 41, Change::Notes(String::new())),
         event(8, 41, Change::Day(Some(jiff::civil::date(2026, 11, 11)))),
         event(9, 41, Change::Day(None)),
+        event(12, 41, Change::Repeat(Some("1m".parse().unwrap()))),
+        event(13, 41, Change::Repeat(None)),
+        event(
+            14,
+            41,
+            Change::Plan(Some("Pedir as datas + Recebi\nFazer @48h".parse().unwrap())),
+        ),
+        event(15, 41, Change::Progress("1,1,1".parse().unwrap())),
+        event(16, 41, Change::Plan(None)),
         event(
             10,
             41,

@@ -7,7 +7,7 @@ use jiff::Timestamp;
 use jiff::civil::Date;
 use uuid::{Uuid, Variant, Version};
 
-use crate::{Area, Error, Fit, Machine, NotebookTitle, Status, TaskId};
+use crate::{Area, Error, Fit, Interval, Machine, NotebookTitle, Plan, Progress, Status, TaskId};
 
 /// Uma mudança numa tarefa: o que mudou, quando e em que máquina.
 ///
@@ -78,6 +78,13 @@ pub enum Change {
     Status(Status),
     /// As notas mudaram. Vazio apaga as notas.
     Notes(String),
+    /// Os passos da jogada em sequência mudaram. `None` tira: a tarefa deixa
+    /// de ser uma jogada.
+    Plan(Option<Plan>),
+    /// O ponto da jogada mudou: o passo da vez, os itens marcados, a espera.
+    Progress(Progress),
+    /// O intervalo de volta mudou. `None` tira: a tarefa deixa de voltar.
+    Repeat(Option<Interval>),
     /// A tarefa foi escalada pra um dia, ou saiu da escalação (`None`).
     Day(Option<Date>),
     /// Uma tarefa recorrente foi marcada (ou desmarcada) num dia.

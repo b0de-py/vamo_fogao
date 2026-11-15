@@ -24,12 +24,13 @@ use crate::bench::Bench;
 use crate::curiosity::Acervo;
 use crate::fire::{self, Fire};
 use crate::museum::Museum;
+use crate::notebook::Notebook;
 use crate::prompt::{Prompt, Purpose, Step};
 use crate::schedule::Schedule;
 use crate::star::Star;
 use crate::today::{self, Today};
 use crate::when::parse_day;
-use crate::{Animation, Ledger, Setup, Voice, card, notebook, theme};
+use crate::{Animation, Ledger, Setup, Voice, card, theme};
 
 /// O que aconteceu depois de uma ação de quem usa.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -132,6 +133,7 @@ pub(crate) struct App {
     banter: bool,
     today_screen: Today,
     bench: Bench,
+    notebook_screen: Notebook,
     museum: Museum,
     /// A tarefa com a Ficha aberta, por cima do Banco.
     card: Option<TaskId>,
@@ -195,6 +197,7 @@ impl App {
             banter: false,
             today_screen: Today::default(),
             bench: Bench::default(),
+            notebook_screen: Notebook::default(),
             museum: Museum::default(),
             card: None,
             prompt: None,
@@ -271,6 +274,12 @@ impl App {
         self.fire.step(strength);
     }
 
+    /// Troca a agenda do dia, pros testes das outras telas.
+    #[cfg(test)]
+    pub(crate) fn set_schedule(&mut self, schedule: Schedule) {
+        self.schedule = schedule;
+    }
+
     /// Avisa que dia é hoje. A TUI pode ficar aberta de um dia pro outro.
     pub(crate) fn set_today(&mut self, today: Date) {
         self.today = today;
@@ -334,7 +343,10 @@ impl App {
                         self.museum.on_key(key, &self.acervo, self.voice);
                         None
                     }
-                    (Tab::Notebook, _) => None,
+                    (Tab::Notebook, _) => {
+                        self.notebook_screen
+                            .on_key(key, ledger, self.today, &self.schedule)
+                    }
                 };
                 self.act(action, ledger.projection());
             }
@@ -403,6 +415,28 @@ impl App {
             Purpose::Day(id) => match parse_day(text, self.today, self.voice) {
                 Ok(day) => {
                     let changes = projection.schedule(id, day);
+                    record(ledger, id, changes)
+                }
+                Err(message) => Feedback::Refused(message),
+            },
+            Purpose::Pull => match pick_ready(projection, text, self.voice) {
+                Ok(id) => {
+                    let changes = projection.schedule(id, self.today);
+                    record(ledger, id, changes)
+                }
+                Err(message) => Feedback::Refused(message),
+            },
+            Purpose::Item(id) => match text.parse::<usize>().ok().and_then(|n| n.checked_sub(1)) {
+                Some(index) => {
+                    let change = projection.toggle_item(id, index).map(|change| vec![change]);
+                    record(ledger, id, change)
+                }
+                None => Feedback::Refused(self.voice.bad_option(text)),
+            },
+            // Fechar o passo da vez, agora que a data do próximo veio.
+            Purpose::StepDate(id) => match parse_day(text, self.today, self.voice) {
+                Ok(day) => {
+                    let changes = projection.finish_with(id, self.today, Some(day));
                     record(ledger, id, changes)
                 }
                 Err(message) => Feedback::Refused(message),
@@ -556,12 +590,22 @@ impl App {
                 self.banter,
                 self.voice,
             ),
-            Tab::Notebook => notebook::render(frame, area, projection, self.today, self.voice),
+            Tab::Notebook => self.notebook_screen.render(
+                frame,
+                area,
+                projection,
+                self.today,
+                &self.schedule,
+                ledger.agenda_checks(),
+                self.voice,
+            ),
             Tab::Bench => match self.card.and_then(|id| projection.task(id)) {
                 Some(task) => {
                     card::render(frame, area, &task, ledger.events(), &self.zone, self.voice);
                 }
-                None => self.bench.render(frame, area, projection, self.voice),
+                None => self
+                    .bench
+                    .render(frame, area, projection, self.today, self.voice),
             },
             Tab::Museum => self
                 .museum
@@ -617,6 +661,33 @@ pub(crate) fn centered(area: Rect, width: usize, height: usize) -> Rect {
         y: area.y + (area.height - height) / 2,
         width,
         height,
+    }
+}
+
+/// A pronta do banco que o texto aponta: o ID (`T-041` ou `41`) ou uma
+/// palavra do título. Só uma pode combinar.
+fn pick_ready(projection: &Projection, text: &str, voice: Voice) -> Result<TaskId, String> {
+    let ready = projection.inbox();
+    let word = text.trim().to_lowercase();
+    let by_id = word
+        .trim_start_matches("t-")
+        .parse::<u32>()
+        .ok()
+        .and_then(TaskId::new)
+        .and_then(|id| ready.iter().find(|task| task.id() == id));
+    if let Some(task) = by_id {
+        return Ok(task.id());
+    }
+    let found: Vec<&vamo_core::Task> = ready
+        .iter()
+        .filter(|task| !word.is_empty() && task.title().as_str().to_lowercase().contains(&word))
+        .collect();
+    match found.as_slice() {
+        [task] => Ok(task.id()),
+        [] => Err(voice.pull_none(text)),
+        [first, rest @ ..] => {
+            Err(voice.pull_many(rest.len() + 1, &format!("{} {}", first.id(), first.title())))
+        }
     }
 }
 

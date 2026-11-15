@@ -9,7 +9,7 @@ vamo barra          # ⭐ 3 x 2 (no modo neutro, 3/5)
 vamo barra --json   # o mesmo, no formato do módulo
 ```
 
-O placar é o mesmo da tela Hoje, com as fixas do banco e as da agenda marcadas: a conta mora no core (`Lineup::score_with`) e as duas telas só mostram. A agenda vem da cópia local, a que o `vamo sync` baixa. A barra pergunta a cada meio minuto e não pode esperar a internet.
+O placar é o mesmo da tela Hoje, com as fixas da agenda marcadas: a conta mora no core (`Lineup::score_with`) e as duas telas só mostram. A agenda vem da cópia local, a que o `vamo sync` baixa. A barra pergunta a cada meio minuto e não pode esperar a internet.
 
 ## O formato
 

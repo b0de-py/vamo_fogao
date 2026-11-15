@@ -6,6 +6,7 @@
 - [Arquitetura](arquitetura.md)
 - [O domínio](o-dominio.md)
 - [O log de eventos](o-log-de-eventos.md)
+- [O que se repete](o-que-se-repete.md)
 - [O acervo](o-acervo.md)
 - [A TUI](a-tui.md)
 - [A agenda](a-agenda.md)

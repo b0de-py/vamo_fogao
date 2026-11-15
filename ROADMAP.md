@@ -10,8 +10,9 @@ O vamo_fogao anda por fases. Cada fase leva o nome de um ídolo do Botafogo e vi
 | 3. Agenda (Zagallo) | Leitura da agenda por ICS (OAuth opcional), eventos que viram tarefas, o rodapé `vamo:`, brechas, regras do tempo e a caixa pra agendar. | O check-in da manhã acontece sem gastar token. | [#30](https://github.com/b0de-py/vamo_fogao/issues/30) |
 | 4. Barra, lembretes e dia de jogo (Jairzinho) | Módulo QML na barra, notificações do Omarchy e o card do dia de jogo com o fato do confronto. | Lembrete vira agenda mais notificação, e dia de jogo ganha card. | [#38](https://github.com/b0de-py/vamo_fogao/issues/38) |
 | 5. Resumo e sincronia (Gérson) | Súmula do dia às 4h com os hábitos, export pro backup privado, vários PCs em sincronia e a branch `vamo-entrada`. | A revisão semanal liga. | [#44](https://github.com/b0de-py/vamo_fogao/issues/44) |
-| 6. MCP (Túlio) | `vamo mcp` com rmcp, as ferramentas de tarefa, os recursos do dia e da semana e os prompts `weekly-review` e `schedule-inbox`. | O Claude fecha o ciclo sem copiar e colar nada. | [#51](https://github.com/b0de-py/vamo_fogao/issues/51) |
-| 7. Pra torcida (Loco Abreu) | Config de exemplo, modo neutro, README de boas-vindas, binários no Releases, pacote no AUR e o modelo de issue pra sugerir curiosidade. | Qualquer botafoguense instala com um comando. | [#58](https://github.com/b0de-py/vamo_fogao/issues/58) |
+| 6. Jogando no Niltão (Nilton Santos) | Recorrência na agenda, tarefa que volta por intervalo, jogada em sequência, gol de qualquer status e tela, escalar pronta direto do Hoje, Caderno espelhando o papel, um tipo só de fixa e, no fim, a reformulação do visual com mais referências ao Fogão. | O app deixa de confundir e vira casa no dia a dia. | [#96](https://github.com/b0de-py/vamo_fogao/issues/96) |
+| 7. MCP (Túlio) | `vamo mcp` com rmcp, as ferramentas de tarefa, os recursos do dia e da semana e os prompts `weekly-review` e `schedule-inbox`. | O Claude fecha o ciclo sem copiar e colar nada. | [#51](https://github.com/b0de-py/vamo_fogao/issues/51) |
+| 8. Pra torcida (Loco Abreu) | Config de exemplo, modo neutro, README de boas-vindas, binários no Releases, pacote no AUR e o modelo de issue pra sugerir curiosidade. | Qualquer botafoguense instala com um comando. | [#58](https://github.com/b0de-py/vamo_fogao/issues/58) |
 | Extra (Monumental) | MCP remoto no VPS e a página do vamo_fogao no r4ul.com.br. | O Claude fala com o vamo_fogao direto, sem passar pelo git. | [#64](https://github.com/b0de-py/vamo_fogao/issues/64) |
 | Sempre: acervo | Fatos novos por PR, cada um com duas fontes, até ter um "Neste dia" pra cada dia do ano. | Cada dia abre com uma história nova. | [#67](https://github.com/b0de-py/vamo_fogao/issues/67) |
 
@@ -23,6 +24,7 @@ O vamo_fogao anda por fases. Cada fase leva o nome de um ídolo do Botafogo e vi
 - **Zagallo**, o Formiguinha que ocupava todos os espaços do campo: as brechas da agenda.
 - **Jairzinho**, o Furacão da Copa de 1970: a fase que aparece em todo canto.
 - **Gérson**, o Canhotinha de Ouro dos lançamentos longos: o dado que vai longe.
+- **Niltão**, o estádio que leva o nome de Nilton Santos: a fase em que o app vira casa.
 - **Túlio Maravilha**, o artilheiro: o gol que fecha o ciclo.
 - **Loco Abreu**, o da cavadinha: o app vai pra galera.
 - **Monumental**, o estádio de Buenos Aires onde veio a Libertadores de 2024.

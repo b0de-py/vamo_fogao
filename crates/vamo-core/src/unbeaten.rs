@@ -192,13 +192,9 @@ mod tests {
     }
 
     #[test]
-    fn a_day_with_only_fixed_tasks_is_idle() {
-        let mut log = Log::new();
-        let water = log.add("Beber água", Status::Recurring);
+    fn a_day_without_tasks_is_idle() {
+        let log = Log::new();
         let day = date(2026, 11, 2);
-        log.at(day, 9);
-        let change = log.projection.check(water, day, true).unwrap();
-        log.record(water, vec![change]);
 
         let summary = DaySummary::close(&log.events, day, window(day), Vec::new());
         assert_eq!(summary.outcome(), Outcome::Idle);

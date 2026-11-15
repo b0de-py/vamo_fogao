@@ -34,7 +34,7 @@ impl Projection {
     ///
     /// Se a tarefa aparece em mais de um evento, vale o primeiro de hoje em
     /// diante; sem nenhum daqui pra frente, o último que já passou. Tarefa
-    /// concluída, descartada ou recorrente não muda: o evento na agenda é só
+    /// concluída ou descartada não muda: o evento na agenda é só
     /// lembrança.
     ///
     /// ```
@@ -75,7 +75,7 @@ impl Projection {
                 continue;
             };
             match task.status() {
-                Status::Done | Status::Dropped | Status::Recurring => {}
+                Status::Done | Status::Dropped => {}
                 status @ (Status::Idea | Status::Refining) => {
                     plan.skipped.push(Skipped::NotReady(id, status));
                 }
@@ -103,7 +103,9 @@ impl Projection {
     /// ```
     pub fn inbox(&self) -> Vec<Task> {
         self.tasks()
-            .filter(|task| task.status() == Status::Ready && task.day().is_none())
+            .filter(|task| {
+                task.status() == Status::Ready && task.day().is_none() && !task.is_waiting()
+            })
             .collect()
     }
 }
@@ -241,21 +243,15 @@ mod tests {
     }
 
     #[test]
-    fn closed_recurring_and_unready_tasks_are_left_alone() {
+    fn closed_and_unready_tasks_are_left_alone() {
         let mut log = Log::new();
         let done = log.add("Pagar a conta", Status::Ready);
         let finish = log.projection.finish(done, TODAY).unwrap();
         log.record(done, finish);
-        let water = log.add("Beber água", Status::Recurring);
         let idea = log.add("Pensar na viagem", Status::Idea);
         let ghost = TaskId::new(99).unwrap();
 
-        let agenda = [
-            on(TODAY, done),
-            on(TODAY, water),
-            on(TODAY, idea),
-            on(TODAY, ghost),
-        ];
+        let agenda = [on(TODAY, done), on(TODAY, idea), on(TODAY, ghost)];
         let plan = log.projection.link(&agenda, TODAY);
         assert_eq!(plan.changes, []);
         assert_eq!(

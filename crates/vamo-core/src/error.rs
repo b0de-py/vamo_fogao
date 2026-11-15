@@ -53,9 +53,65 @@ pub enum Error {
     /// O texto não é um status conhecido.
     #[error(
         "`{input}` não é um status: os status são ideia, destrinchando, pronta, agendada, \
-         recorrente, concluída e descartada"
+         concluída e descartada"
     )]
     UnknownStatus {
+        /// O texto recebido.
+        input: String,
+    },
+
+    /// O texto não é um passo de jogada.
+    #[error(
+        "`{input}` não é um passo: escreva o título, e se quiser `@48h` (ou `@pedir`) e `+ item`, \
+         sem `@` nem `+` dentro do texto, com até 60 letras"
+    )]
+    InvalidStep {
+        /// O texto recebido.
+        input: String,
+    },
+
+    /// A jogada tem passos de menos ou demais.
+    #[error("uma jogada tem de 1 a 12 passos, e esta tem {count}")]
+    InvalidPlan {
+        /// Quantos passos vieram.
+        count: usize,
+    },
+
+    /// O texto não é o ponto de uma jogada.
+    #[error("`{input}` não é o ponto de uma jogada")]
+    InvalidProgress {
+        /// O texto recebido.
+        input: String,
+    },
+
+    /// O passo da vez ainda tem item sem marcar.
+    #[error("{id} ainda espera: {missing}")]
+    StepIncomplete {
+        /// A tarefa.
+        id: TaskId,
+        /// Os itens que faltam, separados por vírgula.
+        missing: String,
+    },
+
+    /// O próximo passo pede a data na hora de fechar este.
+    #[error("o próximo passo de {id} (`{next}`) pede a data: informe quando ele vence")]
+    StepNeedsDate {
+        /// A tarefa.
+        id: TaskId,
+        /// O título do próximo passo.
+        next: String,
+    },
+
+    /// A tarefa não é uma jogada em sequência.
+    #[error("{id} não é uma jogada em sequência")]
+    NotASequence {
+        /// A tarefa.
+        id: TaskId,
+    },
+
+    /// O texto não é um intervalo de volta.
+    #[error("`{input}` não é um intervalo: escreva como 1m (todo mês) ou 2s (a cada duas semanas)")]
+    InvalidInterval {
         /// O texto recebido.
         input: String,
     },
@@ -78,13 +134,6 @@ pub enum Error {
     #[error("não tem nenhuma tarefa {id}")]
     UnknownTask {
         /// O ID procurado.
-        id: TaskId,
-    },
-
-    /// Só tarefa recorrente se marca num dia.
-    #[error("{id} não é recorrente, então não tem o que marcar no dia: é só concluir")]
-    NotRecurring {
-        /// A tarefa.
         id: TaskId,
     },
 

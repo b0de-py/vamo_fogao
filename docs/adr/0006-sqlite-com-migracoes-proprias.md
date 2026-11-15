@@ -18,7 +18,7 @@ O log de eventos (ADR 0004) precisa morar num arquivo na máquina de quem usa, s
 ## Alternativas consideradas
 
 - **Arquivo JSON ou TOML:** simples, mas dois processos escrevendo ao mesmo tempo corrompem o arquivo, e cada leitura carrega tudo.
-- **`sqlx`:** confere as consultas na compilação, mas é assíncrono e traz o tokio pra um app que, até a fase 6, não precisa dele.
+- **`sqlx`:** confere as consultas na compilação, mas é assíncrono e traz o tokio pra um app que, até a fase 7, não precisa dele.
 - **Diesel ou SeaORM:** um ORM inteiro pra uma tabela de eventos é mais peso que ajuda, e esconde o SQL que o livro quer mostrar.
 - **`refinery` ou `rusqlite_migration`:** fazem o mesmo controle de versão, mas o que o projeto precisa cabe em umas quarenta linhas legíveis em `migrations.rs`, sem dependência a mais.
 

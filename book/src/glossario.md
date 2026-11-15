@@ -10,12 +10,15 @@ O código fala inglês e a interface fala português, com a linguagem de jogo li
 | ID da tarefa | `TaskId` | O número no formato `T-001`. |
 | Área | `Area` | O pedaço da vida a que a tarefa pertence (saúde, casa, estudos...). As áreas vêm da config. |
 | Encaixe | `Fit` | Que tipo de espaço a tarefa pede: foco, brecha ou com alguém. |
-| Status | `Status` | Em que pé a tarefa está: ideia, destrinchando, pronta, agendada, recorrente, concluída ou descartada. |
+| Status | `Status` | Em que pé a tarefa está: ideia, destrinchando, pronta, agendada, concluída ou descartada. O antigo "recorrente" saiu: o que se repete mora na agenda. |
 | Caderno | notebook | A lista do dia no formato do caderno de papel: título curto, verbo na frente. |
 | Título do caderno | `NotebookTitle` | Um título de até cinco palavras que começa com verbo. |
 | Brecha | `Gap` | Uma janela livre no expediente, onde cabe uma tarefa curta. |
 | Compromisso | `Appointment` | Um evento da agenda, já no horário local, com a recorrência resolvida. |
 | Rodapé | `Footer` | A linha `vamo: T-041 \| ...` na descrição do evento, que liga ele à tarefa. |
+| Tarefa que volta | `Interval` | Tarefa sem horário que, depois do gol, espera um intervalo (`1m`, `2s`) e volta pro banco sozinha. |
+| Jogada em sequência | `Plan`, `Step`, `Progress` | Passos em ordem numa tarefa só: aparece o passo da vez, cada passo pode ter prazo e itens, e fechar o último dá o gol e dorme até o mês seguinte. |
+| Aguardando | `Task::is_waiting` | A jogada espera algo de fora: sai da escalação e não conta como atraso. |
 | Atividade fixa da agenda | `FixedActivity` | Um compromisso recorrente, de marcar na tela Hoje sem virar tarefa. |
 | Regras do tempo | `TimeRules` | Expediente, teto da noite e blocos protegidos, da seção `[tempo]` da config. |
 | Regra ferida | `Violation` | O que uma tarefa marcada num horário fere: o teto da noite ou um bloco protegido. |

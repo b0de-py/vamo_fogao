@@ -25,7 +25,7 @@ use crate::Error;
 
 /// A versão do formato que esta versão do vamo escreve. Sobe a cada mudança
 /// em qualquer tipo deste módulo.
-pub const VERSION: u32 = 1;
+pub const VERSION: u32 = 2;
 
 /// Uma linha do log de eventos exportado.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
@@ -90,7 +90,24 @@ pub enum ChangeLine {
         /// O dia, como `2026-11-11`.
         dia: Option<String>,
     },
-    /// Uma recorrente foi marcada ou desmarcada num dia.
+    /// O intervalo em que a tarefa volta depois do gol mudou (versão 2).
+    Volta {
+        /// O intervalo, como `1m` (todo mês) ou `2s` (a cada duas semanas).
+        /// `null` tira: a tarefa deixa de voltar.
+        intervalo: Option<String>,
+    },
+    /// Os passos da jogada em sequência mudaram (versão 2).
+    Jogada {
+        /// Um passo por linha, no formato `Título @48h + item`. `null` tira:
+        /// a tarefa deixa de ser uma jogada.
+        passos: Option<String>,
+    },
+    /// O ponto da jogada mudou (versão 2).
+    Ponto {
+        /// O passo da vez, os itens marcados e a espera, como `1,5,0`.
+        ponto: String,
+    },
+    /// Uma marcação por tarefa (versões antigas; hoje a projeção ignora).
     Marcacao {
         /// O dia da marcação.
         dia: String,
@@ -130,6 +147,15 @@ impl From<&Event> for EventLine {
             },
             Change::Day(day) => ChangeLine::Dia {
                 dia: day.map(|day| day.to_string()),
+            },
+            Change::Plan(plan) => ChangeLine::Jogada {
+                passos: plan.as_ref().map(ToString::to_string),
+            },
+            Change::Progress(progress) => ChangeLine::Ponto {
+                ponto: progress.to_string(),
+            },
+            Change::Repeat(interval) => ChangeLine::Volta {
+                intervalo: interval.map(|interval| interval.to_string()),
             },
             Change::Check { day, done } => ChangeLine::Marcacao {
                 dia: day.to_string(),
@@ -172,6 +198,13 @@ impl TryFrom<EventLine> for Event {
             ChangeLine::Status { status } => Change::Status(status.parse()?),
             ChangeLine::Notas { notas } => Change::Notes(notas),
             ChangeLine::Dia { dia } => Change::Day(dia.as_deref().map(date).transpose()?),
+            ChangeLine::Jogada { passos } => {
+                Change::Plan(passos.as_deref().map(str::parse).transpose()?)
+            }
+            ChangeLine::Ponto { ponto } => Change::Progress(ponto.parse()?),
+            ChangeLine::Volta { intervalo } => {
+                Change::Repeat(intervalo.as_deref().map(str::parse).transpose()?)
+            }
             ChangeLine::Marcacao { dia, feita } => Change::Check {
                 day: date(&dia)?,
                 done: feita,
@@ -301,7 +334,9 @@ impl From<&DaySummary> for SummaryDoc {
             versao: VERSION,
             dia: summary.day.to_string(),
             gols: tasks(&summary.goals),
-            fixas: tasks(&summary.checks),
+            // Segue no formato v1 por compatibilidade: tarefa não é mais
+            // marcada por dia (ADR 0014), então sai sempre vazio.
+            fixas: Vec::new(),
             voltaram_pro_banco: tasks(&summary.benched),
             acrescimos: tasks(&summary.stoppage),
             habitos: summary.habits.iter().map(HabitLine::from).collect(),
@@ -419,7 +454,7 @@ impl From<&WeekSummary> for WeekDoc {
                 .map(|day| WeekDay {
                     dia: day.day.to_string(),
                     gols: tasks(&day.goals),
-                    fixas: tasks(&day.checks),
+                    fixas: Vec::new(),
                     voltaram_pro_banco: tasks(&day.benched),
                     acrescimos: tasks(&day.stoppage),
                 })
@@ -501,6 +536,11 @@ mod tests {
                 day: date(2026, 11, 11),
                 done: true,
             },
+            Change::Repeat(Some("1m".parse().unwrap())),
+            Change::Repeat(None),
+            Change::Plan(Some("Pedir @pedir + a + b\nFazer @48h".parse().unwrap())),
+            Change::Plan(None),
+            Change::Progress("1,3,1".parse().unwrap()),
         ];
         for (n, change) in (1..).zip(changes) {
             let original = event(n, change);

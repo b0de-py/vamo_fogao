@@ -10,7 +10,8 @@ Uma ordem pra ler o código sem se perder. A ideia é ir de fora pra dentro e de
 6. **`crates/vamo-acervo`.** O museu de bolso, um domínio à parte, com a régua das fontes. O capítulo [O acervo](o-acervo.md) mostra como ele lê cada arquivo.
 7. **`crates/vamo-tui`.** As telas do terminal. O `voice.rs` é o dicionário: todo texto de interface, da TUI e da CLI, na linguagem de jogo e na neutra.
 8. **`crates/vamo-agenda`.** A agenda: o leitor de ICS, a regra de recorrência, o rodapé `vamo:` e, com a feature `google`, a API do Google Agenda. O capítulo [A agenda](a-agenda.md) mostra o caminho de um evento até a tela Hoje; as brechas e as regras do tempo, que são regra, moram no core (`gaps.rs`, `rules.rs`, `fixed.rs`).
-9. **Os próximos adaptadores**, na ordem em que chegam: `vamo-sync` (fase 5) e `vamo-mcp` (fase 6).
+9. **O que se repete.** O capítulo [O que se repete](o-que-se-repete.md) mostra os três jeitos de uma coisa voltar: a agenda, a tarefa que volta e a jogada em sequência.
+10. **Os próximos adaptadores**, na ordem em que chegam: `vamo-sync` (fase 5) e `vamo-mcp` (fase 7).
 
 Duas dicas pra ler com calma:
 

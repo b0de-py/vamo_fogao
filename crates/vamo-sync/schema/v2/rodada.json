@@ -1,0 +1,230 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "WeekDoc",
+  "description": "A rodada: o resumo de uma semana, de segunda a domingo.",
+  "type": "object",
+  "properties": {
+    "acrescimos": {
+      "description": "As tarefas que venceram na semana.",
+      "type": "integer",
+      "format": "uint",
+      "minimum": 0
+    },
+    "dias": {
+      "description": "Cada dia da semana, em ordem.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/WeekDay"
+      }
+    },
+    "fim": {
+      "description": "O domingo da semana.",
+      "type": "string"
+    },
+    "gols": {
+      "description": "Os gols da semana.",
+      "type": "integer",
+      "format": "uint",
+      "minimum": 0
+    },
+    "habitos": {
+      "description": "Os hábitos somados na semana.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/HabitLine"
+      }
+    },
+    "impedimentos": {
+      "description": "Os impedimentos da semana.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/OffsideLine"
+      }
+    },
+    "inicio": {
+      "description": "A segunda-feira da semana.",
+      "type": "string"
+    },
+    "invencibilidade": {
+      "description": "A invencibilidade no fim da semana.",
+      "$ref": "#/$defs/UnbeatenLine"
+    },
+    "versao": {
+      "description": "A versão do formato.",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "voltaram_pro_banco": {
+      "description": "As tarefas que voltaram pro banco na semana.",
+      "type": "integer",
+      "format": "uint",
+      "minimum": 0
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "versao",
+    "inicio",
+    "fim",
+    "gols",
+    "voltaram_pro_banco",
+    "acrescimos",
+    "dias",
+    "impedimentos",
+    "habitos",
+    "invencibilidade"
+  ],
+  "$defs": {
+    "HabitLine": {
+      "description": "Quanto de um hábito foi registrado.",
+      "type": "object",
+      "properties": {
+        "nome": {
+          "description": "O nome do hábito.",
+          "type": "string"
+        },
+        "quantidade": {
+          "description": "Quantas vezes foi registrado.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "unidade": {
+          "description": "A unidade, no singular.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "nome",
+        "unidade",
+        "quantidade"
+      ]
+    },
+    "OffsideLine": {
+      "description": "Um impedimento: tarefa marcada na agenda fora das regras do tempo.",
+      "type": "object",
+      "properties": {
+        "compromisso": {
+          "description": "O título do compromisso.",
+          "type": "string"
+        },
+        "dia": {
+          "description": "O dia do compromisso.",
+          "type": "string"
+        },
+        "regra": {
+          "description": "A regra ferida, em texto.",
+          "type": "string"
+        },
+        "tarefa": {
+          "description": "A tarefa ligada ao compromisso.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "dia",
+        "tarefa",
+        "compromisso",
+        "regra"
+      ]
+    },
+    "TaskRef": {
+      "description": "Uma tarefa num resumo: o ID e o título.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "O ID, como `T-041`.",
+          "type": "string"
+        },
+        "titulo": {
+          "description": "O título.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "titulo"
+      ]
+    },
+    "UnbeatenLine": {
+      "description": "A invencibilidade.",
+      "type": "object",
+      "properties": {
+        "atual": {
+          "description": "Os dias seguidos sem vencida até o fim da rodada.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "recorde": {
+          "description": "A maior sequência que já teve.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "recorde_do_clube": {
+          "description": "O recorde do clube: 52 jogos, em 1977 e 1978.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "atual",
+        "recorde",
+        "recorde_do_clube"
+      ]
+    },
+    "WeekDay": {
+      "description": "Um dia dentro da rodada: a súmula sem os hábitos, que vão somados.",
+      "type": "object",
+      "properties": {
+        "acrescimos": {
+          "description": "As que venceram no dia.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TaskRef"
+          }
+        },
+        "dia": {
+          "description": "O dia, como `2026-11-11`.",
+          "type": "string"
+        },
+        "fixas": {
+          "description": "As recorrentes marcadas no dia.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TaskRef"
+          }
+        },
+        "gols": {
+          "description": "Os gols do dia.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TaskRef"
+          }
+        },
+        "voltaram_pro_banco": {
+          "description": "As que voltaram pro banco no dia.",
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/TaskRef"
+          }
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "dia",
+        "gols",
+        "fixas",
+        "voltaram_pro_banco",
+        "acrescimos"
+      ]
+    }
+  }
+}

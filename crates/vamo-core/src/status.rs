@@ -8,11 +8,13 @@ use crate::Error;
 /// Em que pé uma tarefa está.
 ///
 /// O caminho comum é ideia → destrinchando → pronta → agendada → concluída,
-/// mas dá pra pular etapas e voltar algumas. As regras completas estão em
+/// mas dá pra pular etapas (o gol sai de qualquer status em aberto) e voltar
+/// algumas. As regras completas estão em
 /// [`Status::can_become`].
 ///
 /// Nos arquivos e na CLI, os nomes são os de [`Status::as_str`]. A leitura
-/// também aceita `concluida`, sem acento.
+/// também aceita `concluida`, sem acento, e `recorrente`, que virou `pronta`
+/// (ADR 0014).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Status {
     /// Só a ideia, ainda sem forma (ideia).
@@ -23,8 +25,6 @@ pub enum Status {
     Ready,
     /// Com horário marcado na agenda (agendada).
     Scheduled,
-    /// Volta de tempos em tempos e não termina num gol só (recorrente).
-    Recurring,
     /// Feita: gol (concluída).
     Done,
     /// Não vai mais ser feita (descartada).
@@ -33,12 +33,11 @@ pub enum Status {
 
 impl Status {
     /// Todos os status, na ordem do caminho comum.
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 6] = [
         Self::Idea,
         Self::Refining,
         Self::Ready,
         Self::Scheduled,
-        Self::Recurring,
         Self::Done,
         Self::Dropped,
     ];
@@ -50,7 +49,6 @@ impl Status {
             Self::Refining => "destrinchando",
             Self::Ready => "pronta",
             Self::Scheduled => "agendada",
-            Self::Recurring => "recorrente",
             Self::Done => "concluída",
             Self::Dropped => "descartada",
         }
@@ -60,11 +58,10 @@ impl Status {
     ///
     /// | De | Pode virar |
     /// |----|------------|
-    /// | ideia | destrinchando, pronta, recorrente, descartada |
-    /// | destrinchando | ideia, pronta, recorrente, descartada |
-    /// | pronta | destrinchando, agendada, recorrente, concluída, descartada |
+    /// | ideia | destrinchando, pronta, concluída, descartada |
+    /// | destrinchando | ideia, pronta, concluída, descartada |
+    /// | pronta | destrinchando, agendada, concluída, descartada |
     /// | agendada | pronta (volta pro banco), concluída, descartada |
-    /// | recorrente | pronta, descartada |
     /// | concluída | pronta (o VAR anulou o gol) |
     /// | descartada | ideia (volta do arquivo) |
     ///
@@ -74,18 +71,18 @@ impl Status {
     /// use vamo_core::Status;
     ///
     /// assert!(Status::Ready.can_become(Status::Scheduled));
-    /// assert!(!Status::Idea.can_become(Status::Done));
+    /// assert!(Status::Idea.can_become(Status::Done));
+    /// assert!(!Status::Dropped.can_become(Status::Done));
     /// ```
     pub fn can_become(self, next: Self) -> bool {
-        use Status::{Done, Dropped, Idea, Ready, Recurring, Refining, Scheduled};
+        use Status::{Done, Dropped, Idea, Ready, Refining, Scheduled};
 
         matches!(
             (self, next),
-            (Idea, Refining | Ready | Recurring | Dropped)
-                | (Refining, Idea | Ready | Recurring | Dropped)
-                | (Ready, Refining | Scheduled | Recurring | Done | Dropped)
+            (Idea, Refining | Ready | Done | Dropped)
+                | (Refining, Idea | Ready | Done | Dropped)
+                | (Ready, Refining | Scheduled | Done | Dropped)
                 | (Scheduled, Ready | Done | Dropped)
-                | (Recurring, Ready | Dropped)
                 | (Done, Ready)
                 | (Dropped, Idea)
         )
@@ -119,8 +116,12 @@ impl FromStr for Status {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s == "concluida" {
-            return Ok(Self::Done);
+        // Dois nomes antigos que continuam valendo na leitura: "concluida"
+        // sem acento e "recorrente", que sumiu (ADR 0014) e agora é pronta.
+        match s {
+            "concluida" => return Ok(Self::Done),
+            "recorrente" => return Ok(Self::Ready),
+            _ => {}
         }
         Self::ALL
             .into_iter()
@@ -134,7 +135,7 @@ impl FromStr for Status {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use Status::{Done, Dropped, Idea, Ready, Recurring, Refining, Scheduled};
+    use Status::{Done, Dropped, Idea, Ready, Refining, Scheduled};
 
     #[test]
     fn every_status_survives_display_then_parse() {
@@ -149,6 +150,12 @@ mod tests {
     }
 
     #[test]
+    fn the_old_recurring_status_reads_as_ready() {
+        // Logs e exports antigos ainda trazem "recorrente" (ADR 0014).
+        assert_eq!("recorrente".parse(), Ok(Ready));
+    }
+
+    #[test]
     fn unknown_names_are_rejected() {
         for input in ["", "Pronta", "feita", "done"] {
             assert_eq!(
@@ -157,6 +164,15 @@ mod tests {
                     input: input.to_owned()
                 })
             );
+        }
+    }
+
+    #[test]
+    fn a_goal_can_come_from_any_open_status() {
+        // Uma ideia que se resolveu sozinha vira gol direto, sem passar por
+        // pronta e escalada.
+        for from in [Idea, Refining, Ready, Scheduled] {
+            assert!(from.can_become(Done), "{from} → concluída");
         }
     }
 
@@ -178,9 +194,7 @@ mod tests {
     #[test]
     fn shortcuts_that_skip_the_definition_are_not_allowed() {
         assert!(!Idea.can_become(Scheduled));
-        assert!(!Idea.can_become(Done));
-        assert!(!Refining.can_become(Done));
-        assert!(!Recurring.can_become(Done));
+        assert!(!Dropped.can_become(Done));
         assert!(!Done.can_become(Scheduled));
         assert!(!Dropped.can_become(Ready));
     }
@@ -218,10 +232,7 @@ mod tests {
 
     #[test]
     fn the_error_message_names_both_statuses() {
-        let error = Idea.transition_to(Done).unwrap_err();
-        assert_eq!(
-            error.to_string(),
-            "não dá pra passar de ideia pra concluída"
-        );
+        let error = Idea.transition_to(Scheduled).unwrap_err();
+        assert_eq!(error.to_string(), "não dá pra passar de ideia pra agendada");
     }
 }

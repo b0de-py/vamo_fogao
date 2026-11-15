@@ -9,7 +9,7 @@ use std::str::FromStr;
 
 use jiff::civil::Weekday;
 use vamo_acervo::{Banter, Curiosity, Tag};
-use vamo_core::{Change, NotebookTitle, TaskId};
+use vamo_core::{Change, Interval, NotebookTitle, TaskId};
 
 use crate::Animation;
 use crate::app::Tab;
@@ -26,6 +26,7 @@ pub(crate) enum Field {
     Fit,
     Status,
     Day,
+    Repeat,
     Notes,
 }
 
@@ -221,7 +222,6 @@ impl Voice {
             (Self::Neutral, Group::Planned) => "Pra hoje",
             (_, Group::Late) => "Atrasadas",
             (_, Group::Fixed) => "Fixas",
-            (_, Group::Agenda) => "Fixas da agenda",
         }
     }
 
@@ -307,6 +307,16 @@ impl Voice {
         }
     }
 
+    /// O título da faixa das jogadas que esperam algo de fora.
+    pub(crate) fn bench_waiting(self) -> &'static str {
+        "Aguardando"
+    }
+
+    /// O título da faixa das tarefas que dormem até voltar pro banco.
+    pub(crate) fn bench_coming_back(self) -> &'static str {
+        "Voltam em breve"
+    }
+
     /// Quando nenhuma tarefa passa no filtro.
     pub(crate) fn bench_empty(self) -> &'static str {
         match self {
@@ -389,6 +399,14 @@ impl Voice {
                 Self::Game => "saiu da escalação".to_owned(),
                 Self::Neutral => "sem dia marcado".to_owned(),
             },
+            Change::Repeat(Some(interval)) => format!("volta {}", Self::interval(*interval)),
+            Change::Repeat(None) => "deixou de voltar".to_owned(),
+            Change::Plan(Some(plan)) => format!("jogada de {} passos", plan.steps().len()),
+            Change::Plan(None) => "deixou de ser jogada".to_owned(),
+            Change::Progress(progress) => {
+                let waiting = if progress.waiting { ", aguardando" } else { "" };
+                format!("jogada no passo {}{waiting}", u16::from(progress.step) + 1)
+            }
             Change::Check { day, done: true } => format!("feita em {}", day.strftime("%d/%m/%Y")),
             Change::Check { day, done: false } => {
                 format!("desmarcada em {}", day.strftime("%d/%m/%Y"))
@@ -512,24 +530,12 @@ impl Voice {
         }
     }
 
-    /// Os títulos das partes da súmula: gols, fixas marcadas, as que
+    /// Os títulos das partes da súmula: gols, as que
     /// voltaram pro banco, os acréscimos e os hábitos.
-    pub fn summary_parts(self) -> [&'static str; 5] {
+    pub fn summary_parts(self) -> [&'static str; 4] {
         match self {
-            Self::Game => [
-                "Gols",
-                "Fixas marcadas",
-                "Voltaram pro banco",
-                "Acréscimos",
-                "Hábitos",
-            ],
-            Self::Neutral => [
-                "Concluídas",
-                "Fixas feitas",
-                "Adiadas",
-                "Vencidas",
-                "Hábitos",
-            ],
+            Self::Game => ["Gols", "Voltaram pro banco", "Acréscimos", "Hábitos"],
+            Self::Neutral => ["Concluídas", "Adiadas", "Vencidas", "Hábitos"],
         }
     }
 
@@ -664,7 +670,18 @@ impl Voice {
             Field::Fit => "encaixe",
             Field::Status => "status",
             Field::Day => "dia",
+            Field::Repeat => "volta",
             Field::Notes => "notas",
+        }
+    }
+
+    /// O intervalo de volta em palavras: `todo mês`, `a cada 2 semanas`.
+    pub fn interval(interval: Interval) -> String {
+        match interval {
+            Interval::Months(1) => "todo mês".to_owned(),
+            Interval::Months(n) => format!("a cada {n} meses"),
+            Interval::Weeks(1) => "toda semana".to_owned(),
+            Interval::Weeks(n) => format!("a cada {n} semanas"),
         }
     }
 
@@ -676,6 +693,34 @@ impl Voice {
     /// O começo da linha de digitar o filtro.
     pub(crate) fn prompt_filter(self) -> &'static str {
         "filtro (área, status, encaixe ou palavra do título): "
+    }
+
+    /// O começo da linha de escolher uma pronta pra escalar.
+    pub(crate) fn prompt_pull(self) -> &'static str {
+        "escalar (ID ou palavra do título): "
+    }
+
+    /// O lembrete, no pé do Hoje, de que dá pra escalar uma pronta.
+    pub(crate) fn pull_hint(self, ready: usize) -> String {
+        let tasks = if ready == 1 {
+            "1 pronta".to_owned()
+        } else {
+            format!("{ready} prontas")
+        };
+        match self {
+            Self::Game => format!("No banco: {tasks}. A tecla e escala uma pra hoje."),
+            Self::Neutral => format!("Na lista: {tasks}. A tecla e marca uma pra hoje."),
+        }
+    }
+
+    /// Quando nenhuma pronta combina com o que foi digitado.
+    pub(crate) fn pull_none(self, text: &str) -> String {
+        format!("nenhuma pronta combina com `{text}`")
+    }
+
+    /// Quando mais de uma pronta combina: mostra as primeiras.
+    pub(crate) fn pull_many(self, count: usize, first: &str) -> String {
+        format!("{count} prontas combinam ({first}...): digite o ID")
     }
 
     /// O começo da linha de digitar o dia.
@@ -836,6 +881,10 @@ impl Voice {
                         "conclui (ou desfaz) e marca a fixa",
                     ),
                 ),
+                (
+                    "e",
+                    self.pick("escala uma pronta do banco", "marca uma pronta"),
+                ),
                 ("a", "adia a tarefa pra amanhã"),
                 ("b", back_to_bench),
                 (
@@ -846,7 +895,16 @@ impl Voice {
                     ),
                 ),
             ],
-            (Tab::Notebook, _) => vec![],
+            (Tab::Notebook, _) => vec![
+                ("j, k, setas", "sobe e desce na lista"),
+                (
+                    "espaço, enter",
+                    self.pick(
+                        "marca o gol (ou anula) e marca a fixa",
+                        "conclui (ou desfaz) e marca a fixa",
+                    ),
+                ),
+            ],
             (Tab::Museum, _) => vec![
                 ("j, k, setas", "sobe e desce na lista"),
                 ("o", "ordena por data ou por tema"),

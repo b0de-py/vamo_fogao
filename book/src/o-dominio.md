@@ -32,7 +32,7 @@ Quase todo tipo do core implementa o par `FromStr` e `Display`: um lê do texto,
 | `fit.rs` | `Fit` | O encaixe: foco, brecha ou com alguém. |
 | `status.rs` | `Status` | Em que pé a tarefa está, e pra onde ela pode ir. |
 | `title.rs` | `NotebookTitle` | O título no padrão do caderno: até cinco palavras, verbo no infinitivo na frente. |
-| `task.rs` | `Task` | A tarefa inteira, montada com as partes acima, com o dia da escalação e as marcações das recorrentes. |
+| `task.rs` | `Task` | A tarefa inteira, montada com as partes acima, com o dia da escalação. |
 | `lineup.rs` | `Lineup`, `Score` | A escalação de um dia (as escaladas, o atraso e as fixas) e o placar. |
 | `reminder.rs` | `ReminderWindow`, `Reminder` | A janela de uma rodada dos lembretes e os avisos que vencem nela. |
 | `game.rs` | `Game`, `GameDay` | O jogo do time e o dia de jogo, com as tarefas do jogo e a regra de só tarefa leve perto do horário. |
@@ -47,29 +47,29 @@ O `Task::new` não devolve `Result`: como cada parte já chega validada, não so
 ```rust,ignore
 matches!(
     (self, next),
-    (Idea, Refining | Ready | Recurring | Dropped)
-        | (Refining, Idea | Ready | Recurring | Dropped)
-        | (Ready, Refining | Scheduled | Recurring | Done | Dropped)
+    (Idea, Refining | Ready | Done | Dropped)
+        | (Refining, Idea | Ready | Done | Dropped)
+        | (Ready, Refining | Scheduled | Done | Dropped)
         | (Scheduled, Ready | Done | Dropped)
-        | (Recurring, Ready | Dropped)
         | (Done, Ready)
         | (Dropped, Idea)
 )
 ```
 
-Cada linha é um status de partida e os destinos permitidos. Dois casos contam a história do app: `Done` só volta pra `Ready` (o VAR anulou o gol) e `Dropped` só volta pra `Idea` (a tarefa sai do arquivo e recomeça). Ficar no mesmo status não é transição, então nunca passa.
+Cada linha é um status de partida e os destinos permitidos. O gol sai de qualquer status em aberto: uma ideia que se resolveu sozinha vira `Done` sem passar por pronta e escalada. Dois casos contam a história do app: `Done` só volta pra `Ready` (o VAR anulou o gol) e `Dropped` só volta pra `Idea` (a tarefa sai do arquivo e recomeça). Ficar no mesmo status não é transição, então nunca passa.
 
 `Status::transition_to` usa a mesma regra e devolve `Result`, com o erro `InvalidTransition` dizendo de onde pra onde não deu. É ele que a CLI usa no `vamo done`.
 
 ## O dia e o placar
 
-A tela Hoje pergunta ao core o que é do dia, e o `Lineup::new(projeção, hoje)` responde em três grupos: as tarefas escaladas pra hoje, as escaladas pra um dia que passou e não foram feitas (o atraso, que a TUI pinta de amarelo plasma) e as recorrentes, as fixas que se marcam todo dia. O placar conta os gols e as fixas marcadas contra tudo que estava previsto pro dia.
+A tela Hoje pergunta ao core o que é do dia, e o `Lineup::new(projeção, hoje)` responde em dois grupos: as tarefas escaladas pra hoje e as escaladas pra um dia que passou e não foram feitas (o atraso, que a TUI pinta de amarelo plasma). O que se repete todo dia mora na agenda, como evento repetido, e entra no placar como fixa da agenda ([ADR 0014](https://github.com/b0de-py/vamo_fogao/blob/main/docs/adr/0014-recorrencia-mora-na-agenda.md)). O placar conta os gols e as fixas marcadas contra tudo que estava previsto pro dia.
 
-Três regras moram na `Projection`, porque são regra de negócio:
+Estas regras moram na `Projection`, porque são regra de negócio:
 
 - `finish`: o gol conta no dia em que saiu. Concluir uma tarefa atrasada (ou sem dia) passa ela pra hoje.
+- `finish_with`, `toggle_item` e `set_waiting`: a jogada em sequência fecha o passo da vez, marca os itens dele e sai da escalação quando espera ([ADR 0016](https://github.com/b0de-py/vamo_fogao/blob/main/docs/adr/0016-jogada-em-sequencia.md)).
+- `resurface` e `coming_back`: a tarefa concluída que tem intervalo volta pro banco quando o dia chega, e a que ainda dorme aparece com a data ([ADR 0015](https://github.com/b0de-py/vamo_fogao/blob/main/docs/adr/0015-tarefa-que-volta-por-intervalo.md)).
 - `schedule` e `unschedule`: escalar deixa a tarefa agendada, pro dia pedido; tirar da escalação devolve pro banco, pronta.
-- `check`: só recorrente se marca, e a marcação é de um dia só. Amanhã a fixa começa desmarcada.
 
 Como o core não lê relógio, "hoje" sempre chega por parâmetro.
 

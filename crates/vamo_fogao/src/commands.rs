@@ -11,8 +11,9 @@ use jiff::tz::TimeZone;
 use uuid::Uuid;
 use vamo_agenda::{Footer, Freshness};
 use vamo_core::{
-    Area, Change, DaySummary, Event, EventId, EventStore, Fit, Habits, Machine, NotebookTitle,
-    Notifier, Projection, ReminderWindow, Skipped, Status, Task, TaskId, WeekSummary,
+    Area, Change, DaySummary, Event, EventId, EventStore, Fit, Habits, Interval, Machine,
+    NotebookTitle, Notifier, Plan as StepPlan, Projection, ReminderWindow, Skipped, Status, Step,
+    Task, TaskId, WeekSummary,
 };
 use vamo_store::Store;
 
@@ -32,11 +33,24 @@ pub(crate) fn run(command: Command, voice: Voice, config: &Config) -> Result<Str
             fit,
             status,
             notes,
-        } => Session::open(voice)?.add(&title.join(" "), area, fit, status, notes),
+            repeat,
+            steps,
+        } => Session::open(voice)?.add(NewTask {
+            title: title.join(" "),
+            area,
+            fit,
+            status,
+            notes,
+            repeat,
+            steps,
+        }),
         Command::List { all, area, status } => {
             Ok(Session::open(voice)?.list(all, area.as_ref(), status))
         }
-        Command::Done { id } => Session::open(voice)?.done(id),
+        Command::Done { id, date } => Session::open(voice)?.done(id, date),
+        Command::Item { id, item } => Session::open(voice)?.item(id, item),
+        Command::Espera { id } => Session::open(voice)?.wait(id),
+        Command::Volta { id, repeat } => Session::open(voice)?.set_repeat(id, repeat.0),
         Command::Show { id } => Session::open(voice)?.show(id),
         Command::Import { file, dry_run } => Session::open(voice)?.import(&file, dry_run),
         Command::Curiosidade { date, banter } => {
@@ -117,6 +131,17 @@ fn games_list(config: &Config, today: Date) -> Result<String> {
 /// manda no meio.
 const SYNC_ATTEMPTS: u32 = 3;
 
+/// O que o `vamo add` recebe pra criar uma tarefa.
+struct NewTask {
+    title: String,
+    area: Area,
+    fit: Fit,
+    status: Status,
+    notes: Option<String>,
+    repeat: Option<Interval>,
+    steps: Vec<Step>,
+}
+
 /// O banco aberto, o log lido e o estado das tarefas calculado a partir dele.
 struct Session {
     store: Store,
@@ -137,24 +162,40 @@ impl Session {
         let events = store.events()?;
         let projection = events.iter().collect();
         let agenda_checks = store.agenda_checks()?;
-        Ok(Self {
+        let mut session = Self {
             store,
             events,
             projection,
             voice,
             agenda_checks,
-        })
+        };
+        session.resurface()?;
+        Ok(session)
+    }
+
+    /// Devolve pro banco as tarefas que voltam hoje. Roda ao abrir o banco,
+    /// em todo comando (inclusive o da barra e o do timer de lembretes),
+    /// então a tarefa reaparece no dia certo sem ninguém pedir.
+    fn resurface(&mut self) -> Result<()> {
+        let today = jiff::Zoned::now().date();
+        for (id, changes) in self.projection.resurface(today) {
+            tracing::debug!(%id, "a tarefa voltou pro banco");
+            self.record(id, changes)?;
+        }
+        Ok(())
     }
 
     /// `vamo add`: cria a tarefa com o próximo ID livre.
-    fn add(
-        &mut self,
-        title: &str,
-        area: Area,
-        fit: Fit,
-        status: Status,
-        notes: Option<String>,
-    ) -> Result<String> {
+    fn add(&mut self, new: NewTask) -> Result<String> {
+        let NewTask {
+            title,
+            area,
+            fit,
+            status,
+            notes,
+            repeat,
+            steps,
+        } = new;
         let title: NotebookTitle = title.parse()?;
         let id = self
             .projection
@@ -170,10 +211,36 @@ impl Session {
         if let Some(notes) = notes {
             changes.push(Change::Notes(notes));
         }
+        if repeat.is_some() {
+            changes.push(Change::Repeat(repeat));
+        }
+        if !steps.is_empty() {
+            changes.push(Change::Plan(Some(StepPlan::new(steps)?)));
+        }
         self.record(id, changes)?;
 
         let task = self.task(id)?;
         Ok(self.voice.added(task.id(), task.title()))
+    }
+
+    /// `vamo volta`: define (ou tira) o intervalo de volta da tarefa.
+    fn set_repeat(&mut self, id: TaskId, repeat: Option<Interval>) -> Result<String> {
+        let change = self.projection.set_repeat(id, repeat)?;
+        self.record(id, vec![change])?;
+        let task = self.task(id)?;
+        Ok(match repeat {
+            Some(interval) => format!(
+                "{} {} volta {} depois do gol.",
+                task.id(),
+                task.title(),
+                Voice::interval(interval)
+            ),
+            None => format!(
+                "{} {} não volta mais depois do gol.",
+                task.id(),
+                task.title()
+            ),
+        })
     }
 
     /// `vamo list`: as tarefas em jogo, ou as do filtro pedido.
@@ -196,12 +263,54 @@ impl Session {
     }
 
     /// `vamo done`: conclui a tarefa, se a regra de status deixar.
-    fn done(&mut self, id: TaskId) -> Result<String> {
+    fn done(&mut self, id: TaskId, date: Option<Date>) -> Result<String> {
         // O gol conta no dia em que saiu.
-        let changes = self.projection.finish(id, jiff::Zoned::now().date())?;
+        let changes = self
+            .projection
+            .finish_with(id, jiff::Zoned::now().date(), date)?;
         self.record(id, changes)?;
         let task = self.task(id)?;
-        Ok(self.voice.goal(task.id(), task.title()))
+        // Numa jogada, só o último passo é gol; os outros passam a vez.
+        match task.current_step() {
+            Some(step) if task.status() != Status::Done => Ok(format!(
+                "{} {}: passo fechado. Agora: {}",
+                task.id(),
+                task.title(),
+                step.title()
+            )),
+            _ => Ok(self.voice.goal(task.id(), task.title())),
+        }
+    }
+
+    /// `vamo item`: marca ou desmarca um item do passo da vez.
+    fn item(&mut self, id: TaskId, item: u8) -> Result<String> {
+        let index = usize::from(item - 1);
+        let change = self.projection.toggle_item(id, index)?;
+        self.record(id, vec![change])?;
+        let task = self.task(id)?;
+        let step = task
+            .current_step()
+            .ok_or_else(|| eyre!("{id} não é uma jogada em sequência"))?;
+        let marked = task.progress().is_item_checked(index);
+        Ok(format!(
+            "{} {}: {}",
+            if marked { "[x]" } else { "[ ]" },
+            step.items()[index],
+            step.title()
+        ))
+    }
+
+    /// `vamo espera`: põe a jogada pra esperar, ou tira da espera.
+    fn wait(&mut self, id: TaskId) -> Result<String> {
+        let waiting = !self.task(id)?.is_waiting();
+        let changes = self.projection.set_waiting(id, waiting)?;
+        self.record(id, changes)?;
+        let task = self.task(id)?;
+        Ok(if waiting {
+            format!("{} {} aguarda; sai da escalação.", task.id(), task.title())
+        } else {
+            format!("{} {} voltou a andar.", task.id(), task.title())
+        })
     }
 
     /// `vamo caixa`: as tarefas prontas sem dia, cada uma com o encaixe, a
@@ -679,6 +788,13 @@ impl Session {
             format!("encaixe  {}", task.fit()),
             format!("status   {}", task.status()),
         ];
+        if let Some(interval) = task.repeat() {
+            lines.push(format!("volta    {}", Voice::interval(interval)));
+        }
+        if let Some(plan) = task.plan() {
+            lines.push(String::new());
+            lines.extend(plan_lines(&task, plan));
+        }
         // Nota de várias linhas fica alinhada embaixo da primeira.
         let mut notes = task.notes().lines();
         if let Some(first) = notes.next() {
@@ -823,6 +939,54 @@ fn habits(
 }
 
 /// As tarefas em colunas: ID, status, encaixe, área e título.
+/// O título na lista: numa jogada em andamento, com o passo da vez.
+fn title_with_step(task: &Task) -> String {
+    match task.current_step() {
+        Some(step) if task.status() != Status::Done => {
+            format!("{} · {}", task.title(), step.title())
+        }
+        _ => task.title().to_string(),
+    }
+}
+
+/// Os passos de uma jogada, um por linha: os fechados marcados, o da vez com
+/// seta e os itens dele com o que já foi marcado.
+fn plan_lines(task: &Task, plan: &StepPlan) -> Vec<String> {
+    let progress = task.progress();
+    let done = task.status() == Status::Done;
+    let mut lines = Vec::new();
+    for (index, step) in plan.steps().iter().enumerate() {
+        let current = index == usize::from(progress.step) && !done;
+        let mark = if done || index < usize::from(progress.step) {
+            "[x]"
+        } else if current {
+            "[>]"
+        } else {
+            "[ ]"
+        };
+        let due = match step.due() {
+            vamo_core::Due::None => String::new(),
+            vamo_core::Due::After(hours) => format!("  ({hours}h depois do anterior)"),
+            vamo_core::Due::Ask => "  (a data é pedida)".to_owned(),
+        };
+        lines.push(format!("{mark} {}{due}", step.title()));
+        if current {
+            for (item_index, item) in step.items().iter().enumerate() {
+                let item_mark = if progress.is_item_checked(item_index) {
+                    "[x]"
+                } else {
+                    "[ ]"
+                };
+                lines.push(format!("      {} {item_mark} {item}", item_index + 1));
+            }
+            if progress.waiting {
+                lines.push("      aguardando".to_owned());
+            }
+        }
+    }
+    lines
+}
+
 fn table(tasks: &[Task]) -> String {
     let rows: Vec<[String; 5]> = tasks
         .iter()
@@ -832,7 +996,7 @@ fn table(tasks: &[Task]) -> String {
                 task.status().to_string(),
                 task.fit().to_string(),
                 task.area().to_string(),
-                task.title().to_string(),
+                title_with_step(task),
             ]
         })
         .collect();

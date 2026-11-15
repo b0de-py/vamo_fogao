@@ -1,6 +1,6 @@
 ---
 source: crates/vamo_fogao/src/summary.rs
-expression: "serde_json::to_string_pretty(&week_json(&week)).unwrap()"
+expression: pretty(&week_json(&week))
 ---
 {
   "acrescimos": 2,
@@ -11,7 +11,7 @@ expression: "serde_json::to_string_pretty(&week_json(&week)).unwrap()"
       "fixas": [],
       "gols": [
         {
-          "id": "T-005",
+          "id": "T-004",
           "titulo": "Ler o capítulo novo"
         }
       ],
@@ -32,12 +32,7 @@ expression: "serde_json::to_string_pretty(&week_json(&week)).unwrap()"
         }
       ],
       "dia": "2026-11-11",
-      "fixas": [
-        {
-          "id": "T-004",
-          "titulo": "Regar as plantas"
-        }
-      ],
+      "fixas": [],
       "gols": [
         {
           "id": "T-001",
@@ -108,6 +103,6 @@ expression: "serde_json::to_string_pretty(&week_json(&week)).unwrap()"
     "recorde": 3,
     "recorde_do_clube": 52
   },
-  "versao": 1,
+  "versao": 2,
   "voltaram_pro_banco": 1
 }

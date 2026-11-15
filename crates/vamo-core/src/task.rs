@@ -1,10 +1,8 @@
 //! A tarefa.
 
-use std::collections::BTreeSet;
-
 use jiff::civil::Date;
 
-use crate::{Area, Error, Fit, NotebookTitle, Status, TaskId};
+use crate::{Area, Error, Fit, Interval, NotebookTitle, Plan, Progress, Status, Step, TaskId};
 
 /// Uma tarefa: o que fazer, de que área, que espaço pede e em que pé está.
 ///
@@ -41,7 +39,9 @@ pub struct Task {
     status: Status,
     notes: String,
     day: Option<Date>,
-    checks: BTreeSet<Date>,
+    repeat: Option<Interval>,
+    plan: Option<Plan>,
+    progress: Progress,
 }
 
 impl Task {
@@ -58,7 +58,9 @@ impl Task {
             status,
             notes: String::new(),
             day: None,
-            checks: BTreeSet::new(),
+            repeat: None,
+            plan: None,
+            progress: Progress::default(),
         }
     }
 
@@ -104,23 +106,71 @@ impl Task {
         self.day
     }
 
-    /// Se a tarefa (recorrente) foi marcada nesse dia.
-    pub fn is_checked(&self, day: Date) -> bool {
-        self.checks.contains(&day)
+    /// De quanto em quanto tempo a tarefa volta depois do gol, se volta.
+    pub fn repeat(&self) -> Option<Interval> {
+        self.repeat
+    }
+
+    /// O dia em que a tarefa concluída volta pro banco. `None` se ela não
+    /// está concluída ou não volta.
+    ///
+    /// A que tem intervalo volta o intervalo depois do dia do gol. A jogada
+    /// em sequência, que fechou o último passo, dorme até o primeiro dia do
+    /// mês seguinte.
+    pub fn returns_on(&self) -> Option<Date> {
+        if self.status != Status::Done {
+            return None;
+        }
+        let day = self.day?;
+        if self.plan.is_some() {
+            return day
+                .first_of_month()
+                .checked_add(jiff::ToSpan::months(1))
+                .ok();
+        }
+        self.repeat?.after(day)
+    }
+
+    /// Os passos da jogada, se a tarefa for uma.
+    pub fn plan(&self) -> Option<&Plan> {
+        self.plan.as_ref()
+    }
+
+    /// O ponto da jogada: o passo da vez, os itens marcados e a espera.
+    pub fn progress(&self) -> Progress {
+        self.progress
+    }
+
+    /// O passo da vez, se a tarefa for uma jogada. Passo fora do plano (um
+    /// log estranho) vale como o último.
+    pub fn current_step(&self) -> Option<&Step> {
+        let steps = self.plan.as_ref()?.steps();
+        steps.get(usize::from(self.progress.step)).or(steps.last())
+    }
+
+    /// Se a jogada está esperando algo de fora no passo da vez.
+    pub fn is_waiting(&self) -> bool {
+        self.plan.is_some() && self.progress.waiting
+    }
+
+    /// Define os passos da jogada, ou tira com `None`.
+    pub fn set_plan(&mut self, plan: Option<Plan>) {
+        self.plan = plan;
+    }
+
+    /// Define o ponto da jogada.
+    pub fn set_progress(&mut self, progress: Progress) {
+        self.progress = progress;
+    }
+
+    /// Define o intervalo de volta, ou tira com `None`.
+    pub fn set_repeat(&mut self, repeat: Option<Interval>) {
+        self.repeat = repeat;
     }
 
     /// Escala a tarefa pra um dia, ou tira da escalação com `None`.
     pub fn set_day(&mut self, day: Option<Date>) {
         self.day = day;
-    }
-
-    /// Marca ou desmarca a tarefa num dia.
-    pub fn set_checked(&mut self, day: Date, done: bool) {
-        if done {
-            self.checks.insert(day);
-        } else {
-            self.checks.remove(&day);
-        }
     }
 
     /// Muda o status, se a regra de [`Status::can_become`] deixar.
@@ -171,13 +221,13 @@ mod tests {
         let mut task = task(Status::Idea);
         let before = task.clone();
 
-        let result = task.set_status(Status::Done);
+        let result = task.set_status(Status::Scheduled);
 
         assert_eq!(
             result,
             Err(Error::InvalidTransition {
                 from: Status::Idea,
-                to: Status::Done,
+                to: Status::Scheduled,
             })
         );
         assert_eq!(task, before);
