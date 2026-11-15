@@ -80,20 +80,22 @@ Tudo que sai do app tem um formato só, versionado, no módulo `format` do `vamo
 
 | Tipo | Onde aparece | Schema |
 |------|--------------|--------|
-| `EventLine` | Uma linha do log de eventos exportado (JSONL). | `schema/v1/evento.json` |
-| `MarkLine` | Uma marcação de atividade fixa da agenda (JSONL). | `schema/v1/marcacao.json` |
-| `SummaryDoc` | A súmula guardada no banco e o `vamo resumo --json`. | `schema/v1/resumo.json` |
-| `WeekDoc` | O `vamo resumo --semana --json`. | `schema/v1/rodada.json` |
+| `EventLine` | Uma linha do log de eventos exportado (JSONL). | `schema/v2/evento.json` |
+| `MarkLine` | Uma marcação de atividade fixa da agenda (JSONL). | `schema/v2/marcacao.json` |
+| `SummaryDoc` | A súmula guardada no banco e o `vamo resumo --json`. | `schema/v2/resumo.json` |
+| `WeekDoc` | O `vamo resumo --semana --json`. | `schema/v2/rodada.json` |
+
+A versão atual é a 2, que acrescentou três tipos de mudança no log: `volta` (o intervalo da tarefa que volta), `jogada` (os passos da jogada em sequência) e `ponto` (o passo da vez, os itens marcados e a espera). A leitura da versão 1 continua valendo, e a pasta `schema/v1/` fica guardada ([ADR 0015](https://github.com/b0de-py/vamo_fogao/blob/main/docs/adr/0015-tarefa-que-volta-por-intervalo.md) e [ADR 0016](https://github.com/b0de-py/vamo_fogao/blob/main/docs/adr/0016-jogada-em-sequencia.md)).
 
 Uma linha do log, com dados inventados:
 
 ```json
-{"versao":1,"id":"0192f0c4-8a00-7000-8000-000000000001","em":"2026-11-10T12:00:00Z","maquina":"notebook","tarefa":"T-001","mudanca":{"tipo":"criada","titulo":"Trocar o filtro da água","area":"casa","encaixe":"brecha","status":"pronta"}}
+{"versao":2,"id":"0192f0c4-8a00-7000-8000-000000000001","em":"2026-11-10T12:00:00Z","maquina":"notebook","tarefa":"T-001","mudanca":{"tipo":"criada","titulo":"Trocar o filtro da água","area":"casa","encaixe":"brecha","status":"pronta"}}
 ```
 
 Aqui o `serde` aparece com derive pela primeira vez no projeto. Nos outros formatos (a config, o acervo, a API do Google) o código lê campo a campo, pra apontar o erro em português; num contrato entre versões do app, o que pesa é o leitor e o escritor serem o mesmo tipo. O `#[serde(tag = "tipo")]` no enum `ChangeLine` escreve cada variante como um objeto com o nome dela no campo `tipo`, e o `#[serde(deny_unknown_fields)]` faz campo desconhecido virar erro, não silêncio.
 
-**Versão nova lê export antigo.** Cada linha tem a `versao`; a maior que a conhecida é recusada com um pedido de atualizar o `vamo`. O schema de cada tipo sai dos mesmos tipos pelo `schemars` e fica guardado em `crates/vamo-sync/schema/v1/`: o teste `the_schema_of_each_type_matches_the_saved_one` quebra se um tipo mudar sem a `VERSION` subir. Os exemplos de cada versão, em `crates/vamo-sync/tests/fixtures/`, continuam sendo lidos a cada versão nova.
+**Versão nova lê export antigo.** Cada linha tem a `versao`; a maior que a conhecida é recusada com um pedido de atualizar o `vamo`. O schema de cada tipo sai dos mesmos tipos pelo `schemars` e fica guardado em `crates/vamo-sync/schema/v2/`: o teste `the_schema_of_each_type_matches_the_saved_one` quebra se um tipo mudar sem a `VERSION` subir. Os exemplos de cada versão, em `crates/vamo-sync/tests/fixtures/`, continuam sendo lidos a cada versão nova.
 
 ## A sincronia entre PCs
 
@@ -145,7 +147,7 @@ A marcação das atividades fixas da agenda mora fora do log (ADR 0009), mas ago
 
 ## Os reforços
 
-Reforço é tarefa que chega de fora: do Claude, de outro projeto, de um script. Quem está fora não mexe no banco; põe uma linha no arquivo `reforcos.jsonl` da branch `vamo-entrada` do repositório de backup e manda. Só a `chave` e o `titulo` são obrigatórios; o resto tem o padrão do `vamo add` (área `geral`, encaixe `brecha`, status `pronta`). O schema está em `crates/vamo-sync/schema/v1/reforco.json`, e o exemplo é inventado:
+Reforço é tarefa que chega de fora: do Claude, de outro projeto, de um script. Quem está fora não mexe no banco; põe uma linha no arquivo `reforcos.jsonl` da branch `vamo-entrada` do repositório de backup e manda. Só a `chave` e o `titulo` são obrigatórios; o resto tem o padrão do `vamo add` (área `geral`, encaixe `brecha`, status `pronta`). O schema está em `crates/vamo-sync/schema/v2/reforco.json`, e o exemplo é inventado:
 
 ```json
 {"versao":1,"chave":"claude-2026-11-14-filtro","titulo":"Comprar o filtro novo","area":"casa","notas":"O da cozinha"}
