@@ -8,7 +8,8 @@ use crate::Error;
 /// Em que pé uma tarefa está.
 ///
 /// O caminho comum é ideia → destrinchando → pronta → agendada → concluída,
-/// mas dá pra pular etapas e voltar algumas. As regras completas estão em
+/// mas dá pra pular etapas (o gol sai de qualquer status em aberto) e voltar
+/// algumas. As regras completas estão em
 /// [`Status::can_become`].
 ///
 /// Nos arquivos e na CLI, os nomes são os de [`Status::as_str`]. A leitura
@@ -57,8 +58,8 @@ impl Status {
     ///
     /// | De | Pode virar |
     /// |----|------------|
-    /// | ideia | destrinchando, pronta, descartada |
-    /// | destrinchando | ideia, pronta, descartada |
+    /// | ideia | destrinchando, pronta, concluída, descartada |
+    /// | destrinchando | ideia, pronta, concluída, descartada |
     /// | pronta | destrinchando, agendada, concluída, descartada |
     /// | agendada | pronta (volta pro banco), concluída, descartada |
     /// | concluída | pronta (o VAR anulou o gol) |
@@ -70,15 +71,16 @@ impl Status {
     /// use vamo_core::Status;
     ///
     /// assert!(Status::Ready.can_become(Status::Scheduled));
-    /// assert!(!Status::Idea.can_become(Status::Done));
+    /// assert!(Status::Idea.can_become(Status::Done));
+    /// assert!(!Status::Dropped.can_become(Status::Done));
     /// ```
     pub fn can_become(self, next: Self) -> bool {
         use Status::{Done, Dropped, Idea, Ready, Refining, Scheduled};
 
         matches!(
             (self, next),
-            (Idea, Refining | Ready | Dropped)
-                | (Refining, Idea | Ready | Dropped)
+            (Idea, Refining | Ready | Done | Dropped)
+                | (Refining, Idea | Ready | Done | Dropped)
                 | (Ready, Refining | Scheduled | Done | Dropped)
                 | (Scheduled, Ready | Done | Dropped)
                 | (Done, Ready)
@@ -166,6 +168,15 @@ mod tests {
     }
 
     #[test]
+    fn a_goal_can_come_from_any_open_status() {
+        // Uma ideia que se resolveu sozinha vira gol direto, sem passar por
+        // pronta e escalada.
+        for from in [Idea, Refining, Ready, Scheduled] {
+            assert!(from.can_become(Done), "{from} → concluída");
+        }
+    }
+
+    #[test]
     fn the_common_path_is_allowed() {
         let path = [Idea, Refining, Ready, Scheduled, Done];
         for pair in path.windows(2) {
@@ -183,8 +194,7 @@ mod tests {
     #[test]
     fn shortcuts_that_skip_the_definition_are_not_allowed() {
         assert!(!Idea.can_become(Scheduled));
-        assert!(!Idea.can_become(Done));
-        assert!(!Refining.can_become(Done));
+        assert!(!Dropped.can_become(Done));
         assert!(!Done.can_become(Scheduled));
         assert!(!Dropped.can_become(Ready));
     }
@@ -222,10 +232,7 @@ mod tests {
 
     #[test]
     fn the_error_message_names_both_statuses() {
-        let error = Idea.transition_to(Done).unwrap_err();
-        assert_eq!(
-            error.to_string(),
-            "não dá pra passar de ideia pra concluída"
-        );
+        let error = Idea.transition_to(Scheduled).unwrap_err();
+        assert_eq!(error.to_string(), "não dá pra passar de ideia pra agendada");
     }
 }

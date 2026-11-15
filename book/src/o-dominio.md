@@ -47,17 +47,16 @@ O `Task::new` não devolve `Result`: como cada parte já chega validada, não so
 ```rust,ignore
 matches!(
     (self, next),
-    (Idea, Refining | Ready | Recurring | Dropped)
-        | (Refining, Idea | Ready | Recurring | Dropped)
-        | (Ready, Refining | Scheduled | Recurring | Done | Dropped)
+    (Idea, Refining | Ready | Done | Dropped)
+        | (Refining, Idea | Ready | Done | Dropped)
+        | (Ready, Refining | Scheduled | Done | Dropped)
         | (Scheduled, Ready | Done | Dropped)
-        | (Recurring, Ready | Dropped)
         | (Done, Ready)
         | (Dropped, Idea)
 )
 ```
 
-Cada linha é um status de partida e os destinos permitidos. Dois casos contam a história do app: `Done` só volta pra `Ready` (o VAR anulou o gol) e `Dropped` só volta pra `Idea` (a tarefa sai do arquivo e recomeça). Ficar no mesmo status não é transição, então nunca passa.
+Cada linha é um status de partida e os destinos permitidos. O gol sai de qualquer status em aberto: uma ideia que se resolveu sozinha vira `Done` sem passar por pronta e escalada. Dois casos contam a história do app: `Done` só volta pra `Ready` (o VAR anulou o gol) e `Dropped` só volta pra `Idea` (a tarefa sai do arquivo e recomeça). Ficar no mesmo status não é transição, então nunca passa.
 
 `Status::transition_to` usa a mesma regra e devolve `Result`, com o erro `InvalidTransition` dizendo de onde pra onde não deu. É ele que a CLI usa no `vamo done`.
 

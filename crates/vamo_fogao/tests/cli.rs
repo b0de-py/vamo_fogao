@@ -317,12 +317,19 @@ mod done {
     #[test]
     fn the_status_rule_still_holds() {
         let vamo = Vamo::new();
-        vamo.ok(&["add", "Ler o livro", "--status", "ideia"]);
+        vamo.ok(&["add", "Ler o livro", "--status", "descartada"]);
 
         assert_eq!(
             vamo.fails(&["done", "1"], 1),
-            "Deu ruim: \n   0: não dá pra passar de ideia pra concluída\n"
+            "Deu ruim: \n   0: não dá pra passar de descartada pra concluída\n"
         );
+    }
+
+    #[test]
+    fn an_idea_scores_straight_away() {
+        let vamo = Vamo::new();
+        vamo.ok(&["add", "Ler o livro", "--status", "ideia"]);
+        assert!(vamo.ok(&["done", "1"]).starts_with("GOOOL!"));
     }
 
     #[test]

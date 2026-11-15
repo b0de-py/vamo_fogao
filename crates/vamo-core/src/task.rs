@@ -221,13 +221,13 @@ mod tests {
         let mut task = task(Status::Idea);
         let before = task.clone();
 
-        let result = task.set_status(Status::Done);
+        let result = task.set_status(Status::Scheduled);
 
         assert_eq!(
             result,
             Err(Error::InvalidTransition {
                 from: Status::Idea,
-                to: Status::Done,
+                to: Status::Scheduled,
             })
         );
         assert_eq!(task, before);
