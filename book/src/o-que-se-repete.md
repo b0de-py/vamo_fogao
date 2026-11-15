@@ -37,6 +37,8 @@ vamo add "Fechar o mês" \
   --passo "Revisar o rascunho @pedir"
 ```
 
+Pra transformar uma tarefa que já existe, mantendo o ID e o histórico, use `vamo jogada 7 --passo "..." --passo "..."`.
+
 Cada `--passo` é um título, um prazo opcional e itens opcionais:
 
 - `@48h` vence 48 horas depois de fechar o passo anterior (horas contam em dias cheios).

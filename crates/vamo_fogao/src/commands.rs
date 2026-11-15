@@ -48,6 +48,7 @@ pub(crate) fn run(command: Command, voice: Voice, config: &Config) -> Result<Str
             Ok(Session::open(voice)?.list(all, area.as_ref(), status))
         }
         Command::Done { id, date } => Session::open(voice)?.done(id, date),
+        Command::Jogada { id, steps } => Session::open(voice)?.make_play(id, steps),
         Command::Item { id, item } => Session::open(voice)?.item(id, item),
         Command::Espera { id } => Session::open(voice)?.wait(id),
         Command::Volta { id, repeat } => Session::open(voice)?.set_repeat(id, repeat.0),
@@ -280,6 +281,23 @@ impl Session {
             )),
             _ => Ok(self.voice.goal(task.id(), task.title())),
         }
+    }
+
+    /// `vamo jogada`: faz da tarefa uma jogada em sequência, no primeiro
+    /// passo. A tarefa mantém o ID e o histórico.
+    fn make_play(&mut self, id: TaskId, steps: Vec<Step>) -> Result<String> {
+        let changes = self.projection.set_plan(id, Some(StepPlan::new(steps)?))?;
+        self.record(id, changes)?;
+        let task = self.task(id)?;
+        let step = task
+            .current_step()
+            .ok_or_else(|| eyre!("{id} não virou uma jogada"))?;
+        Ok(format!(
+            "{} {} agora é uma jogada. Passo da vez: {}",
+            task.id(),
+            task.title(),
+            step.title()
+        ))
     }
 
     /// `vamo item`: marca ou desmarca um item do passo da vez.

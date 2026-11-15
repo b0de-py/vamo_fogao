@@ -1472,4 +1472,35 @@ mod play {
         let error = vamo.fails(&["add", "Fechar o mês", "--passo", "Montar @amanhã"], 2);
         assert!(error.contains("não é um passo"), "{error}");
     }
+
+    #[test]
+    fn an_existing_task_becomes_a_play_and_keeps_its_id() {
+        let vamo = Vamo::new();
+        vamo.ok(&["add", "Fechar o mês"]);
+
+        let said = vamo.ok(&[
+            "jogada",
+            "1",
+            "--passo",
+            "Pedir as datas + Recebi as datas",
+            "--passo",
+            "Montar o rascunho @48h",
+        ]);
+        assert!(
+            said.contains("T-001 Fechar o mês agora é uma jogada"),
+            "{said}"
+        );
+        let shown = vamo.ok(&["show", "1"]);
+        assert!(shown.contains("[>] Pedir as datas"), "{shown}");
+        assert!(shown.contains("[ ] Montar o rascunho"), "{shown}");
+    }
+
+    #[test]
+    fn a_play_needs_at_least_one_step_and_a_task_that_exists() {
+        let vamo = Vamo::new();
+        vamo.ok(&["add", "Fechar o mês"]);
+        vamo.fails(&["jogada", "1"], 2);
+        let error = vamo.fails(&["jogada", "9", "--passo", "Fazer"], 1);
+        assert!(error.contains("não tem nenhuma tarefa T-009"), "{error}");
+    }
 }
