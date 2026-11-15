@@ -25,6 +25,7 @@ mod glow;
 mod hud;
 mod ledger;
 mod matchday;
+mod meter;
 mod museum;
 mod notebook;
 mod panel;

@@ -1017,6 +1017,15 @@ pub(crate) mod tests {
             "{screen}"
         );
 
+        // Com espaço pro placar eletrônico, ela ganha a barra contra o
+        // recorde, embaixo da barra do placar do dia.
+        let screen = draw(&app, &crate::today::tests::example_day(), 100, 30);
+        assert!(screen.contains("▰▰▰▰▰▰▱▱▱▱▱▱ Placar: 1 de 2"), "{screen}");
+        assert!(
+            screen.contains("▰▰▰▰▱▱▱▱▱▱▱▱ Invicto há 4 dias · recorde 12"),
+            "{screen}"
+        );
+
         // Sem nenhuma sequência ainda, a linha não aparece.
         app.schedule.unbeaten = Some(vamo_core::Unbeaten::default());
         assert!(!draw(&app, &crate::today::tests::example_day(), 100, 18).contains("Invicto"));

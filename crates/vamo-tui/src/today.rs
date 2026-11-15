@@ -15,7 +15,7 @@ use crate::app::{Action, Feedback, record};
 use crate::curiosity::{self, Acervo};
 use crate::prompt::{Prompt, Purpose};
 use crate::schedule::{self, Schedule};
-use crate::{Density, Ledger, Voice, bigtext, theme};
+use crate::{Density, Ledger, Voice, bigtext, meter, theme};
 
 /// Onde está o cursor na escalação.
 #[derive(Debug, Default)]
@@ -372,6 +372,9 @@ fn task_line(group: Group, task: &Task, cursor: bool, voice: Voice) -> Line<'sta
 /// texto.
 const BIG_SCORE_MIN: (u16, u16) = (70, 16);
 
+/// A largura das barras de progresso do alto da tela, em blocos.
+const METER_WIDTH: usize = 12;
+
 /// Quantas linhas o alto da tela ocupa: o placar eletrônico e uma de
 /// respiro, quando ele cabe; senão, a linha de texto e uma de respiro.
 fn top_height(area: Rect) -> u16 {
@@ -411,13 +414,38 @@ fn render_scoreboard(
         Span::styled(voice.today_title(), theme::heading()),
         Span::styled(format!(" · {date}"), theme::soft()),
     ])];
-    let unbeaten = unbeaten
-        .filter(|u| u.record > 0)
-        .map(|u| Line::styled(voice.unbeaten(u.current, u.record), theme::soft()));
+    let unbeaten = unbeaten.filter(|u| u.record > 0);
+    let unbeaten_text =
+        unbeaten.map(|u| Line::styled(voice.unbeaten(u.current, u.record), theme::soft()));
 
     let big = voice.big_score(score.done, score.planned);
     if area.height > bigtext::HEIGHT && bigtext::can_write(&big) {
-        left.extend(unbeaten);
+        // Embaixo da data, as duas barras: o placar do dia e a
+        // invencibilidade contra o recorde.
+        let meter = |done, total, style, text: String| {
+            let [full, empty] = meter::spans(done, total, METER_WIDTH, style);
+            Line::from(vec![
+                full,
+                empty,
+                Span::styled(format!(" {text}"), theme::soft()),
+            ])
+        };
+        left.push(meter(
+            score.done,
+            score.planned,
+            score_style,
+            voice.score(score.done, score.planned),
+        ));
+        if let Some(unbeaten) = unbeaten {
+            // Dias de invencibilidade cabem com folga num usize.
+            let days = |n: u32| usize::try_from(n).unwrap_or(usize::MAX);
+            left.push(meter(
+                days(unbeaten.current),
+                days(unbeaten.record),
+                theme::heading(),
+                voice.unbeaten(unbeaten.current, unbeaten.record),
+            ));
+        }
         // A estrela e um espaço, antes dos números. Só na linguagem de jogo.
         let star = voice.score_star();
         let star_width = Span::raw(star).width();
@@ -444,7 +472,7 @@ fn render_scoreboard(
     }
 
     let [first, below] = Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]).areas(area);
-    if let Some(unbeaten) = unbeaten {
+    if let Some(unbeaten) = unbeaten_text {
         frame.render_widget(Paragraph::new(unbeaten).right_aligned(), below);
     }
     let [left_area, right_area] =
