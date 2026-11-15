@@ -197,4 +197,4 @@ Os testes em `crates/vamo_fogao/tests/cli.rs` rodam o executável compilado, num
 ## Chegando nas próximas fases
 
 - **A TUI** (fase 2): telas desenhadas a cada quadro a partir do estado, com snapshot de cada uma.
-- **async** (fase 6): o servidor MCP roda em cima do tokio.
+- **async** (fase 7): o servidor MCP roda em cima do tokio.

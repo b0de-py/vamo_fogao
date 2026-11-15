@@ -37,12 +37,17 @@
   {
     "name": "fase-6",
     "color": "00d9ff",
-    "description": "Fase 6 · MCP (Túlio)"
+    "description": "Fase 6 · Jogando no Niltão"
   },
   {
     "name": "fase-7",
     "color": "00d9ff",
-    "description": "Fase 7 · Pra torcida (Loco Abreu)"
+    "description": "Fase 7 · MCP (Túlio)"
+  },
+  {
+    "name": "fase-8",
+    "color": "00d9ff",
+    "description": "Fase 8 · Pra torcida (Loco Abreu)"
   },
   {
     "name": "extra",

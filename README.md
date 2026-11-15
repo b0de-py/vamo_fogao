@@ -58,7 +58,7 @@ Pra rodar na sua máquina a mesma checagem da CI, use `./scripts/checar.sh`. Ele
 
 ## Contribuir
 
-Por enquanto, o melhor jeito de ajudar é abrir uma issue com ideia ou bug. Na fase 7, o acervo abre pra torcida sugerir curiosidades, sempre com a régua das duas fontes.
+Por enquanto, o melhor jeito de ajudar é abrir uma issue com ideia ou bug. Na fase 8, o acervo abre pra torcida sugerir curiosidades, sempre com a régua das duas fontes.
 
 ## Projeto de torcedor
 

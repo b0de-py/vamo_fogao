@@ -16,7 +16,7 @@ edition = "2024"
 rust-version = "1.99"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/b0de-py/vamo_fogao"
-# Nada vai pro crates.io por enquanto; a decisão fica pra fase 7.
+# Nada vai pro crates.io por enquanto; a decisão fica pra fase 8.
 publish = false
 
 # Versões das dependências num lugar só. Os crates pedem com
