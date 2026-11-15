@@ -55,6 +55,21 @@ const ALL: [Color; 12] = [
     PLASMA,
 ];
 
+/// Uma cor entre `from` e `to`: `amount` vai de 0 (só `from`) a `of` (só
+/// `to`). Cor que não é RGB fica como `to`.
+pub(crate) fn blend(from: Color, to: Color, amount: u8, of: u8) -> Color {
+    let (Color::Rgb(r0, g0, b0), Color::Rgb(r1, g1, b1)) = (from, to) else {
+        return to;
+    };
+    let mix = |a: u8, b: u8| {
+        let (a, b) = (u16::from(a), u16::from(b));
+        let (amount, of) = (u16::from(amount.min(of)), u16::from(of.max(1)));
+        // A média pesada de dois u8 cabe num u8.
+        u8::try_from((a * (of - amount) + b * amount) / of).unwrap_or(u8::MAX)
+    };
+    Color::Rgb(mix(r0, r1), mix(g0, g1), mix(b0, b1))
+}
+
 /// O estilo de base de toda a tela.
 pub(crate) fn base() -> Style {
     Style::new().fg(TEXT).bg(BACKGROUND)
@@ -184,6 +199,18 @@ mod tests {
             "V O L T A M   E M   B R E V E"
         );
         assert_eq!(spaced_caps(""), "");
+    }
+
+    #[test]
+    fn a_blend_walks_from_one_color_to_the_other() {
+        assert_eq!(blend(BACKGROUND, WHITE, 0, 4), BACKGROUND);
+        assert_eq!(blend(BACKGROUND, WHITE, 4, 4), WHITE);
+        assert_eq!(
+            blend(Color::Rgb(0, 0, 0), Color::Rgb(100, 200, 40), 1, 4),
+            Color::Rgb(25, 50, 10)
+        );
+        // Passar do fim não passa da cor de chegada.
+        assert_eq!(blend(BACKGROUND, WHITE, 9, 4), WHITE);
     }
 
     #[test]

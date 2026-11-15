@@ -191,6 +191,22 @@ impl Voice {
         }
     }
 
+    /// O placar em letra de bloco, no alto da Hoje. Na de jogo, é o mesmo
+    /// da barra: as feitas contra as que faltam (`3 x 11`). Na neutra, as
+    /// feitas sobre o total (`3/14`).
+    pub(crate) fn big_score(self, done: usize, planned: usize) -> String {
+        match self {
+            Self::Game => format!("{done} x {}", planned.saturating_sub(done)),
+            Self::Neutral => format!("{done}/{planned}"),
+        }
+    }
+
+    /// A Estrela Solitária do lado do placar em letra de bloco, com o
+    /// espaço que a separa dos números. No modo neutro, nada.
+    pub(crate) fn score_star(self) -> &'static str {
+        self.pick("★  ", "")
+    }
+
     /// O placar curto da barra: `⭐ 2 x 3` (duas feitas, três em aberto) na
     /// de jogo, `2/5` na neutra.
     pub fn bar_score(self, done: usize, planned: usize) -> String {
@@ -333,6 +349,11 @@ impl Voice {
             Self::Game => "Contra-ataques (brechas)",
             Self::Neutral => "Brechas",
         }
+    }
+
+    /// O rótulo da linha do dia, a régua das horas no alto da Hoje.
+    pub(crate) fn day_line(self) -> &'static str {
+        "Linha do dia"
     }
 
     /// Quando o expediente de hoje não tem brecha nenhuma.

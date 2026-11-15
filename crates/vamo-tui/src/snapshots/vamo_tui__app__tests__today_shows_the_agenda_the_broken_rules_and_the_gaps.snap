@@ -2,10 +2,12 @@
 source: crates/vamo-tui/src/app.rs
 expression: screen
 ---
-" vamo_fogao   1 HOJE  2 Caderno  3 Banco  4 Museu                               "
+" vamo_fogao   1 HOJE  2 Caderno  3 Banco  4 Museu   ▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌"
 "─────────────━━━━━━━━───────────────────────────────────────────────────────────"
 "                                                                                "
-" Hoje · quarta, 11/11                                            Placar: 0 de 1 "
+" Hoje · quarta, 11/11                                       █▀█     ▄ ▄     ▄█  "
+" ▱▱▱▱▱▱▱▱▱▱▱▱ Placar: 0 de 1                             ★  █ █     ▄▀▄      █  "
+"                                                            ▀▀▀             ▀▀▀ "
 "                                                                                "
 " F I X A S                                                                      "
 " ▌[ ] 10:00–11:00  Reunião da equipe                                            "
@@ -20,8 +22,6 @@ expression: screen
 " 13:00–18:00  5h      T-002 Ligar pro síndico                                   "
 "                                                                                "
 " No banco: 3 prontas. A tecla e escala uma pra hoje.                            "
-"                                                                                "
-"                                                                                "
 "                                                                                "
 "                                                                                "
 "                                                                                "

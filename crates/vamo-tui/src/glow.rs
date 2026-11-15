@@ -11,7 +11,7 @@
 
 use ratatui::buffer::Buffer;
 use ratatui::layout::Rect;
-use ratatui::style::{Color, Modifier, Style};
+use ratatui::style::{Modifier, Style};
 
 use crate::theme;
 
@@ -22,25 +22,10 @@ pub(crate) const STEPS: u8 = 8;
 /// A barra que marca o começo da linha escolhida.
 const BAR: &str = "▌";
 
-/// Uma cor entre `from` e `to`: `amount` vai de 0 (só `from`) a `of` (só
-/// `to`). Cor que não é RGB fica como `to`.
-fn blend(from: Color, to: Color, amount: u8, of: u8) -> Color {
-    let (Color::Rgb(r0, g0, b0), Color::Rgb(r1, g1, b1)) = (from, to) else {
-        return to;
-    };
-    let mix = |a: u8, b: u8| {
-        let (a, b) = (u16::from(a), u16::from(b));
-        let (amount, of) = (u16::from(amount.min(of)), u16::from(of.max(1)));
-        // A média pesada de dois u8 cabe num u8.
-        u8::try_from((a * (of - amount) + b * amount) / of).unwrap_or(u8::MAX)
-    };
-    Color::Rgb(mix(r0, r1), mix(g0, g1), mix(b0, b1))
-}
-
 /// O estilo da linha escolhida com `glow` passos de brilho ainda por vir:
 /// de [`STEPS`] (recém-chegada, ciano cheio) a 0 (assentada).
 fn style(glow: u8) -> Style {
-    let background = blend(theme::CURSOR_REST, theme::ACCENT, glow, STEPS);
+    let background = theme::blend(theme::CURSOR_REST, theme::ACCENT, glow, STEPS);
     // Na metade clara do caminho a letra é escura, como no ciano cheio; na
     // escura, branca.
     let text = if glow > STEPS / 2 {
@@ -94,6 +79,8 @@ pub(crate) fn settle(area: Rect, buf: &mut Buffer, glow: u8) {
 
 #[cfg(test)]
 mod tests {
+    use ratatui::style::Color;
+
     use super::*;
 
     /// Um miolo de 10 por 3 com a linha do meio escolhida, das colunas 2 a 7.

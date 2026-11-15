@@ -2,7 +2,7 @@
 source: crates/vamo-tui/src/today.rs
 expression: "draw(&app, &example_day(), 60, 24)"
 ---
-" vamo_fogao   1 HOJE  2 Caderno  3 Banco  4 Museu           "
+" vamo_fogao   1 HOJE  2 Caderno  3 Banco  4 Museu   ▌▌▌▌▌▌▌▌"
 "─────────────━━━━━━━━───────────────────────────────────────"
 "                                                            "
 " Hoje · quarta, 11/11                        Placar: 1 de 2 "

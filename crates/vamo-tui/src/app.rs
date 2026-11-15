@@ -700,7 +700,11 @@ impl App {
             };
             spans.push(span);
         }
+        let used: usize = spans.iter().map(Span::width).sum();
         frame.render_widget(Paragraph::new(Line::from(spans)), tabs_area);
+        if self.voice == Voice::Game {
+            render_stripes(frame, tabs_area, used);
+        }
 
         let width = usize::from(rule_area.width);
         let (start, len) = (current.0.min(width), current.1);
@@ -811,6 +815,42 @@ impl App {
         frame.render_widget(panel, popup);
         frame.render_widget(Paragraph::new(lines), inner);
     }
+}
+
+/// Quantas colunas livres a faixa do topo precisa ter pras listras
+/// entrarem. Com menos, elas só fariam barulho.
+const STRIPES_MIN: u16 = 8;
+
+/// As listras alvinegras, no que sobra da faixa do topo depois das abas.
+///
+/// Cada célula é um meio-bloco `▌`: a metade da esquerda acesa e a da
+/// direita apagada, o que dá listras de pé com meia letra de largura, como
+/// as da camisa. Elas nascem apagadas perto das abas e clareiam até o
+/// branco na borda, pra não disputar com o texto. É só o desenho das
+/// listras: nada de escudo nem de marca do clube.
+fn render_stripes(frame: &mut Frame<'_>, area: Rect, used: usize) {
+    // Duas colunas de respiro depois da última aba.
+    let skip = u16::try_from(used).unwrap_or(u16::MAX).saturating_add(2);
+    let width = area.width.saturating_sub(skip);
+    if width < STRIPES_MIN || area.height == 0 {
+        return;
+    }
+    let spans: Vec<Span<'_>> = (0..width)
+        .map(|step| {
+            // Larguras de terminal cabem com folga num u8 depois da regra de
+            // três: o passo vira um número de 0 a 255.
+            let amount =
+                u8::try_from(u32::from(step) * 255 / u32::from(width - 1)).unwrap_or(u8::MAX);
+            let color = theme::blend(theme::LINE, theme::WHITE, amount, u8::MAX);
+            Span::styled("▌", Style::new().fg(color))
+        })
+        .collect();
+    let stripes = Rect {
+        x: area.x + skip,
+        width,
+        ..area
+    };
+    frame.render_widget(Paragraph::new(Line::from(spans)), stripes);
 }
 
 /// O estado dos cantos da Ficha: amarelo plasma quando a tarefa está
@@ -977,6 +1017,15 @@ pub(crate) mod tests {
             "{screen}"
         );
 
+        // Com espaço pro placar eletrônico, ela ganha a barra contra o
+        // recorde, embaixo da barra do placar do dia.
+        let screen = draw(&app, &crate::today::tests::example_day(), 100, 30);
+        assert!(screen.contains("▰▰▰▰▰▰▱▱▱▱▱▱ Placar: 1 de 2"), "{screen}");
+        assert!(
+            screen.contains("▰▰▰▰▱▱▱▱▱▱▱▱ Invicto há 4 dias · recorde 12"),
+            "{screen}"
+        );
+
         // Sem nenhuma sequência ainda, a linha não aparece.
         app.schedule.unbeaten = Some(vamo_core::Unbeaten::default());
         assert!(!draw(&app, &crate::today::tests::example_day(), 100, 18).contains("Invicto"));
@@ -1128,6 +1177,25 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn the_top_band_wears_the_stripes_only_in_the_game_voice() {
+        let top = |voice, width| {
+            let screen = draw(&new_app(voice), &ledger(), width, 8);
+            screen.lines().next().map(str::to_owned).unwrap_or_default()
+        };
+        let game = top(Voice::Game, 80);
+        // As abas continuam inteiras, e as listras vão até a borda.
+        assert!(
+            game.contains("1 HOJE  2 Caderno  3 Banco  4 Museu  "),
+            "{game}"
+        );
+        assert!(game.trim_end_matches('"').ends_with("▌▌▌▌▌▌▌▌"), "{game}");
+        // No modo neutro, a TUI não fala de futebol nem por desenho.
+        assert!(!top(Voice::Neutral, 80).contains('▌'));
+        // Sem espaço depois das abas, as listras ficam de fora.
+        assert!(!top(Voice::Game, 56).contains('▌'));
+    }
+
+    #[test]
     fn opens_on_today() {
         let app = new_app(Voice::Game);
         assert_eq!(app.tab, Tab::Today);
@@ -1258,6 +1326,12 @@ pub(crate) mod tests {
         assert!(row.contains('▀'), "{row}");
     }
 
+    /// A linha de cima do placar em letra de bloco, pra procurar na tela.
+    fn big_score(score: &str) -> String {
+        let [top, _, _] = crate::bigtext::rows(score);
+        top
+    }
+
     /// Se a tela tem meio-bloco no canto de baixo à direita, onde mora a
     /// estrela, e em nenhum outro lugar.
     fn only_the_star(screen: &str) -> bool {
@@ -1274,7 +1348,10 @@ pub(crate) mod tests {
     #[test]
     fn the_lone_star_shines_in_the_corner() {
         // Sem animação não tem fogo, e a estrela fica lá do mesmo jeito.
-        let app = new_app(Voice::Game);
+        // No Caderno, pra o placar em letra de bloco da Hoje não entrar na
+        // conta dos meios-blocos.
+        let mut app = new_app(Voice::Game);
+        app.tab = Tab::Notebook;
         let ledger = ledger();
         let screen = draw(&app, &ledger, 100, 30);
         assert!(only_the_star(&screen), "{screen}");
@@ -1285,7 +1362,8 @@ pub(crate) mod tests {
 
     #[test]
     fn the_neutral_voice_has_no_star() {
-        let app = new_app(Voice::Neutral);
+        let mut app = new_app(Voice::Neutral);
+        app.tab = Tab::Notebook;
         assert!(!draw(&app, &ledger(), 100, 30).contains('▀'));
     }
 
@@ -1440,8 +1518,14 @@ pub(crate) mod tests {
             screen.contains("⚠ T-001: em cima do bloco protegido Almoço"),
             "{screen}"
         );
-        assert!(screen.contains("Placar: 0 de 1"), "{screen}");
+        assert!(screen.contains(&big_score("0 x 1")), "{screen}");
         assert_snapshot!(screen);
+
+        // Numa tela alta, a linha do dia entra embaixo do placar: a reunião
+        // e a tarefa agendada em bloco, o almoço protegido e as brechas.
+        let tall = draw(&app, &ledger, 100, 34);
+        assert!(tall.contains("L I N H A   D O   D I A"), "{tall}");
+        assert_snapshot!("the_day_line", tall);
 
         // A reunião recorrente é a fixa da agenda: marcar conta no placar
         // e não cria tarefa.
@@ -1451,11 +1535,11 @@ pub(crate) mod tests {
             screen.contains("[x] 10:00–11:00  Reunião da equipe"),
             "{screen}"
         );
-        assert!(screen.contains("Placar: 1 de 1"), "{screen}");
+        assert!(screen.contains(&big_score("1 x 0")), "{screen}");
         assert_eq!(ledger.projection().tasks().count(), 3);
         assert_eq!(ledger.agenda_checks().len(), 1);
         app.on_key(key(KeyCode::Char(' ')), &mut ledger);
-        assert!(draw(&app, &ledger, 80, 24).contains("Placar: 0 de 1"));
+        assert!(draw(&app, &ledger, 80, 24).contains(&big_score("0 x 1")));
     }
 
     /// Um dia de jogo de exemplo: hoje às 21:30, fora de casa.

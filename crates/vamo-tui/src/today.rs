@@ -15,7 +15,7 @@ use crate::app::{Action, Feedback, record};
 use crate::curiosity::{self, Acervo};
 use crate::prompt::{Prompt, Purpose};
 use crate::schedule::{self, Schedule};
-use crate::{Density, Ledger, Voice, theme};
+use crate::{Density, Ledger, Voice, bigtext, dayline, meter, theme};
 
 /// Onde está o cursor na escalação.
 #[derive(Debug, Default)]
@@ -163,9 +163,11 @@ impl Today {
     ) {
         let lineup = Lineup::new(projection, today);
         let [top, rest] =
-            Layout::vertical([Constraint::Length(2), Constraint::Fill(1)]).areas(area);
+            Layout::vertical([Constraint::Length(top_height(area)), Constraint::Fill(1)])
+                .areas(area);
         let score = score(&lineup, schedule, checks);
         render_scoreboard(frame, top, &lineup, score, schedule.unbeaten, voice);
+        let rest = render_dayline(frame, rest, schedule, today, voice);
 
         // Com espaço, a curiosidade vai do lado; sem, embaixo, no que sobrar
         // da escalação. Se sobrar pouco, a escalação fica com a tela toda:
@@ -366,8 +368,63 @@ fn task_line(group: Group, task: &Task, cursor: bool, voice: Voice) -> Line<'sta
     }
 }
 
-/// A linha de cima: o dia da semana, a data e o placar. Embaixo do placar,
-/// a invencibilidade, quando tem alguma.
+/// A menor tela, em `(colunas, linhas)`, em que o placar eletrônico cabe
+/// sem tirar o lugar da escalação. Abaixo disso, o placar é uma linha de
+/// texto.
+const BIG_SCORE_MIN: (u16, u16) = (70, 16);
+
+/// A partir de quantas linhas a tela Hoje mostra a linha do dia. Numa tela
+/// mais baixa, as quatro linhas dela fariam falta pra escalação.
+const DAYLINE_MIN_HEIGHT: u16 = 22;
+
+/// Desenha a linha do dia no alto de `area` e devolve o que sobrou pra
+/// escalação. Sem expediente hoje, ou numa tela pequena, não desenha nada e
+/// devolve a área inteira.
+fn render_dayline(
+    frame: &mut Frame<'_>,
+    area: Rect,
+    schedule: &Schedule,
+    today: Date,
+    voice: Voice,
+) -> Rect {
+    if area.height < DAYLINE_MIN_HEIGHT {
+        return area;
+    }
+    let ruler = dayline::lines(schedule, today, usize::from(area.width));
+    if ruler.is_empty() {
+        return area;
+    }
+    // O rótulo com a legenda, as horas, a faixa e uma linha de respiro.
+    let mut label = theme::section_line(voice.day_line());
+    label.spans.extend(dayline::legend());
+    let mut lines = vec![label];
+    lines.extend(ruler);
+    let height = u16::try_from(lines.len() + 1).unwrap_or(u16::MAX);
+    let [band, rest] =
+        Layout::vertical([Constraint::Length(height), Constraint::Fill(1)]).areas(area);
+    frame.render_widget(Paragraph::new(lines), band);
+    rest
+}
+
+/// A largura das barras de progresso do alto da tela, em blocos.
+const METER_WIDTH: usize = 12;
+
+/// Quantas linhas o alto da tela ocupa: o placar eletrônico e uma de
+/// respiro, quando ele cabe; senão, a linha de texto e uma de respiro.
+fn top_height(area: Rect) -> u16 {
+    if area.width >= BIG_SCORE_MIN.0 && area.height >= BIG_SCORE_MIN.1 {
+        bigtext::HEIGHT + 1
+    } else {
+        2
+    }
+}
+
+/// O alto da tela: à esquerda, o dia da semana, a data e a invencibilidade;
+/// à direita, o placar do dia.
+///
+/// Com espaço, o placar é o eletrônico: os números em letra de bloco, com a
+/// Estrela Solitária do lado, igual ao da barra (`⭐ 3 x 11`: três feitas,
+/// onze por fazer). Numa tela pequena, volta a ser uma linha de texto.
 fn render_scoreboard(
     frame: &mut Frame<'_>,
     area: Rect,
@@ -376,17 +433,6 @@ fn render_scoreboard(
     unbeaten: Option<Unbeaten>,
     voice: Voice,
 ) {
-    let [area, below] = Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]).areas(area);
-    if let Some(unbeaten) = unbeaten.filter(|u| u.record > 0) {
-        frame.render_widget(
-            Paragraph::new(Line::styled(
-                voice.unbeaten(unbeaten.current, unbeaten.record),
-                theme::soft(),
-            ))
-            .right_aligned(),
-            below,
-        );
-    }
     let today = lineup.today();
     let date = format!(
         "{}, {}",
@@ -398,21 +444,81 @@ fn render_scoreboard(
     } else {
         theme::selected()
     };
-    let [left, right] = Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(area);
-    frame.render_widget(
-        Paragraph::new(Line::from(vec![
-            Span::styled(voice.today_title(), theme::heading()),
-            Span::styled(format!(" · {date}"), theme::soft()),
-        ])),
-        left,
-    );
+    let mut left = vec![Line::from(vec![
+        Span::styled(voice.today_title(), theme::heading()),
+        Span::styled(format!(" · {date}"), theme::soft()),
+    ])];
+    let unbeaten = unbeaten.filter(|u| u.record > 0);
+    let unbeaten_text =
+        unbeaten.map(|u| Line::styled(voice.unbeaten(u.current, u.record), theme::soft()));
+
+    let big = voice.big_score(score.done, score.planned);
+    if area.height > bigtext::HEIGHT && bigtext::can_write(&big) {
+        // Embaixo da data, as duas barras: o placar do dia e a
+        // invencibilidade contra o recorde.
+        let meter = |done, total, style, text: String| {
+            let [full, empty] = meter::spans(done, total, METER_WIDTH, style);
+            Line::from(vec![
+                full,
+                empty,
+                Span::styled(format!(" {text}"), theme::soft()),
+            ])
+        };
+        left.push(meter(
+            score.done,
+            score.planned,
+            score_style,
+            voice.score(score.done, score.planned),
+        ));
+        if let Some(unbeaten) = unbeaten {
+            // Dias de invencibilidade cabem com folga num usize.
+            let days = |n: u32| usize::try_from(n).unwrap_or(usize::MAX);
+            left.push(meter(
+                days(unbeaten.current),
+                days(unbeaten.record),
+                theme::heading(),
+                voice.unbeaten(unbeaten.current, unbeaten.record),
+            ));
+        }
+        // A estrela e um espaço, antes dos números. Só na linguagem de jogo.
+        let star = voice.score_star();
+        let star_width = Span::raw(star).width();
+        let width = u16::try_from(bigtext::width(&big) + star_width).unwrap_or(u16::MAX);
+        let [left_area, right_area] =
+            Layout::horizontal([Constraint::Fill(1), Constraint::Length(width)])
+                .spacing(2)
+                .areas(area);
+        frame.render_widget(Paragraph::new(left), left_area);
+        let lines: Vec<Line<'_>> = (0..)
+            .zip(bigtext::rows(&big))
+            .map(|(row, digits)| {
+                // A estrela fica na linha do meio, na altura do "x".
+                let lead = if row == 1 {
+                    Span::styled(star, theme::heading())
+                } else {
+                    Span::raw(" ".repeat(star_width))
+                };
+                Line::from(vec![lead, Span::styled(digits, score_style)])
+            })
+            .collect();
+        frame.render_widget(Paragraph::new(lines), right_area);
+        return;
+    }
+
+    let [first, below] = Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]).areas(area);
+    if let Some(unbeaten) = unbeaten_text {
+        frame.render_widget(Paragraph::new(unbeaten).right_aligned(), below);
+    }
+    let [left_area, right_area] =
+        Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(first);
+    frame.render_widget(Paragraph::new(left), left_area);
     frame.render_widget(
         Paragraph::new(Line::styled(
             voice.score(score.done, score.planned),
             score_style,
         ))
         .right_aligned(),
-        right,
+        right_area,
     );
 }
 
