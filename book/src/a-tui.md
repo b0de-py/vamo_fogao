@@ -17,7 +17,7 @@ Na Hoje e no Banco, o espaço conclui a tarefa (gol!) e, numa tarefa já conclu�
 
 ## O fogo alvinegro
 
-Atrás de todas as telas queima o fogo do Doom, o mesmo do fundo do [r4ul.com.br](https://r4ul.com.br), só que em preto e branco. A brasa acompanha o placar do dia: com nada feito, é uma linha de fogo piloto no pé da tela; com tudo feito, ela ocupa os 18% de baixo, como no site. Concluir uma tarefa põe a brasa no máximo por um segundo e meio, solta foguetes e pisca um GOOOL! perto do rodapé.
+Atrás de todas as telas queima o fogo do Doom, o mesmo do fundo do [r4ul.com.br](https://r4ul.com.br), só que em preto e branco. A brasa acompanha o placar do dia: com nada feito, é uma linha de fogo piloto no pé da tela; com tudo feito, ela ocupa os 18% de baixo, como no site. Concluir uma tarefa põe a brasa no máximo por um segundo e meio, solta foguetes e abre a cena do gol no meio da tela: o GOL! em letra de bloco e uma frase do narrador. Quando o gol fecha o placar do dia, é o gol de placa: o grito fica mais comprido e os foguetes estouram em dobro. Qualquer tecla pula a cena e ainda faz o que sempre faz. Com `efeitos = "leve"`, a cena vira um grito curto perto do rodapé; com `nenhum`, fica só a mensagem.
 
 Como no site, o fogo reage a quem usa:
 

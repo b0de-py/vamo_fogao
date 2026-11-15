@@ -374,6 +374,26 @@ impl Voice {
 
     /// O título do Banco.
     /// O grito que pisca por cima do fogo quando uma tarefa é concluída.
+    /// O grito de gol em letra de bloco, na cena do gol. `closed` é quando
+    /// o gol fechou o placar do dia: o gol de placa.
+    pub(crate) fn goal_big(self, closed: bool) -> &'static str {
+        match (self, closed) {
+            (Self::Game, false) => "GOL!",
+            (Self::Game, true) => "GOOOL!",
+            (Self::Neutral, _) => "FEITA!",
+        }
+    }
+
+    /// A frase do narrador embaixo do grito, na cena do gol.
+    pub(crate) fn goal_line(self, closed: bool) -> &'static str {
+        match (self, closed) {
+            (Self::Game, false) => "Bola na rede, tarefa na súmula.",
+            (Self::Game, true) => "Placar fechado: hoje não ficou nada pra depois.",
+            (Self::Neutral, false) => "Tarefa concluída.",
+            (Self::Neutral, true) => "Tudo feito por hoje.",
+        }
+    }
+
     pub(crate) fn goal_shout(self) -> &'static str {
         self.pick(" G O O O L ! ", " C O N C L U Í D A ")
     }

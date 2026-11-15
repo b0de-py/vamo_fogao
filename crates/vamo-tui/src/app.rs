@@ -31,7 +31,9 @@ use crate::schedule::Schedule;
 use crate::star::Star;
 use crate::today::{self, Today};
 use crate::when::parse_day;
-use crate::{Density, Effects, Ledger, Setup, Voice, card, constellation, glow, hud, theme};
+use crate::{
+    Density, Effects, Ledger, Setup, Voice, bigtext, card, constellation, glow, hud, theme,
+};
 
 /// O que aconteceu depois de uma ação de quem usa.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -320,22 +322,25 @@ impl App {
         self.glow = self.glow.saturating_sub(1);
         let (columns, rows) = self.fire_area.get();
         self.fire.resize(columns, rows);
+        let score = self.score(ledger);
         let strength = if self.flash > 0 {
-            if self.flash.is_multiple_of(FIREWORK_EVERY) {
+            // No gol de placa, os foguetes estouram duas vezes mais.
+            let every = if closed(score) {
+                FIREWORK_EVERY / 2
+            } else {
+                FIREWORK_EVERY
+            };
+            if self.flash.is_multiple_of(every) {
                 self.fire.burst();
             }
             self.flash -= 1;
             1.0
+        } else if score.planned == 0 {
+            0.0
         } else {
-            let lineup = Lineup::new(ledger.projection(), self.today);
-            let score = today::score(&lineup, &self.schedule, ledger.agenda_checks());
-            if score.planned == 0 {
-                0.0
-            } else {
-                // Contagens de tarefa do dia cabem com folga num u32.
-                f64::from(u32::try_from(score.done).unwrap_or(u32::MAX))
-                    / f64::from(u32::try_from(score.planned).unwrap_or(u32::MAX))
-            }
+            // Contagens de tarefa do dia cabem com folga num u32.
+            f64::from(u32::try_from(score.done).unwrap_or(u32::MAX))
+                / f64::from(u32::try_from(score.planned).unwrap_or(u32::MAX))
         };
         self.fire.step(strength);
     }
@@ -361,6 +366,9 @@ impl App {
         // A mensagem e a dica do rodapé valem até a próxima tecla.
         self.message = None;
         self.tip = None;
+        // Qualquer tecla pula a cena do gol. A tecla não se perde: ela segue
+        // adiante e faz o que sempre faz.
+        self.flash = 0;
         // O ctrl+c fecha de qualquer lugar, como em todo programa de terminal.
         if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
             self.quit = true;
@@ -554,7 +562,13 @@ impl App {
         self.message = match feedback {
             None | Some(Feedback::Done) => None,
             Some(Feedback::Goal(id)) => {
-                self.flash = FLASH_STEPS;
+                // A cena inteira com os efeitos no cheio; no leve, um grito
+                // curto; sem efeitos, só a mensagem do rodapé.
+                self.flash = match self.effects {
+                    Effects::Full => FLASH_STEPS,
+                    Effects::Light => FLASH_STEPS / 3,
+                    Effects::Off => 0,
+                };
                 projection.task(id).map(|task| Message {
                     text: self.voice.goal(id, task.title()),
                     style: theme::success(),
@@ -620,9 +634,56 @@ impl App {
         if burns || star.is_some() {
             self.fire.underlay(area, frame.buffer_mut(), star.as_ref());
         }
-        if shouting {
+        // A cena do gol fica por cima do fogo. Com os efeitos no cheio, é a
+        // cena de gala; no leve, o grito curto de antes.
+        if burns && self.flash > 0 && self.effects == Effects::Full {
+            self.render_goal_scene(frame, body, closed(self.score(ledger)), shouting);
+        } else if shouting {
             self.render_shout(frame, body);
         }
+    }
+
+    /// O placar do dia, com as fixas marcadas.
+    fn score<L: Ledger>(&self, ledger: &L) -> vamo_core::Score {
+        let lineup = Lineup::new(ledger.projection(), self.today);
+        today::score(&lineup, &self.schedule, ledger.agenda_checks())
+    }
+
+    /// A cena do gol: o grito em letra de bloco e a frase do narrador, numa
+    /// caixa no meio da tela. Quando o gol fecha o placar do dia (`closed`),
+    /// é o gol de placa, com o grito mais comprido. As letras piscam entre
+    /// o branco e o ciano no ritmo de `blink`.
+    fn render_goal_scene(&self, frame: &mut Frame<'_>, area: Rect, closed: bool, blink: bool) {
+        let shout = self.voice.goal_big(closed);
+        let line = self.voice.goal_line(closed);
+        let panel = Panel::new().tone(Tone::Focus);
+        let chrome = panel.chrome();
+        let width = bigtext::width(shout).max(Span::raw(line).width()) + chrome.0 + 2;
+        // As três linhas do grito, uma de respiro e a frase.
+        let height = usize::from(bigtext::HEIGHT) + 2 + chrome.1;
+        let popup = centered(area, width, height);
+        if usize::from(popup.width) < width || usize::from(popup.height) < height {
+            // Não cabe: fica o grito curto, que cabe em qualquer tela.
+            if blink {
+                self.render_shout(frame, area);
+            }
+            return;
+        }
+        let style = if blink {
+            theme::heading()
+        } else {
+            theme::selected()
+        };
+        let mut lines: Vec<Line<'_>> = bigtext::rows(shout)
+            .into_iter()
+            .map(|row| Line::styled(row, style))
+            .collect();
+        lines.push(Line::default());
+        lines.push(Line::styled(line, theme::soft()));
+        let inner = panel.inner(popup);
+        frame.render_widget(Clear, popup);
+        frame.render_widget(panel, popup);
+        frame.render_widget(Paragraph::new(lines).centered(), inner);
     }
 
     /// A dica da tela, no lugar das teclas do rodapé. Com os efeitos no
@@ -855,6 +916,11 @@ fn render_stripes(frame: &mut Frame<'_>, area: Rect, used: usize) {
         ..area
     };
     frame.render_widget(Paragraph::new(Line::from(spans)), stripes);
+}
+
+/// Se o placar do dia está fechado: tem o que fazer e está tudo feito.
+fn closed(score: vamo_core::Score) -> bool {
+    score.planned > 0 && score.done == score.planned
 }
 
 /// O estado dos cantos da Ficha: amarelo plasma quando a tarefa está
@@ -1280,15 +1346,68 @@ pub(crate) mod tests {
         // acordado depois dos 3 segundos.
         let later = now + IDLE * 2;
         assert!(app.animating(later));
-        let mut shouted = false;
+        // O gol fechou o placar do dia de exemplo: é o gol de placa, com o
+        // grito comprido em letra de bloco e a frase do narrador.
+        let [shout, _, _] = bigtext::rows("GOOOL!");
+        let scene = draw(&app, &ledger, 60, 18);
+        assert!(scene.contains(&shout), "{scene}");
+        assert!(scene.contains("Placar fechado"), "{scene}");
         for _ in 0..FLASH_STEPS {
             app.tick(&ledger, later);
-            shouted |= draw(&app, &ledger, 60, 18).contains("G O O O L !");
         }
-        assert!(shouted);
         assert_eq!(app.flash, 0);
         assert!(!app.animating(later));
-        assert!(!draw(&app, &ledger, 60, 18).contains("G O O O L !"));
+        assert!(!draw(&app, &ledger, 60, 18).contains(&shout));
+    }
+
+    #[test]
+    fn a_goal_that_leaves_work_to_do_gets_the_short_shout() {
+        let (mut app, mut ledger, _) = burning();
+        // Mais uma tarefa pra hoje: o gol na T-002 não fecha o placar.
+        let extra = ledger.add("Regar as plantas", "casa", Fit::Gap, Status::Ready);
+        let changes = ledger.projection().schedule(extra, today()).unwrap();
+        ledger.record(extra, changes).unwrap();
+        app.on_key(key(KeyCode::Char('j')), &mut ledger);
+        app.on_key(key(KeyCode::Char(' ')), &mut ledger);
+        let scene = draw(&app, &ledger, 60, 18);
+        let [short, _, _] = bigtext::rows("GOL!");
+        let [long, _, _] = bigtext::rows("GOOOL!");
+        assert!(scene.contains(&short) && !scene.contains(&long), "{scene}");
+        assert!(scene.contains("Bola na rede"), "{scene}");
+    }
+
+    #[test]
+    fn any_key_skips_the_goal_scene_and_still_does_its_job() {
+        let (mut app, mut ledger, _) = burning();
+        app.on_key(key(KeyCode::Char('j')), &mut ledger);
+        app.on_key(key(KeyCode::Char(' ')), &mut ledger);
+        assert_eq!(app.flash, FLASH_STEPS);
+        // O tab pula a cena e troca de tela, como sempre.
+        app.on_key(key(KeyCode::Tab), &mut ledger);
+        assert_eq!(app.flash, 0);
+        assert_eq!(app.tab, Tab::Notebook);
+    }
+
+    #[test]
+    fn lighter_effects_shorten_the_goal_scene() {
+        let goal = |effects| {
+            let (mut app, mut ledger, _) = burning();
+            app.effects = effects;
+            app.on_key(key(KeyCode::Char('j')), &mut ledger);
+            app.on_key(key(KeyCode::Char(' ')), &mut ledger);
+            let screen = draw(&app, &ledger, 60, 18);
+            (app.flash, screen)
+        };
+        let [big, _, _] = bigtext::rows("GOOOL!");
+        // No leve, um terço do tempo e sem a letra de bloco.
+        let (flash, screen) = goal(Effects::Light);
+        assert_eq!(flash, FLASH_STEPS / 3);
+        assert!(!screen.contains(&big), "{screen}");
+        // Sem efeitos, só a mensagem do rodapé.
+        let (flash, screen) = goal(Effects::Off);
+        assert_eq!(flash, 0);
+        assert!(!screen.contains(&big), "{screen}");
+        assert!(screen.contains("T-002"), "{screen}");
     }
 
     #[test]
