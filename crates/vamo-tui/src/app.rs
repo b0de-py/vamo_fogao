@@ -91,6 +91,10 @@ struct Tip {
 /// passo a cada 40 ms, um segundo.
 const TYPING_STEPS: u8 = 25;
 
+/// Quantos passos dura a cena de abertura: com um passo a cada 40 ms, um
+/// pouco menos de um segundo.
+const INTRO_STEPS: u8 = 22;
+
 /// Quanto tempo a dica fica no rodapé quando ninguém aperta nada.
 const TIP_TIME: Duration = Duration::from_secs(6);
 
@@ -199,6 +203,8 @@ pub(crate) struct App {
     /// Quantos passos faltam pra curiosidade do dia acabar de entrar
     /// digitada.
     typing: u8,
+    /// Quantos passos faltam pra cena de abertura acabar.
+    intro: u8,
 }
 
 /// Se a janela da TUI está à vista, pelo foco que o terminal avisa.
@@ -271,6 +277,11 @@ impl App {
                 Effects::Full => TYPING_STEPS,
                 Effects::Light | Effects::Off => 0,
             },
+            // A TUI abre com a cena de abertura.
+            intro: match setup_effects {
+                Effects::Full => INTRO_STEPS,
+                Effects::Light | Effects::Off => 0,
+            },
         }
     }
 
@@ -295,7 +306,7 @@ impl App {
     /// digitada. Enquanto está, a TUI segue animando; quando acaba, pode
     /// voltar a dormir.
     fn transition(&self) -> bool {
-        self.glow > 0 || self.glitch > 0 || self.typing > 0
+        self.glow > 0 || self.glitch > 0 || self.typing > 0 || self.intro > 0
     }
 
     /// Acorda o fogo: alguém mexeu em `now`. No site, é o que o movimento
@@ -347,11 +358,20 @@ impl App {
         }
         self.glow = self.glow.saturating_sub(1);
         self.glitch = self.glitch.saturating_sub(1);
-        self.typing = self.typing.saturating_sub(1);
+        if self.intro > 0 {
+            // Na abertura, a tela ainda não apareceu: a curiosidade espera
+            // pra começar a ser digitada.
+            self.intro -= 1;
+        } else {
+            self.typing = self.typing.saturating_sub(1);
+        }
         let (columns, rows) = self.fire_area.get();
         self.fire.resize(columns, rows);
         let score = self.score(ledger);
-        let strength = if self.flash > 0 {
+        let strength = if self.intro > 0 {
+            // Na abertura, o fogo sobe com tudo.
+            1.0
+        } else if self.flash > 0 {
             // No gol de placa, os foguetes estouram duas vezes mais.
             let every = if closed(score) {
                 FIREWORK_EVERY / 2
@@ -397,6 +417,8 @@ impl App {
         // Qualquer tecla pula a cena do gol. A tecla não se perde: ela segue
         // adiante e faz o que sempre faz.
         self.flash = 0;
+        // A cena de abertura também.
+        self.intro = 0;
         // O ctrl+c fecha de qualquer lugar, como em todo programa de terminal.
         if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
             self.quit = true;
@@ -636,6 +658,9 @@ impl App {
     pub(crate) fn render<L: Ledger>(&self, frame: &mut Frame<'_>, ledger: &L) {
         let area = frame.area();
         frame.render_widget(Block::new().style(theme::base()), area);
+        if self.intro > 0 && self.render_intro(frame, area) {
+            return;
+        }
 
         let [header, body, footer] = Layout::vertical([
             Constraint::Length(2),
@@ -689,6 +714,46 @@ impl App {
         } else if shouting {
             self.render_shout(frame, body);
         }
+    }
+
+    /// A cena de abertura: o fogo sobe, o nome do app aparece letra por
+    /// letra em letra de bloco e a estrela acende. Devolve `false`, sem
+    /// desenhar, quando a tela é pequena demais pra cena: aí a TUI abre
+    /// direto.
+    fn render_intro(&self, frame: &mut Frame<'_>, area: Rect) -> bool {
+        const NAME: &str = "VAMO_FOGAO";
+        let width = u16::try_from(bigtext::width(NAME)).unwrap_or(u16::MAX);
+        if area.width < width + 4 || area.height < FIRE_MIN_HEIGHT {
+            return false;
+        }
+        // O nome fica inteiro na metade da cena; a outra metade é dele
+        // parado, com a estrela acesa.
+        let done = INTRO_STEPS - self.intro;
+        let letters = Reveal {
+            step: done,
+            of: INTRO_STEPS / 2,
+        }
+        .letters(NAME.chars().count());
+        let shown: String = NAME.chars().take(letters).collect();
+        let lines: Vec<Line<'_>> = bigtext::rows(&shown)
+            .into_iter()
+            .map(|row| Line::styled(row, theme::heading()))
+            .collect();
+        let name = Rect {
+            x: area.x + (area.width - width) / 2,
+            y: area.y + area.height.saturating_sub(bigtext::HEIGHT) / 2,
+            width,
+            height: bigtext::HEIGHT,
+        };
+        frame.render_widget(Paragraph::new(lines), name);
+
+        self.fire_area.set((area.width, area.height));
+        // A estrela acende quando o nome fica inteiro.
+        let star = self
+            .star(area)
+            .map(|star| star.glowing(done >= INTRO_STEPS / 2));
+        self.fire.underlay(area, frame.buffer_mut(), star.as_ref());
+        true
     }
 
     /// O placar do dia, com as fixas marcadas.
@@ -1377,6 +1442,81 @@ pub(crate) mod tests {
             app.on_key(key(KeyCode::BackTab), &mut ledger);
             assert_eq!((app.glitch, app.typing), (0, 0), "{effects}");
         }
+    }
+
+    /// Um app que acabou de abrir com os efeitos no cheio, como o de
+    /// verdade.
+    fn opening() -> App {
+        let mut app = new_app(Voice::Game);
+        app.effects = Effects::Full;
+        app.intro = INTRO_STEPS;
+        app
+    }
+
+    #[test]
+    fn the_app_opens_with_its_name_in_big_letters() {
+        let mut app = opening();
+        let ledger = ledger();
+        let now = Instant::now();
+        app.wake(now);
+        let [whole, _, _] = bigtext::rows("VAMO_FOGAO");
+        // No primeiro quadro, o nome ainda não chegou e a tela de sempre
+        // ainda não apareceu.
+        let first = draw(&app, &ledger, 100, 30);
+        assert!(
+            !first.contains(&whole) && !first.contains("Caderno"),
+            "{first}"
+        );
+        // Na metade da cena, o nome está inteiro.
+        for _ in 0..INTRO_STEPS / 2 {
+            app.tick(&ledger, now);
+        }
+        assert!(draw(&app, &ledger, 100, 30).contains(&whole));
+        // No fim, entra a tela de sempre, e a TUI pode dormir quando o resto
+        // assentar.
+        let later = now + IDLE + Duration::from_secs(1);
+        assert!(app.animating(later));
+        for _ in 0..INTRO_STEPS {
+            app.tick(&ledger, later);
+        }
+        assert_eq!(app.intro, 0);
+        let screen = draw(&app, &ledger, 100, 30);
+        assert!(
+            screen.contains("Caderno") && !screen.contains(&whole),
+            "{screen}"
+        );
+        assert!(!app.animating(later));
+    }
+
+    #[test]
+    fn any_key_skips_the_opening_and_still_does_its_job() {
+        let mut app = opening();
+        let mut ledger = ledger();
+        app.on_key(key(KeyCode::Tab), &mut ledger);
+        assert_eq!(app.intro, 0);
+        assert_eq!(app.tab, Tab::Notebook);
+    }
+
+    #[test]
+    fn a_small_screen_opens_straight_on_today() {
+        let app = opening();
+        assert!(draw(&app, &ledger(), 40, 30).contains("vamo_fogao"));
+        assert!(draw(&app, &ledger(), 100, 12).contains("Caderno"));
+    }
+
+    #[test]
+    fn only_full_effects_get_the_opening() {
+        let setup = |effects| Setup {
+            voice: Voice::Game,
+            acervo: acervo(),
+            time_zone: TimeZone::UTC,
+            effects,
+            density: Density::default(),
+            schedule: Schedule::default(),
+        };
+        assert_eq!(App::new(setup(Effects::Full), today()).intro, INTRO_STEPS);
+        assert_eq!(App::new(setup(Effects::Light), today()).intro, 0);
+        assert_eq!(App::new(setup(Effects::Off), today()).intro, 0);
     }
 
     #[test]

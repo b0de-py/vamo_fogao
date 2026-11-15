@@ -38,6 +38,9 @@ fn glyph(c: char) -> Option<Glyph> {
         'I' => [0b111, 0b010, 0b010, 0b010, 0b111],
         'T' => [0b111, 0b010, 0b010, 0b010, 0b010],
         'A' => [0b010, 0b101, 0b111, 0b101, 0b101],
+        'V' => [0b101, 0b101, 0b101, 0b101, 0b010],
+        'M' => [0b101, 0b111, 0b111, 0b101, 0b101],
+        '_' => [0b000, 0b000, 0b000, 0b000, 0b111],
         '!' => [0b010, 0b010, 0b010, 0b000, 0b010],
         // O "x" do placar, menor que os números, no meio da altura.
         'x' => [0b000, 0b101, 0b010, 0b101, 0b000],
@@ -119,6 +122,7 @@ mod tests {
         assert!(can_write("3/5"));
         assert!(can_write("GOOOL!"));
         assert!(can_write("FEITA!"));
+        assert!(can_write("VAMO_FOGAO"));
         // Só as maiúsculas dos gritos: o resto do alfabeto não foi desenhado.
         assert!(!can_write("gol"));
         assert_eq!(rows("?"), rows(" "));
