@@ -178,9 +178,12 @@ impl Museum {
                 Entry::Fact(fact) => {
                     let this_day = today.is_some_and(|today| happened_on(fact, today));
                     let date = fact.date().map(|date| date.to_string()).unwrap_or_default();
+                    // A linha começa na margem, como a tabela do Banco: os
+                    // fatos são textos longos e cada coluna conta. A marca
+                    // do "Neste dia" fica entre a data e o texto.
                     let mut line = Line::from(vec![
-                        Span::styled(if this_day { "★ " } else { "  " }, theme::museum()),
-                        Span::styled(format!("{date:<10}  "), theme::muted()),
+                        Span::styled(format!("{date:<10}"), theme::muted()),
+                        Span::styled(if this_day { " ★ " } else { "   " }, theme::museum()),
                         Span::styled(fact.text().to_string(), theme::text()),
                     ]);
                     if index == cursor {
@@ -192,7 +195,7 @@ impl Museum {
                     index += 1;
                 }
                 Entry::Banter(banter) => {
-                    let mut line = Line::styled(format!("  {}", banter.text()), theme::text());
+                    let mut line = Line::styled(banter.text().to_string(), theme::text());
                     if index == cursor {
                         line = line.style(theme::cursor());
                         selected = Some(entry);
