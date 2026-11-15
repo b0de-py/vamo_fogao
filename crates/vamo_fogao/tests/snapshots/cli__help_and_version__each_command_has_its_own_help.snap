@@ -15,5 +15,6 @@ Opções:
   -s, --status <STATUS>        O status de partida (sem ele, pronta)
   -n, --notas <NOTAS>          As notas: o detalhe que não cabe no título
       --volta <INTERVALO>      De quanto em quanto tempo a tarefa volta depois do gol: 1m (todo mês), 2s (a cada duas semanas)
+      --passo <PASSO>          Um passo da jogada em sequência, em ordem; repita a opção pra cada passo. Forma: "Título (@48h ou @pedir) (+ item)..."
       --linguagem <LINGUAGEM>  A linguagem das mensagens: jogo (o padrão) ou neutra
   -h, --help                   Mostra esta ajuda

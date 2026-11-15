@@ -307,6 +307,11 @@ impl Voice {
         }
     }
 
+    /// O título da faixa das jogadas que esperam algo de fora.
+    pub(crate) fn bench_waiting(self) -> &'static str {
+        "Aguardando"
+    }
+
     /// O título da faixa das tarefas que dormem até voltar pro banco.
     pub(crate) fn bench_coming_back(self) -> &'static str {
         "Voltam em breve"
@@ -396,6 +401,12 @@ impl Voice {
             },
             Change::Repeat(Some(interval)) => format!("volta {}", Self::interval(*interval)),
             Change::Repeat(None) => "deixou de voltar".to_owned(),
+            Change::Plan(Some(plan)) => format!("jogada de {} passos", plan.steps().len()),
+            Change::Plan(None) => "deixou de ser jogada".to_owned(),
+            Change::Progress(progress) => {
+                let waiting = if progress.waiting { ", aguardando" } else { "" };
+                format!("jogada no passo {}{waiting}", u16::from(progress.step) + 1)
+            }
             Change::Check { day, done: true } => format!("feita em {}", day.strftime("%d/%m/%Y")),
             Change::Check { day, done: false } => {
                 format!("desmarcada em {}", day.strftime("%d/%m/%Y"))

@@ -68,6 +68,7 @@ A tela Hoje pergunta ao core o que é do dia, e o `Lineup::new(projeção, hoje)
 Estas regras moram na `Projection`, porque são regra de negócio:
 
 - `finish`: o gol conta no dia em que saiu. Concluir uma tarefa atrasada (ou sem dia) passa ela pra hoje.
+- `finish_with`, `toggle_item` e `set_waiting`: a jogada em sequência fecha o passo da vez, marca os itens dele e sai da escalação quando espera ([ADR 0016](https://github.com/b0de-py/vamo_fogao/blob/main/docs/adr/0016-jogada-em-sequencia.md)).
 - `resurface` e `coming_back`: a tarefa concluída que tem intervalo volta pro banco quando o dia chega, e a que ainda dorme aparece com a data ([ADR 0015](https://github.com/b0de-py/vamo_fogao/blob/main/docs/adr/0015-tarefa-que-volta-por-intervalo.md)).
 - `schedule` e `unschedule`: escalar deixa a tarefa agendada, pro dia pedido; tirar da escalação devolve pro banco, pronta.
 

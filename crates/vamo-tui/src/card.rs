@@ -30,6 +30,11 @@ pub(crate) fn on_key<L: Ledger>(
         KeyCode::Char('a') => ask(Purpose::Area(id), task.area().as_str()),
         KeyCode::Char('n') => ask(Purpose::Notes(id), task.notes()),
         KeyCode::Char('d') => ask(Purpose::Day(id), ""),
+        KeyCode::Char('i') if task.plan().is_some() => ask(Purpose::Item(id), ""),
+        KeyCode::Char('w') if task.plan().is_some() => {
+            let changes = ledger.projection().set_waiting(id, !task.is_waiting());
+            Some(Action::Feedback(record(ledger, id, changes)))
+        }
         KeyCode::Char('s') => {
             let options: Vec<Status> = Status::ALL
                 .into_iter()
@@ -88,6 +93,45 @@ pub(crate) fn render(
     ];
     if let Some(interval) = task.repeat() {
         lines.push(field(voice.field(Field::Repeat), Voice::interval(interval)));
+    }
+    if let Some(plan) = task.plan() {
+        lines.push(Line::default());
+        let progress = task.progress();
+        let closed = task.status() == Status::Done;
+        for (index, step) in plan.steps().iter().enumerate() {
+            let current = index == usize::from(progress.step) && !closed;
+            let mark = if closed || index < usize::from(progress.step) {
+                "[x]"
+            } else if current {
+                "[>]"
+            } else {
+                "[ ]"
+            };
+            lines.push(Line::styled(
+                format!(" {mark} {}", step.title()),
+                if current {
+                    theme::heading()
+                } else {
+                    theme::text()
+                },
+            ));
+            if current {
+                for (n, item) in (1..).zip(step.items()) {
+                    let checked = if progress.is_item_checked(n - 1) {
+                        "[x]"
+                    } else {
+                        "[ ]"
+                    };
+                    lines.push(Line::styled(
+                        format!("       {n} {checked} {item}"),
+                        theme::text(),
+                    ));
+                }
+                if progress.waiting {
+                    lines.push(Line::styled("       aguardando", theme::warning()));
+                }
+            }
+        }
     }
     let mut notes = task.notes().lines();
     if let Some(first) = notes.next() {

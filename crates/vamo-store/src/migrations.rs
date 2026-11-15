@@ -21,6 +21,7 @@ const MIGRATIONS: &[&str] = &[
     include_str!("../migrations/0004-sumulas.sql"),
     include_str!("../migrations/0005-marcacao-que-viaja.sql"),
     include_str!("../migrations/0006-tarefa-que-volta.sql"),
+    include_str!("../migrations/0007-jogada-em-sequencia.sql"),
 ];
 
 /// A versão do esquema que esta versão do vamo conhece.

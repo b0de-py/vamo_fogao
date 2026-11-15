@@ -32,7 +32,7 @@ pub(crate) fn render(
     let mut lines: Vec<Line<'static>> = tasks
         .map(|task| {
             let done = task.status() == Status::Done;
-            line(task.title().as_str(), done)
+            line(&crate::bench::label(task), done)
         })
         .collect();
     if lines.is_empty() {

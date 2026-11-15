@@ -216,6 +216,46 @@
           ]
         },
         {
+          "description": "Os passos da jogada em sequência mudaram (versão 2).",
+          "type": "object",
+          "properties": {
+            "passos": {
+              "description": "Um passo por linha, no formato `Título @48h + item`. `null` tira:\na tarefa deixa de ser uma jogada.",
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "tipo": {
+              "type": "string",
+              "const": "jogada"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "tipo"
+          ]
+        },
+        {
+          "description": "O ponto da jogada mudou (versão 2).",
+          "type": "object",
+          "properties": {
+            "ponto": {
+              "description": "O passo da vez, os itens marcados e a espera, como `1,5,0`.",
+              "type": "string"
+            },
+            "tipo": {
+              "type": "string",
+              "const": "ponto"
+            }
+          },
+          "additionalProperties": false,
+          "required": [
+            "tipo",
+            "ponto"
+          ]
+        },
+        {
           "description": "Uma marcação por tarefa (versões antigas; hoje a projeção ignora).",
           "type": "object",
           "properties": {

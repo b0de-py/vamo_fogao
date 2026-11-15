@@ -6,7 +6,8 @@ use jiff::Timestamp;
 use jiff::civil::Date;
 
 use crate::{
-    Area, Change, Error, Event, EventId, Fit, Interval, NotebookTitle, Status, Task, TaskId,
+    Area, Change, Error, Event, EventId, Fit, Interval, NotebookTitle, Plan, Progress, Status,
+    Task, TaskId,
 };
 
 /// O estado de todas as tarefas, calculado a partir dos eventos.
@@ -101,6 +102,8 @@ impl Projection {
             Change::Notes(notes) => write(&mut draft.notes, notes, stamp),
             Change::Day(day) => write(&mut draft.day, day, stamp),
             Change::Repeat(repeat) => write(&mut draft.repeat, repeat, stamp),
+            Change::Plan(plan) => write(&mut draft.plan, plan, stamp),
+            Change::Progress(progress) => write(&mut draft.progress, progress, stamp),
             // A marcação por tarefa saiu com o status recorrente (ADR 0014).
             // O evento continua válido no log pra os arquivos antigos
             // carregarem, mas não muda mais nada.
@@ -144,10 +147,167 @@ impl Projection {
     /// - [`Error::UnknownTask`] se a tarefa não existir.
     /// - [`Error::InvalidTransition`] se a regra de [`Status`] não deixar.
     pub fn finish(&self, id: TaskId, today: Date) -> Result<Vec<Change>, Error> {
+        self.finish_with(id, today, None)
+    }
+
+    /// Como [`Projection::finish`], com a data que o próximo passo pede,
+    /// se pedir.
+    ///
+    /// Numa jogada em sequência, concluir fecha o passo da vez e passa pro
+    /// próximo (que aparece no dia dele, se tiver prazo). Só o último passo
+    /// dá o gol de verdade: a jogada dorme até o mês seguinte.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::UnknownTask`] se a tarefa não existir.
+    /// - [`Error::InvalidTransition`] se a regra de [`Status`] não deixar.
+    /// - [`Error::StepIncomplete`] se o passo da vez ainda tem item sem
+    ///   marcar.
+    /// - [`Error::StepNeedsDate`] se o próximo passo pede a data e `asked`
+    ///   veio vazio.
+    pub fn finish_with(
+        &self,
+        id: TaskId,
+        today: Date,
+        asked: Option<Date>,
+    ) -> Result<Vec<Change>, Error> {
         let task = self.task(id).ok_or(Error::UnknownTask { id })?;
+        if let (Some(plan), Some(step)) = (task.plan(), task.current_step()) {
+            // O mesmo teste do gol: pronta e agendada podem, o resto não.
+            self.status_change(id, Status::Done)?;
+            let progress = task.progress();
+            let missing: Vec<&str> = step
+                .items()
+                .iter()
+                .enumerate()
+                .filter(|&(index, _)| !progress.is_item_checked(index))
+                .map(|(_, item)| item.as_str())
+                .collect();
+            if !missing.is_empty() {
+                return Err(Error::StepIncomplete {
+                    id,
+                    missing: missing.join(", "),
+                });
+            }
+            let index = usize::from(progress.step).min(plan.steps().len() - 1);
+            if let Some(next) = plan.steps().get(index + 1) {
+                return Self::advance(&task, next, progress, today, asked);
+            }
+            // O último passo: o gol, e o ciclo recomeça do zero ao acordar.
+            let mut changes = vec![Change::Status(Status::Done)];
+            if task.day() != Some(today) {
+                changes.push(Change::Day(Some(today)));
+            }
+            changes.push(Change::Progress(Progress::default()));
+            return Ok(changes);
+        }
         let mut changes = vec![self.status_change(id, Status::Done)?];
         if task.day() != Some(today) {
             changes.push(Change::Day(Some(today)));
+        }
+        Ok(changes)
+    }
+
+    /// As mudanças que fecham um passo que não é o último: o ponto avança e
+    /// o dia do próximo passo vem do prazo dele.
+    fn advance(
+        task: &Task,
+        next: &crate::Step,
+        progress: Progress,
+        today: Date,
+        asked: Option<Date>,
+    ) -> Result<Vec<Change>, Error> {
+        let due = match next.due() {
+            crate::Due::Ask => Some(asked.ok_or_else(|| Error::StepNeedsDate {
+                id: task.id(),
+                next: next.title().to_owned(),
+            })?),
+            crate::Due::After(_) => next
+                .due()
+                .days()
+                .and_then(|days| today.checked_add(jiff::ToSpan::days(days)).ok()),
+            crate::Due::None => None,
+        };
+        let mut changes = vec![Change::Progress(Progress {
+            step: progress.step.saturating_add(1),
+            items: 0,
+            waiting: false,
+        })];
+        if let Some(day) = due {
+            // Com prazo, o próximo passo fica agendado pro dia dele.
+            if task.status() != Status::Scheduled {
+                changes.push(Change::Status(Status::Scheduled));
+            }
+            changes.push(Change::Day(Some(day)));
+        } else {
+            // Sem prazo, ele espera no banco.
+            if task.status() == Status::Scheduled {
+                changes.push(Change::Status(Status::Ready));
+            }
+            if task.day().is_some() {
+                changes.push(Change::Day(None));
+            }
+        }
+        Ok(changes)
+    }
+
+    /// As mudanças que fazem da tarefa uma jogada em sequência (ou tiram,
+    /// com `None`). O ponto volta pro começo.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::UnknownTask`] se a tarefa não existir.
+    pub fn set_plan(&self, id: TaskId, plan: Option<Plan>) -> Result<Vec<Change>, Error> {
+        self.task(id).ok_or(Error::UnknownTask { id })?;
+        Ok(vec![
+            Change::Plan(plan),
+            Change::Progress(Progress::default()),
+        ])
+    }
+
+    /// A mudança que marca (ou desmarca) o item `index` (a partir do zero)
+    /// do passo da vez.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::UnknownTask`] se a tarefa não existir.
+    /// - [`Error::NotASequence`] se ela não for uma jogada, ou o passo da
+    ///   vez não tiver esse item.
+    pub fn toggle_item(&self, id: TaskId, index: usize) -> Result<Change, Error> {
+        let task = self.task(id).ok_or(Error::UnknownTask { id })?;
+        let step = task.current_step().ok_or(Error::NotASequence { id })?;
+        if index >= step.items().len() {
+            return Err(Error::NotASequence { id });
+        }
+        let mut progress = task.progress();
+        progress.items ^= 1 << index;
+        Ok(Change::Progress(progress))
+    }
+
+    /// As mudanças que põem a jogada pra esperar algo de fora (ou tiram da
+    /// espera). Esperando, ela sai da escalação e fica numa faixa do Banco,
+    /// e o atraso não conta: não depende de quem faz.
+    ///
+    /// # Errors
+    ///
+    /// - [`Error::UnknownTask`] se a tarefa não existir.
+    /// - [`Error::NotASequence`] se ela não for uma jogada.
+    pub fn set_waiting(&self, id: TaskId, waiting: bool) -> Result<Vec<Change>, Error> {
+        let task = self.task(id).ok_or(Error::UnknownTask { id })?;
+        if task.plan().is_none() {
+            return Err(Error::NotASequence { id });
+        }
+        let mut changes = vec![Change::Progress(Progress {
+            waiting,
+            ..task.progress()
+        })];
+        if waiting {
+            if task.status() == Status::Scheduled {
+                changes.push(Change::Status(Status::Ready));
+            }
+            if task.day().is_some() {
+                changes.push(Change::Day(None));
+            }
         }
         Ok(changes)
     }
@@ -275,6 +435,8 @@ struct Draft {
     notes: Option<Latest<String>>,
     day: Option<Latest<Option<Date>>>,
     repeat: Option<Latest<Option<Interval>>>,
+    plan: Option<Latest<Option<Plan>>>,
+    progress: Option<Latest<Progress>>,
 }
 
 impl Draft {
@@ -298,6 +460,12 @@ impl Draft {
         }
         if let Some(repeat) = &self.repeat {
             task.set_repeat(repeat.value);
+        }
+        if let Some(plan) = &self.plan {
+            task.set_plan(plan.value.clone());
+        }
+        if let Some(progress) = &self.progress {
+            task.set_progress(progress.value);
         }
         Some(task)
     }
@@ -566,6 +734,19 @@ mod tests {
                 Interval::Months(1),
             ]))
             .prop_map(Change::Repeat),
+            prop::sample::select(vec![
+                "Pedir as datas + Recebi\nFazer @48h"
+                    .parse::<Plan>()
+                    .unwrap(),
+            ])
+            .prop_map(|plan| Change::Plan(Some(plan))),
+            (0..3u8, any::<u8>(), any::<bool>()).prop_map(|(step, items, waiting)| {
+                Change::Progress(Progress {
+                    step,
+                    items,
+                    waiting,
+                })
+            }),
         ];
 
         prop::collection::vec((1..=3u32, 0..4i64, change), 0..40).prop_map(|items| {
@@ -628,6 +809,161 @@ mod tests {
         assert_eq!(task.status(), Status::Ready);
         assert_eq!(task.day(), None);
         assert_eq!(projection.resurface(today), []);
+    }
+
+    /// Aplica as mudanças de uma tarefa, na ordem, com instantes crescentes.
+    fn apply_all(projection: &mut Projection, task: u32, changes: Vec<Change>, second: &mut i64) {
+        for change in changes {
+            *second += 1;
+            projection.apply(&event(
+                u64::try_from(*second).unwrap() + 100,
+                *second,
+                task,
+                change,
+            ));
+        }
+    }
+
+    /// Uma jogada de quatro passos, inventada: o primeiro pede dois itens, o
+    /// segundo vence 48h depois, os dois últimos pedem a data.
+    fn the_play() -> (Projection, i64) {
+        let plan: Plan = "Pedir as datas + Recebi as datas + Recebi o e-mail\n\
+                          Montar o rascunho @48h\n\
+                          Revisar o rascunho @pedir\n\
+                          Entregar o rascunho @pedir"
+            .parse()
+            .unwrap();
+        let mut projection = projection(&[event(1, 0, 7, created("Fechar o mês"))]);
+        let mut second = 0;
+        let changes = projection
+            .set_plan(TaskId::new(7).unwrap(), Some(plan))
+            .unwrap();
+        apply_all(&mut projection, 7, changes, &mut second);
+        (projection, second)
+    }
+
+    #[test]
+    fn only_the_step_of_the_turn_shows() {
+        let (projection, _) = the_play();
+        let task = projection.task(TaskId::new(7).unwrap()).unwrap();
+        assert_eq!(task.current_step().unwrap().title(), "Pedir as datas");
+        assert!(!task.is_waiting());
+    }
+
+    #[test]
+    fn a_step_with_items_only_closes_when_all_are_marked() {
+        let (mut projection, mut second) = the_play();
+        let id = TaskId::new(7).unwrap();
+        let today = jiff::civil::date(2026, 11, 2);
+
+        let error = projection.finish(id, today).unwrap_err();
+        assert_eq!(
+            error,
+            Error::StepIncomplete {
+                id,
+                missing: "Recebi as datas, Recebi o e-mail".to_owned()
+            }
+        );
+
+        // Os itens fecham em qualquer ordem.
+        for index in [1, 0] {
+            let change = projection.toggle_item(id, index).unwrap();
+            apply_all(&mut projection, 7, vec![change], &mut second);
+        }
+        assert_eq!(
+            projection.toggle_item(id, 2),
+            Err(Error::NotASequence { id })
+        );
+        let changes = projection.finish(id, today).unwrap();
+        apply_all(&mut projection, 7, changes, &mut second);
+
+        // O passo 2 vence 48h depois: agendado pra dois dias à frente.
+        let task = projection.task(id).unwrap();
+        assert_eq!(task.current_step().unwrap().title(), "Montar o rascunho");
+        assert_eq!(task.status(), Status::Scheduled);
+        assert_eq!(task.day(), Some(jiff::civil::date(2026, 11, 4)));
+        assert_eq!(task.progress().items, 0);
+    }
+
+    #[test]
+    fn the_step_that_asks_for_a_date_waits_for_it() {
+        let (mut projection, mut second) = the_play();
+        let id = TaskId::new(7).unwrap();
+        let today = jiff::civil::date(2026, 11, 2);
+        for index in [0, 1] {
+            let change = projection.toggle_item(id, index).unwrap();
+            apply_all(&mut projection, 7, vec![change], &mut second);
+        }
+        let changes = projection.finish(id, today).unwrap();
+        apply_all(&mut projection, 7, changes, &mut second);
+        // Fechar o passo 2 pede a data do passo 3, e sem ela nada muda.
+        let closing_day = jiff::civil::date(2026, 11, 4);
+        assert!(matches!(
+            projection.finish(id, closing_day),
+            Err(Error::StepNeedsDate { .. })
+        ));
+        let due = jiff::civil::date(2026, 11, 20);
+        let changes = projection.finish_with(id, closing_day, Some(due)).unwrap();
+        apply_all(&mut projection, 7, changes, &mut second);
+        let task = projection.task(id).unwrap();
+        assert_eq!(task.current_step().unwrap().title(), "Revisar o rascunho");
+        assert_eq!(task.day(), Some(due));
+    }
+
+    #[test]
+    fn the_last_step_scores_and_the_play_sleeps_until_next_month() {
+        let plan: Plan = "Montar o rascunho\nEntregar o rascunho".parse().unwrap();
+        let mut projection = projection(&[event(1, 0, 7, created("Fechar o mês"))]);
+        let mut second = 0;
+        let id = TaskId::new(7).unwrap();
+        let changes = projection.set_plan(id, Some(plan)).unwrap();
+        apply_all(&mut projection, 7, changes, &mut second);
+
+        let day = jiff::civil::date(2026, 11, 12);
+        for _ in 0..2 {
+            let changes = projection.finish(id, day).unwrap();
+            apply_all(&mut projection, 7, changes, &mut second);
+        }
+        let task = projection.task(id).unwrap();
+        assert_eq!(task.status(), Status::Done);
+        assert_eq!(task.day(), Some(day));
+        assert_eq!(task.progress(), Progress::default());
+        assert_eq!(task.returns_on(), Some(jiff::civil::date(2026, 12, 1)));
+
+        // Antes do dia 1º ela dorme, no dia 1º volta no primeiro passo.
+        assert_eq!(projection.resurface(jiff::civil::date(2026, 11, 30)), []);
+        let back = projection.resurface(jiff::civil::date(2026, 12, 1));
+        assert_eq!(back.len(), 1);
+        apply_all(&mut projection, 7, back[0].1.clone(), &mut second);
+        let task = projection.task(id).unwrap();
+        assert_eq!(task.status(), Status::Ready);
+        assert_eq!(task.current_step().unwrap().title(), "Montar o rascunho");
+    }
+
+    #[test]
+    fn waiting_takes_the_play_out_of_the_schedule() {
+        let (mut projection, mut second) = the_play();
+        let id = TaskId::new(7).unwrap();
+        let day = jiff::civil::date(2026, 11, 2);
+        let changes = projection.schedule(id, day).unwrap();
+        apply_all(&mut projection, 7, changes, &mut second);
+
+        let changes = projection.set_waiting(id, true).unwrap();
+        apply_all(&mut projection, 7, changes, &mut second);
+        let task = projection.task(id).unwrap();
+        assert!(task.is_waiting());
+        assert_eq!(task.day(), None);
+        assert_eq!(task.status(), Status::Ready);
+
+        let changes = projection.set_waiting(id, false).unwrap();
+        apply_all(&mut projection, 7, changes, &mut second);
+        assert!(!projection.task(id).unwrap().is_waiting());
+        assert_eq!(
+            projection.set_waiting(TaskId::new(8).unwrap(), true),
+            Err(Error::UnknownTask {
+                id: TaskId::new(8).unwrap()
+            })
+        );
     }
 
     #[test]

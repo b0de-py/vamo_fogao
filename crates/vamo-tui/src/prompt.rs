@@ -22,6 +22,11 @@ pub(crate) enum Purpose {
     Notes(TaskId),
     /// O dia pra agendar uma tarefa.
     Day(TaskId),
+    /// A data em que vence o próximo passo de uma jogada, pedida ao fechar o
+    /// passo da vez.
+    StepDate(TaskId),
+    /// O número do item do passo da vez pra marcar ou desmarcar.
+    Item(TaskId),
     /// O status novo, escolhido pelo número entre os que a regra deixa.
     Status(TaskId, Vec<Status>),
 }
@@ -79,7 +84,8 @@ impl Prompt {
             Purpose::Title(_) => format!("{}: ", voice.field(Field::Title)),
             Purpose::Area(_) => format!("{}: ", voice.field(Field::Area)),
             Purpose::Notes(_) => format!("{}: ", voice.field(Field::Notes)),
-            Purpose::Day(_) => voice.prompt_day().to_owned(),
+            Purpose::Item(_) => "item (número): ".to_owned(),
+            Purpose::Day(_) | Purpose::StepDate(_) => voice.prompt_day().to_owned(),
             Purpose::Status(_, options) => {
                 let options: Vec<String> = (1..)
                     .zip(options)

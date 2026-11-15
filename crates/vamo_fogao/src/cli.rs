@@ -9,7 +9,8 @@ use std::path::PathBuf;
 use clap::builder::{PossibleValuesParser, TypedValueParser};
 use clap::error::{ContextKind, ErrorKind};
 use clap::{ArgAction, Parser, Subcommand};
-use vamo_core::{Area, Fit, Interval, Status, TaskId};
+use jiff::civil::Date;
+use vamo_core::{Area, Fit, Interval, Status, Step, TaskId};
 
 use vamo_tui::Voice;
 
@@ -151,6 +152,11 @@ pub(crate) enum Command {
         /// mês), 2s (a cada duas semanas)
         #[arg(long = "volta", value_name = "INTERVALO")]
         repeat: Option<Interval>,
+
+        /// Um passo da jogada em sequência, em ordem; repita a opção pra cada
+        /// passo. Forma: "Título (@48h ou @pedir) (+ item)..."
+        #[arg(long = "passo", value_name = "PASSO")]
+        steps: Vec<Step>,
     },
 
     /// Lista as tarefas em jogo (sem as concluídas e as descartadas)
@@ -180,6 +186,39 @@ pub(crate) enum Command {
         next_help_heading = "Opções"
     )]
     Done {
+        /// O ID da tarefa, como T-041 ou só 41
+        #[arg(value_name = "ID", value_parser = parse_task_id, help_heading = "Argumentos")]
+        id: TaskId,
+
+        /// Numa jogada em sequência, a data em que o próximo passo vence,
+        /// quando ele pede
+        #[arg(long = "data", value_name = "DATA", value_parser = parse_date)]
+        date: Option<Date>,
+    },
+
+    /// Marca (ou desmarca) um item do passo da vez de uma jogada
+    #[command(
+        override_usage = "vamo item <ID> <N>",
+        help_template = SUBCOMMAND_HELP_TEMPLATE,
+        next_help_heading = "Opções"
+    )]
+    Item {
+        /// O ID da tarefa, como T-041 ou só 41
+        #[arg(value_name = "ID", value_parser = parse_task_id, help_heading = "Argumentos")]
+        id: TaskId,
+
+        /// O número do item, a partir do 1
+        #[arg(value_name = "N", value_parser = clap::value_parser!(u8).range(1..=8), help_heading = "Argumentos")]
+        item: u8,
+    },
+
+    /// Põe a jogada pra esperar algo de fora, ou tira dessa espera
+    #[command(
+        override_usage = "vamo espera <ID>",
+        help_template = SUBCOMMAND_HELP_TEMPLATE,
+        next_help_heading = "Opções"
+    )]
+    Espera {
         /// O ID da tarefa, como T-041 ou só 41
         #[arg(value_name = "ID", value_parser = parse_task_id, help_heading = "Argumentos")]
         id: TaskId,

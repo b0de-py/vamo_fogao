@@ -10,3 +10,6 @@
 {"versao":2,"id":"0192f0c4-8a00-7000-8000-00000000000a","em":"2026-11-11T13:03:00Z","maquina":"notebook","tarefa":"T-001","mudanca":{"tipo":"dia","dia":null}}
 {"versao":2,"id":"0192f0c4-8a00-7000-8000-00000000000b","em":"2026-11-11T13:04:00Z","maquina":"notebook","tarefa":"T-001","mudanca":{"tipo":"volta","intervalo":"1m"}}
 {"versao":2,"id":"0192f0c4-8a00-7000-8000-00000000000c","em":"2026-11-11T13:05:00Z","maquina":"notebook","tarefa":"T-001","mudanca":{"tipo":"volta","intervalo":null}}
+{"versao":2,"id":"0192f0c4-8a00-7000-8000-00000000000d","em":"2026-11-11T13:06:00Z","maquina":"notebook","tarefa":"T-001","mudanca":{"tipo":"jogada","passos":"Pedir as datas @pedir + Recebi as datas\nFazer a prévia @48h"}}
+{"versao":2,"id":"0192f0c4-8a00-7000-8000-00000000000e","em":"2026-11-11T13:07:00Z","maquina":"notebook","tarefa":"T-001","mudanca":{"tipo":"ponto","ponto":"1,0,0"}}
+{"versao":2,"id":"0192f0c4-8a00-7000-8000-00000000000f","em":"2026-11-11T13:08:00Z","maquina":"notebook","tarefa":"T-001","mudanca":{"tipo":"jogada","passos":null}}

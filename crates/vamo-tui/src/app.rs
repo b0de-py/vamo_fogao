@@ -407,6 +407,21 @@ impl App {
                 }
                 Err(message) => Feedback::Refused(message),
             },
+            Purpose::Item(id) => match text.parse::<usize>().ok().and_then(|n| n.checked_sub(1)) {
+                Some(index) => {
+                    let change = projection.toggle_item(id, index).map(|change| vec![change]);
+                    record(ledger, id, change)
+                }
+                None => Feedback::Refused(self.voice.bad_option(text)),
+            },
+            // Fechar o passo da vez, agora que a data do próximo veio.
+            Purpose::StepDate(id) => match parse_day(text, self.today, self.voice) {
+                Ok(day) => {
+                    let changes = projection.finish_with(id, self.today, Some(day));
+                    record(ledger, id, changes)
+                }
+                Err(message) => Feedback::Refused(message),
+            },
             Purpose::Status(id, options) => {
                 let chosen = text
                     .parse::<usize>()

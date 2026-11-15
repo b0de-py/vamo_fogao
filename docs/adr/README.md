@@ -19,6 +19,7 @@ Cada escolha que muda o jeito do projeto ganha um registro curto: o contexto, a 
 | [0013](0013-sincronia-por-arquivo-de-cada-maquina.md) | Sincronizar pelo git com um arquivo por máquina, renumerando a tarefa não exportada | aceita |
 | [0014](0014-recorrencia-mora-na-agenda.md) | Deixar a recorrência na agenda e tirar o status recorrente | aceita |
 | [0015](0015-tarefa-que-volta-por-intervalo.md) | Fazer a tarefa que volta por um intervalo contado do gol | aceita |
+| [0016](0016-jogada-em-sequencia.md) | Fazer a jogada em sequência com passos, itens e o ponto no log | aceita |
 
 ## Como escrever uma
 

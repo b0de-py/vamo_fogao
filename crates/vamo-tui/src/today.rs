@@ -13,6 +13,7 @@ use vamo_core::{FixedActivity, Lineup, Projection, Score, Status, Task, Unbeaten
 
 use crate::app::{Action, Feedback, record};
 use crate::curiosity::{self, Acervo};
+use crate::prompt::{Prompt, Purpose};
 use crate::schedule::{self, Schedule};
 use crate::{Ledger, Voice, theme};
 
@@ -79,6 +80,17 @@ impl Today {
         today: Date,
         schedule: &Schedule,
     ) -> Option<Action> {
+        // Fechar o passo de uma jogada que pede a data: pergunta antes.
+        if matches!(key.code, KeyCode::Char(' ') | KeyCode::Enter) {
+            let lineup = Lineup::new(ledger.projection(), today);
+            let rows = rows(&lineup, schedule);
+            let cursor = self.cursor.min(rows.len().saturating_sub(1));
+            if let Some(Row::Task(_, task)) = rows.get(cursor)
+                && crate::bench::asks_date(ledger.projection(), task, today)
+            {
+                return Some(Action::Ask(Prompt::new(Purpose::StepDate(task.id()), "")));
+            }
+        }
         self.feedback(key, ledger, today, schedule)
             .map(Action::Feedback)
     }
@@ -314,7 +326,7 @@ fn task_line(group: Group, task: &Task, cursor: bool, voice: Voice) -> Line<'sta
     let line = Line::from(vec![
         Span::styled(format!(" {mark} "), base),
         Span::styled(format!("{}  ", task.id()), theme::muted()),
-        Span::styled(task.title().to_string(), base),
+        Span::styled(crate::bench::label(task), base),
         Span::styled(format!("  {detail}"), theme::muted()),
     ]);
     if cursor {
