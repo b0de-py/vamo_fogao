@@ -142,7 +142,7 @@ pub(crate) fn render(
     }
 
     lines.push(Line::default());
-    lines.push(Line::styled(voice.history(), theme::heading()));
+    lines.push(theme::section_line(voice.history()));
     let mut history: Vec<&Event> = events
         .iter()
         .filter(|event| event.task == task.id())

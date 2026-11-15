@@ -6,6 +6,7 @@
 //! plasma.
 
 use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::Line;
 
 /// O cinza do fundo, de 0 a 255. O fogo mistura as chamas com ele.
 pub(crate) const BACKGROUND_GRAY: u8 = 0x0a;
@@ -112,6 +113,34 @@ pub(crate) fn museum() -> Style {
     Style::new().fg(MAGENTA)
 }
 
+/// O rótulo de uma seção (Escalação, Atrasadas, Súmula): ciano e em negrito.
+pub(crate) fn section() -> Style {
+    Style::new().fg(ACCENT).add_modifier(Modifier::BOLD)
+}
+
+/// A linha de um rótulo de seção, já em caixa-alta espaçada e na cor de
+/// rótulo.
+pub(crate) fn section_line(text: &str) -> Line<'static> {
+    Line::styled(spaced_caps(text), section())
+}
+
+/// Um rótulo em caixa-alta espaçada, como os labels do r4ul.com.br:
+/// `Voltam em breve` vira `V O L T A M   E M   B R E V E`.
+///
+/// O terminal não tem espaçamento entre letras, então o espaço é uma célula
+/// inteira entre cada letra, e três entre as palavras. Fica só nos rótulos
+/// de seção, que são curtos: num título de tarefa, dobraria a largura.
+pub(crate) fn spaced_caps(text: &str) -> String {
+    let words: Vec<String> = text
+        .split_whitespace()
+        .map(|word| {
+            let letters: Vec<String> = word.chars().map(|c| c.to_uppercase().collect()).collect();
+            letters.join(" ")
+        })
+        .collect();
+    words.join("   ")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -124,6 +153,16 @@ mod tests {
             Color::Rgb(r, g, b) => r > 0x99 && g < 0x80 && b < 0x80,
             _ => false,
         }
+    }
+
+    #[test]
+    fn a_label_goes_to_spaced_caps() {
+        assert_eq!(spaced_caps("Escalação"), "E S C A L A Ç Ã O");
+        assert_eq!(
+            spaced_caps("Voltam em  breve"),
+            "V O L T A M   E M   B R E V E"
+        );
+        assert_eq!(spaced_caps(""), "");
     }
 
     #[test]

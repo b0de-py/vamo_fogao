@@ -104,7 +104,7 @@ impl Bench {
         let waiting: Vec<&Task> = tasks.iter().filter(|task| task.is_waiting()).collect();
         let mut strip_lines: Vec<Line<'static>> = Vec::new();
         if !waiting.is_empty() {
-            strip_lines.push(Line::styled(voice.bench_waiting(), theme::heading()));
+            strip_lines.push(theme::section_line(voice.bench_waiting()));
             for task in waiting.iter().take(MAX_SLEEPING) {
                 strip_lines.push(Line::styled(
                     format!("  {}  {}", task.id(), waiting_text(task)),
@@ -113,7 +113,7 @@ impl Bench {
             }
         }
         if !sleeping.is_empty() {
-            strip_lines.push(Line::styled(voice.bench_coming_back(), theme::heading()));
+            strip_lines.push(theme::section_line(voice.bench_coming_back()));
             for (task, day) in sleeping.iter().take(MAX_SLEEPING) {
                 strip_lines.push(Line::styled(
                     format!(
@@ -392,7 +392,7 @@ pub(crate) mod tests {
 
         let app = open_bench(&mut ledger);
         let screen = draw(&app, &ledger, 90, 14);
-        assert!(screen.contains("Aguardando"), "{screen}");
+        assert!(screen.contains("A G U A R D A N D O"), "{screen}");
         assert!(screen.contains("falta: Recebi o e-mail"), "{screen}");
     }
 

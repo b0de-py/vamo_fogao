@@ -235,11 +235,14 @@ impl Today {
                     lines.push(Line::default());
                 }
                 let heading = match group {
-                    Group::Planned => theme::heading(),
+                    Group::Planned => theme::section(),
                     Group::Late => theme::warning(),
                     Group::Fixed => theme::soft(),
                 };
-                lines.push(Line::styled(voice.group(group), heading));
+                lines.push(Line::styled(
+                    theme::spaced_caps(voice.group(group)),
+                    heading,
+                ));
                 current = Some(group);
             }
             let cursor = index == cursor;

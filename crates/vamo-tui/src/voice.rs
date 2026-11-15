@@ -1007,8 +1007,11 @@ mod tests {
             "GOOOL", "GOL", "banco", "Banco", "escala", "Escala", "súmula", "Súmula", "placar",
             "Glorioso", "resenha", "Resenha", "VAR", "contrat",
         ] {
+            // O rótulo de seção sai em caixa-alta espaçada, então a palavra
+            // é procurada dos dois jeitos.
+            let spaced = crate::theme::spaced_caps(word);
             assert!(
-                !screens.contains(word),
+                !screens.contains(word) && !screens.contains(&spaced),
                 "`{word}` no modo neutro:\n{screens}"
             );
         }

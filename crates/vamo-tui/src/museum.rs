@@ -169,7 +169,11 @@ impl Museum {
         let mut cursor_line = 0;
         for entry in &entries {
             match entry {
-                Entry::Heading(text) => lines.push(Line::styled(text.clone(), theme::soft())),
+                // O tema e o adversário vêm do acervo e podem ser compridos,
+                // então ganham a cor de rótulo, mas não a caixa-alta espaçada.
+                Entry::Heading(text) => {
+                    lines.push(Line::styled(text.clone(), theme::section()));
+                }
                 Entry::Fact(fact) => {
                     let this_day = today.is_some_and(|today| happened_on(fact, today));
                     let date = fact.date().map(|date| date.to_string()).unwrap_or_default();
