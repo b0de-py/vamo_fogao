@@ -78,7 +78,7 @@ densidade = "confortavel"
 A seção `[visual]` é a cara da TUI:
 
 - `efeitos` diz quanto a tela se mexe. `cheio` liga tudo. `leve` deixa só o fogo do fundo, sem cenas nem transições. `nenhum` apaga o fogo e solta o mouse: a TUI só acorda quando chega uma tecla.
-- `densidade` diz quanto a tela respira: `compacta` cola uma linha na outra, e `confortavel` dá margem nas caixas e espaço entre os blocos. Por enquanto a config só guarda a escolha: as telas passam a ler a densidade na tarefa [#105](https://github.com/b0de-py/vamo_fogao/issues/105).
+- `densidade` diz quanto a tela respira: `compacta` cola uma linha na outra, e `confortavel` afasta o miolo das bordas, dobra a margem de dentro das caixas e dá uma linha de respiro embaixo de cada rótulo da Hoje. Numa tela menor que 100 colunas por 30 linhas, a TUI usa a compacta sozinha, pra não cortar conteúdo (`Density::fitting` em `visual.rs`).
 
 Todo efeito pergunta pelo `efeitos` antes de animar (`Effects` em `visual.rs`), então dá pra desligar tudo num lugar só. O `animacao = false` das versões antigas continua valendo como `efeitos = "nenhum"`; quando os dois aparecem, o `efeitos` ganha.
 

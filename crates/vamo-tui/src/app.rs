@@ -31,7 +31,7 @@ use crate::schedule::Schedule;
 use crate::star::Star;
 use crate::today::{self, Today};
 use crate::when::parse_day;
-use crate::{Effects, Ledger, Setup, Voice, card, theme};
+use crate::{Density, Effects, Ledger, Setup, Voice, card, theme};
 
 /// O que aconteceu depois de uma ação de quem usa.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -143,6 +143,9 @@ pub(crate) struct App {
     help: bool,
     quit: bool,
     effects: Effects,
+    /// A densidade pedida na config. A que vale em cada quadro depende do
+    /// tamanho da tela: veja [`App::density`].
+    density: Density,
     /// Se a janela está à vista. Quando some (outro workspace, outra
     /// janela por cima), o fogo pausa.
     window: Window,
@@ -206,6 +209,7 @@ impl App {
             help: false,
             quit: false,
             effects: setup.effects,
+            density: setup.density,
             window: Window::Visible,
             awake_until: None,
             fire: Fire::new(fire::SEED),
@@ -591,9 +595,21 @@ impl App {
         frame.render_widget(Paragraph::new(rule), rule_area);
     }
 
+    /// A densidade que vale num quadro de `area`: a da config quando a tela
+    /// tem espaço, e a compacta quando é pequena demais pra respirar.
+    fn density(&self, area: Rect) -> Density {
+        self.density.fitting(area.width, area.height)
+    }
+
     /// O miolo da tela atual.
     fn render_body<L: Ledger>(&self, frame: &mut Frame<'_>, area: Rect, ledger: &L) {
-        let area = area.inner(ratatui::layout::Margin::new(1, 1));
+        let density = self.density(frame.area());
+        // A margem dos lados: na confortável, o miolo se afasta da borda.
+        let side = match density {
+            Density::Compact => 1,
+            Density::Comfortable => 3,
+        };
+        let area = area.inner(ratatui::layout::Margin::new(side, 1));
         let projection = ledger.projection();
         match self.tab {
             Tab::Today => self.today_screen.render(
@@ -605,6 +621,7 @@ impl App {
                 &self.schedule,
                 ledger.agenda_checks(),
                 self.banter,
+                density,
                 self.voice,
             ),
             Tab::Notebook => self.notebook_screen.render(
@@ -624,7 +641,9 @@ impl App {
                         &task,
                         ledger.events(),
                         &self.zone,
-                        card_tone(projection, task.id(), self.today),
+                        Panel::new()
+                            .tone(card_tone(projection, task.id(), self.today))
+                            .density(density),
                         self.voice,
                     );
                 }
@@ -632,14 +651,20 @@ impl App {
                     .bench
                     .render(frame, area, projection, self.today, self.voice),
             },
-            Tab::Museum => self
-                .museum
-                .render(frame, area, &self.acervo, self.today, self.voice),
+            Tab::Museum => {
+                self.museum
+                    .render(frame, area, &self.acervo, self.today, density, self.voice);
+            }
         }
     }
 
     /// A ajuda, numa caixa por cima da tela.
     fn render_help(&self, frame: &mut Frame<'_>, area: Rect) {
+        let panel = Panel::new()
+            .title(Line::styled(self.voice.help_title(), theme::heading()))
+            .tone(Tone::Focus)
+            .density(self.density(frame.area()));
+        let chrome = panel.chrome();
         let rows = self.voice.help(self.tab, self.card.is_some(), self.effects);
         let key_width = rows
             .iter()
@@ -660,15 +685,13 @@ impl App {
             .map(Line::width)
             .max()
             .unwrap_or(0)
-            .saturating_add(Panel::CHROME.0);
-        let height = lines.len().saturating_add(Panel::CHROME.1);
+            .saturating_add(chrome.0);
+        let height = lines.len().saturating_add(chrome.1);
         let popup = centered(area, width, height);
-        let panel = Panel::new()
-            .title(Line::styled(self.voice.help_title(), theme::heading()))
-            .tone(Tone::Focus);
+        let inner = panel.inner(popup);
         frame.render_widget(Clear, popup);
         frame.render_widget(panel, popup);
-        frame.render_widget(Paragraph::new(lines), Panel::inner(popup));
+        frame.render_widget(Paragraph::new(lines), inner);
     }
 }
 
@@ -835,6 +858,33 @@ pub(crate) mod tests {
         // A que já teve o gol não está atrasada, nem a que não existe.
         assert_eq!(card_tone(projection, id(1), today()), Tone::Focus);
         assert_eq!(card_tone(projection, id(99), today()), Tone::Focus);
+    }
+
+    #[test]
+    fn the_comfortable_density_gives_the_screen_room_to_breathe() {
+        let mut app = new_app(Voice::Game);
+        let ledger = crate::today::tests::example_day();
+        app.density = Density::Comfortable;
+        assert_snapshot!(draw(&app, &ledger, 110, 30));
+    }
+
+    #[test]
+    fn a_small_terminal_falls_back_to_compact_by_itself() {
+        let mut app = new_app(Voice::Game);
+        let mut ledger = crate::today::tests::example_day();
+        // As quatro telas, numa janela pequena demais pra respirar.
+        for _ in Tab::ALL {
+            app.density = Density::Compact;
+            let compact = draw(&app, &ledger, 99, 30);
+            app.density = Density::Comfortable;
+            assert_eq!(draw(&app, &ledger, 99, 30), compact);
+            // Com espaço, a confortável muda a tela.
+            assert_ne!(draw(&app, &ledger, 100, 30), {
+                app.density = Density::Compact;
+                draw(&app, &ledger, 100, 30)
+            });
+            app.on_key(key(KeyCode::Tab), &mut ledger);
+        }
     }
 
     #[test]

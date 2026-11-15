@@ -10,7 +10,7 @@ use vamo_acervo::{Fact, Tag, happened_on};
 
 use crate::curiosity::{Acervo, day};
 use crate::panel::Panel;
-use crate::{Voice, theme};
+use crate::{Density, Voice, theme};
 
 /// Como o Museu está arrumado.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -121,6 +121,7 @@ impl Museum {
         area: Rect,
         acervo: &Acervo,
         today: Date,
+        density: Density,
         voice: Voice,
     ) {
         let [top, rest] =
@@ -220,11 +221,10 @@ impl Museum {
             ],
             _ => Vec::new(),
         };
-        frame.render_widget(Panel::new(), detail_area);
-        frame.render_widget(
-            Paragraph::new(detail).wrap(Wrap { trim: false }),
-            Panel::inner(detail_area),
-        );
+        let panel = Panel::new().density(density);
+        let inner = panel.inner(detail_area);
+        frame.render_widget(panel, detail_area);
+        frame.render_widget(Paragraph::new(detail).wrap(Wrap { trim: false }), inner);
     }
 }
 

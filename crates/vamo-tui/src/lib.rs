@@ -62,7 +62,6 @@ pub struct Setup {
     /// Quanto a tela se mexe. Na config, `efeitos` na seção `[visual]`.
     pub effects: Effects,
     /// Quanto a tela respira. Na config, `densidade` na seção `[visual]`.
-    /// As telas ainda não leem este campo: hoje todas saem na compacta.
     pub density: Density,
     /// A agenda do dia e as regras do tempo. Sem agenda na config, vazia.
     pub schedule: Schedule,

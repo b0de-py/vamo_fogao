@@ -10,7 +10,7 @@ use vamo_acervo::{
 };
 
 use crate::panel::Panel;
-use crate::{Voice, theme};
+use crate::{Density, Voice, theme};
 
 /// O acervo que a TUI mostra.
 #[derive(Debug, Clone, Default)]
@@ -43,6 +43,7 @@ pub(crate) fn render(
     today: Date,
     opponent: Option<&str>,
     banter: bool,
+    density: Density,
     voice: Voice,
 ) {
     let matchup = |today| {
@@ -57,14 +58,12 @@ pub(crate) fn render(
     };
     // Uma caixa de vidro, como as do site: o fogo passa por trás dela mais
     // escuro do que no resto da tela.
-    frame.render_widget(
-        Panel::new().title(Line::styled(title, theme::museum())),
-        area,
-    );
-    frame.render_widget(
-        Paragraph::new(lines).wrap(Wrap { trim: true }),
-        Panel::inner(area),
-    );
+    let panel = Panel::new()
+        .title(Line::styled(title, theme::museum()))
+        .density(density);
+    let inner = panel.inner(area);
+    frame.render_widget(panel, area);
+    frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: true }), inner);
 }
 
 fn curiosity_lines(acervo: &Acervo, today: Day, voice: Voice) -> (String, Vec<Line<'static>>) {

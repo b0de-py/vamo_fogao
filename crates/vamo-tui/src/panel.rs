@@ -23,7 +23,7 @@ use ratatui::style::Style;
 use ratatui::text::Line;
 use ratatui::widgets::Widget;
 
-use crate::theme;
+use crate::{Density, theme};
 
 /// O estado que a cor dos cantos conta.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -56,6 +56,7 @@ impl Tone {
 pub(crate) struct Panel<'a> {
     title: Option<Line<'a>>,
     tone: Tone,
+    density: Density,
 }
 
 impl<'a> Panel<'a> {
@@ -76,15 +77,36 @@ impl<'a> Panel<'a> {
         self
     }
 
-    /// Onde o conteúdo cabe: uma linha pra dentro em cima e embaixo, e duas
-    /// colunas de cada lado (a do canto e uma de respiro).
-    pub(crate) fn inner(area: Rect) -> Rect {
-        area.inner(Margin::new(2, 1))
+    /// Quanto o conteúdo se afasta dos cantos.
+    pub(crate) fn density(mut self, density: Density) -> Self {
+        self.density = density;
+        self
+    }
+
+    /// A margem entre a borda da caixa e o conteúdo. Na compacta, uma linha
+    /// em cima e embaixo e duas colunas de cada lado (a do canto e uma de
+    /// respiro); na confortável, o dobro.
+    fn margin(&self) -> Margin {
+        match self.density {
+            Density::Compact => Margin::new(2, 1),
+            Density::Comfortable => Margin::new(4, 2),
+        }
+    }
+
+    /// Onde o conteúdo cabe.
+    pub(crate) fn inner(&self, area: Rect) -> Rect {
+        area.inner(self.margin())
     }
 
     /// Quanto a caixa ocupa além do conteúdo: `(colunas, linhas)`. Serve pra
     /// quem calcula o tamanho da caixa a partir do texto.
-    pub(crate) const CHROME: (usize, usize) = (4, 2);
+    pub(crate) fn chrome(&self) -> (usize, usize) {
+        let margin = self.margin();
+        (
+            usize::from(margin.horizontal) * 2,
+            usize::from(margin.vertical) * 2,
+        )
+    }
 }
 
 impl Widget for Panel<'_> {
@@ -187,7 +209,13 @@ mod tests {
 
     #[test]
     fn the_content_stays_clear_of_the_corners() {
-        let inner = Panel::inner(Rect::new(0, 0, 20, 6));
-        assert_eq!(inner, Rect::new(2, 1, 16, 4));
+        let area = Rect::new(0, 0, 20, 8);
+        let compact = Panel::new();
+        assert_eq!(compact.inner(area), Rect::new(2, 1, 16, 6));
+        assert_eq!(compact.chrome(), (4, 2));
+        // Na confortável, o conteúdo se afasta o dobro.
+        let comfortable = Panel::new().density(Density::Comfortable);
+        assert_eq!(comfortable.inner(area), Rect::new(4, 2, 12, 4));
+        assert_eq!(comfortable.chrome(), (8, 4));
     }
 }
