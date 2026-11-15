@@ -17,6 +17,7 @@
 
 mod app;
 mod bench;
+mod bigtext;
 mod card;
 mod curiosity;
 mod fire;

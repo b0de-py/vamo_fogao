@@ -15,7 +15,7 @@ use crate::app::{Action, Feedback, record};
 use crate::curiosity::{self, Acervo};
 use crate::prompt::{Prompt, Purpose};
 use crate::schedule::{self, Schedule};
-use crate::{Density, Ledger, Voice, theme};
+use crate::{Density, Ledger, Voice, bigtext, theme};
 
 /// Onde está o cursor na escalação.
 #[derive(Debug, Default)]
@@ -163,7 +163,8 @@ impl Today {
     ) {
         let lineup = Lineup::new(projection, today);
         let [top, rest] =
-            Layout::vertical([Constraint::Length(2), Constraint::Fill(1)]).areas(area);
+            Layout::vertical([Constraint::Length(top_height(area)), Constraint::Fill(1)])
+                .areas(area);
         let score = score(&lineup, schedule, checks);
         render_scoreboard(frame, top, &lineup, score, schedule.unbeaten, voice);
 
@@ -366,8 +367,27 @@ fn task_line(group: Group, task: &Task, cursor: bool, voice: Voice) -> Line<'sta
     }
 }
 
-/// A linha de cima: o dia da semana, a data e o placar. Embaixo do placar,
-/// a invencibilidade, quando tem alguma.
+/// A menor tela, em `(colunas, linhas)`, em que o placar eletrônico cabe
+/// sem tirar o lugar da escalação. Abaixo disso, o placar é uma linha de
+/// texto.
+const BIG_SCORE_MIN: (u16, u16) = (70, 16);
+
+/// Quantas linhas o alto da tela ocupa: o placar eletrônico e uma de
+/// respiro, quando ele cabe; senão, a linha de texto e uma de respiro.
+fn top_height(area: Rect) -> u16 {
+    if area.width >= BIG_SCORE_MIN.0 && area.height >= BIG_SCORE_MIN.1 {
+        bigtext::HEIGHT + 1
+    } else {
+        2
+    }
+}
+
+/// O alto da tela: à esquerda, o dia da semana, a data e a invencibilidade;
+/// à direita, o placar do dia.
+///
+/// Com espaço, o placar é o eletrônico: os números em letra de bloco, com a
+/// Estrela Solitária do lado, igual ao da barra (`⭐ 3 x 11`: três feitas,
+/// onze por fazer). Numa tela pequena, volta a ser uma linha de texto.
 fn render_scoreboard(
     frame: &mut Frame<'_>,
     area: Rect,
@@ -376,17 +396,6 @@ fn render_scoreboard(
     unbeaten: Option<Unbeaten>,
     voice: Voice,
 ) {
-    let [area, below] = Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]).areas(area);
-    if let Some(unbeaten) = unbeaten.filter(|u| u.record > 0) {
-        frame.render_widget(
-            Paragraph::new(Line::styled(
-                voice.unbeaten(unbeaten.current, unbeaten.record),
-                theme::soft(),
-            ))
-            .right_aligned(),
-            below,
-        );
-    }
     let today = lineup.today();
     let date = format!(
         "{}, {}",
@@ -398,21 +407,56 @@ fn render_scoreboard(
     } else {
         theme::selected()
     };
-    let [left, right] = Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(area);
-    frame.render_widget(
-        Paragraph::new(Line::from(vec![
-            Span::styled(voice.today_title(), theme::heading()),
-            Span::styled(format!(" · {date}"), theme::soft()),
-        ])),
-        left,
-    );
+    let mut left = vec![Line::from(vec![
+        Span::styled(voice.today_title(), theme::heading()),
+        Span::styled(format!(" · {date}"), theme::soft()),
+    ])];
+    let unbeaten = unbeaten
+        .filter(|u| u.record > 0)
+        .map(|u| Line::styled(voice.unbeaten(u.current, u.record), theme::soft()));
+
+    let big = voice.big_score(score.done, score.planned);
+    if area.height > bigtext::HEIGHT && bigtext::can_write(&big) {
+        left.extend(unbeaten);
+        // A estrela e um espaço, antes dos números. Só na linguagem de jogo.
+        let star = voice.score_star();
+        let star_width = Span::raw(star).width();
+        let width = u16::try_from(bigtext::width(&big) + star_width).unwrap_or(u16::MAX);
+        let [left_area, right_area] =
+            Layout::horizontal([Constraint::Fill(1), Constraint::Length(width)])
+                .spacing(2)
+                .areas(area);
+        frame.render_widget(Paragraph::new(left), left_area);
+        let lines: Vec<Line<'_>> = (0..)
+            .zip(bigtext::rows(&big))
+            .map(|(row, digits)| {
+                // A estrela fica na linha do meio, na altura do "x".
+                let lead = if row == 1 {
+                    Span::styled(star, theme::heading())
+                } else {
+                    Span::raw(" ".repeat(star_width))
+                };
+                Line::from(vec![lead, Span::styled(digits, score_style)])
+            })
+            .collect();
+        frame.render_widget(Paragraph::new(lines), right_area);
+        return;
+    }
+
+    let [first, below] = Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]).areas(area);
+    if let Some(unbeaten) = unbeaten {
+        frame.render_widget(Paragraph::new(unbeaten).right_aligned(), below);
+    }
+    let [left_area, right_area] =
+        Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(first);
+    frame.render_widget(Paragraph::new(left), left_area);
     frame.render_widget(
         Paragraph::new(Line::styled(
             voice.score(score.done, score.planned),
             score_style,
         ))
         .right_aligned(),
-        right,
+        right_area,
     );
 }
 

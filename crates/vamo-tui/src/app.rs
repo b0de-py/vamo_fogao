@@ -1317,6 +1317,12 @@ pub(crate) mod tests {
         assert!(row.contains('▀'), "{row}");
     }
 
+    /// A linha de cima do placar em letra de bloco, pra procurar na tela.
+    fn big_score(score: &str) -> String {
+        let [top, _, _] = crate::bigtext::rows(score);
+        top
+    }
+
     /// Se a tela tem meio-bloco no canto de baixo à direita, onde mora a
     /// estrela, e em nenhum outro lugar.
     fn only_the_star(screen: &str) -> bool {
@@ -1333,7 +1339,10 @@ pub(crate) mod tests {
     #[test]
     fn the_lone_star_shines_in_the_corner() {
         // Sem animação não tem fogo, e a estrela fica lá do mesmo jeito.
-        let app = new_app(Voice::Game);
+        // No Caderno, pra o placar em letra de bloco da Hoje não entrar na
+        // conta dos meios-blocos.
+        let mut app = new_app(Voice::Game);
+        app.tab = Tab::Notebook;
         let ledger = ledger();
         let screen = draw(&app, &ledger, 100, 30);
         assert!(only_the_star(&screen), "{screen}");
@@ -1344,7 +1353,8 @@ pub(crate) mod tests {
 
     #[test]
     fn the_neutral_voice_has_no_star() {
-        let app = new_app(Voice::Neutral);
+        let mut app = new_app(Voice::Neutral);
+        app.tab = Tab::Notebook;
         assert!(!draw(&app, &ledger(), 100, 30).contains('▀'));
     }
 
@@ -1499,7 +1509,7 @@ pub(crate) mod tests {
             screen.contains("⚠ T-001: em cima do bloco protegido Almoço"),
             "{screen}"
         );
-        assert!(screen.contains("Placar: 0 de 1"), "{screen}");
+        assert!(screen.contains(&big_score("0 x 1")), "{screen}");
         assert_snapshot!(screen);
 
         // A reunião recorrente é a fixa da agenda: marcar conta no placar
@@ -1510,11 +1520,11 @@ pub(crate) mod tests {
             screen.contains("[x] 10:00–11:00  Reunião da equipe"),
             "{screen}"
         );
-        assert!(screen.contains("Placar: 1 de 1"), "{screen}");
+        assert!(screen.contains(&big_score("1 x 0")), "{screen}");
         assert_eq!(ledger.projection().tasks().count(), 3);
         assert_eq!(ledger.agenda_checks().len(), 1);
         app.on_key(key(KeyCode::Char(' ')), &mut ledger);
-        assert!(draw(&app, &ledger, 80, 24).contains("Placar: 0 de 1"));
+        assert!(draw(&app, &ledger, 80, 24).contains(&big_score("0 x 1")));
     }
 
     /// Um dia de jogo de exemplo: hoje às 21:30, fora de casa.
