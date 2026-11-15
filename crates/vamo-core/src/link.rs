@@ -103,7 +103,9 @@ impl Projection {
     /// ```
     pub fn inbox(&self) -> Vec<Task> {
         self.tasks()
-            .filter(|task| task.status() == Status::Ready && task.day().is_none())
+            .filter(|task| {
+                task.status() == Status::Ready && task.day().is_none() && !task.is_waiting()
+            })
             .collect()
     }
 }

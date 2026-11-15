@@ -407,6 +407,13 @@ impl App {
                 }
                 Err(message) => Feedback::Refused(message),
             },
+            Purpose::Pull => match pick_ready(projection, text, self.voice) {
+                Ok(id) => {
+                    let changes = projection.schedule(id, self.today);
+                    record(ledger, id, changes)
+                }
+                Err(message) => Feedback::Refused(message),
+            },
             Purpose::Item(id) => match text.parse::<usize>().ok().and_then(|n| n.checked_sub(1)) {
                 Some(index) => {
                     let change = projection.toggle_item(id, index).map(|change| vec![change]);
@@ -634,6 +641,33 @@ pub(crate) fn centered(area: Rect, width: usize, height: usize) -> Rect {
         y: area.y + (area.height - height) / 2,
         width,
         height,
+    }
+}
+
+/// A pronta do banco que o texto aponta: o ID (`T-041` ou `41`) ou uma
+/// palavra do título. Só uma pode combinar.
+fn pick_ready(projection: &Projection, text: &str, voice: Voice) -> Result<TaskId, String> {
+    let ready = projection.inbox();
+    let word = text.trim().to_lowercase();
+    let by_id = word
+        .trim_start_matches("t-")
+        .parse::<u32>()
+        .ok()
+        .and_then(TaskId::new)
+        .and_then(|id| ready.iter().find(|task| task.id() == id));
+    if let Some(task) = by_id {
+        return Ok(task.id());
+    }
+    let found: Vec<&vamo_core::Task> = ready
+        .iter()
+        .filter(|task| !word.is_empty() && task.title().as_str().to_lowercase().contains(&word))
+        .collect();
+    match found.as_slice() {
+        [task] => Ok(task.id()),
+        [] => Err(voice.pull_none(text)),
+        [first, rest @ ..] => {
+            Err(voice.pull_many(rest.len() + 1, &format!("{} {}", first.id(), first.title())))
+        }
     }
 }
 

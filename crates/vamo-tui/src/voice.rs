@@ -695,6 +695,34 @@ impl Voice {
         "filtro (área, status, encaixe ou palavra do título): "
     }
 
+    /// O começo da linha de escolher uma pronta pra escalar.
+    pub(crate) fn prompt_pull(self) -> &'static str {
+        "escalar (ID ou palavra do título): "
+    }
+
+    /// O lembrete, no pé do Hoje, de que dá pra escalar uma pronta.
+    pub(crate) fn pull_hint(self, ready: usize) -> String {
+        let tasks = if ready == 1 {
+            "1 pronta".to_owned()
+        } else {
+            format!("{ready} prontas")
+        };
+        match self {
+            Self::Game => format!("No banco: {tasks}. A tecla e escala uma pra hoje."),
+            Self::Neutral => format!("Na lista: {tasks}. A tecla e marca uma pra hoje."),
+        }
+    }
+
+    /// Quando nenhuma pronta combina com o que foi digitado.
+    pub(crate) fn pull_none(self, text: &str) -> String {
+        format!("nenhuma pronta combina com `{text}`")
+    }
+
+    /// Quando mais de uma pronta combina: mostra as primeiras.
+    pub(crate) fn pull_many(self, count: usize, first: &str) -> String {
+        format!("{count} prontas combinam ({first}...): digite o ID")
+    }
+
     /// O começo da linha de digitar o dia.
     pub(crate) fn prompt_day(self) -> &'static str {
         "dia (hoje, amanhã, 25/12): "
@@ -852,6 +880,10 @@ impl Voice {
                         "marca o gol (ou anula) e marca a fixa",
                         "conclui (ou desfaz) e marca a fixa",
                     ),
+                ),
+                (
+                    "e",
+                    self.pick("escala uma pronta do banco", "marca uma pronta"),
                 ),
                 ("a", "adia a tarefa pra amanhã"),
                 ("b", back_to_bench),

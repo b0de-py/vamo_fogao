@@ -80,6 +80,10 @@ impl Today {
         today: Date,
         schedule: &Schedule,
     ) -> Option<Action> {
+        // Escalar uma pronta do banco, sem sair do Hoje.
+        if key.code == KeyCode::Char('e') {
+            return Some(Action::Ask(Prompt::new(Purpose::Pull, "")));
+        }
         // Fechar o passo de uma jogada que pede a data: pergunta antes.
         if matches!(key.code, KeyCode::Char(' ') | KeyCode::Enter) {
             let lineup = Lineup::new(ledger.projection(), today);
@@ -179,6 +183,11 @@ impl Today {
         };
         lines.extend(self.lines(&lineup, schedule, checks, width, voice));
         lines.extend(schedule.lines(projection, today, width, voice));
+        let ready = projection.inbox().len();
+        if ready > 0 {
+            lines.push(Line::default());
+            lines.push(Line::styled(voice.pull_hint(ready), theme::muted()));
+        }
         let needed = u16::try_from(lines.len()).unwrap_or(u16::MAX);
         let spare = rest.height.saturating_sub(needed.saturating_add(1));
         let (list, corner) = if rest.width >= 90 {
@@ -465,6 +474,48 @@ pub(crate) mod tests {
         assert_eq!(lineup.late, []);
         assert_eq!(lineup.score().done, 2);
         assert_eq!(lineup.score().planned, 3);
+    }
+
+    fn pull(app: &mut crate::app::App, ledger: &mut MemoryLedger, text: &str) {
+        app.on_key(key(KeyCode::Char('e')), ledger);
+        for c in text.chars() {
+            app.on_key(key(KeyCode::Char(c)), ledger);
+        }
+        app.on_key(key(KeyCode::Enter), ledger);
+    }
+
+    #[test]
+    fn a_ready_task_is_pulled_into_today_by_a_word() {
+        let mut app = new_app(Voice::Game);
+        let mut ledger = example_day();
+        // "Ler o livro novo" está pronta no banco, sem dia.
+        assert!(draw(&app, &ledger, 100, 20).contains("No banco: 1 pronta"));
+
+        pull(&mut app, &mut ledger, "livro");
+        let lineup = Lineup::new(ledger.projection(), today());
+        assert!(titles_of(&lineup.planned).contains(&"Ler o livro novo".to_owned()));
+        assert!(!draw(&app, &ledger, 100, 20).contains("No banco:"));
+    }
+
+    #[test]
+    fn a_ready_task_is_pulled_by_its_id_too() {
+        let mut app = new_app(Voice::Game);
+        let mut ledger = example_day();
+        let id = ledger.projection().inbox()[0].id();
+        pull(&mut app, &mut ledger, &id.to_string());
+        assert_eq!(ledger.projection().task(id).unwrap().day(), Some(today()));
+    }
+
+    #[test]
+    fn a_word_that_matches_nothing_is_refused() {
+        let mut app = new_app(Voice::Game);
+        let mut ledger = example_day();
+        pull(&mut app, &mut ledger, "nada-disso");
+        assert_eq!(Lineup::new(ledger.projection(), today()).planned.len(), 2);
+    }
+
+    fn titles_of(tasks: &[Task]) -> Vec<String> {
+        tasks.iter().map(|task| task.title().to_string()).collect()
     }
 
     #[test]
