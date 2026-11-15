@@ -255,7 +255,7 @@ impl Today {
 }
 
 /// Dá o gol na tarefa, ou anula o gol (VAR) se ela já estava concluída.
-fn toggle<L: Ledger>(ledger: &mut L, task: &Task, today: Date) -> Feedback {
+pub(crate) fn toggle<L: Ledger>(ledger: &mut L, task: &Task, today: Date) -> Feedback {
     let projection = ledger.projection();
     let id = task.id();
     match task.status() {
@@ -275,7 +275,11 @@ fn toggle<L: Ledger>(ledger: &mut L, task: &Task, today: Date) -> Feedback {
 
 /// Marca ou desmarca a atividade fixa da agenda no dia. Não é gol: a
 /// atividade conta no placar, mas não vira tarefa.
-fn toggle_activity<L: Ledger>(ledger: &mut L, activity: &FixedActivity, today: Date) -> Feedback {
+pub(crate) fn toggle_activity<L: Ledger>(
+    ledger: &mut L,
+    activity: &FixedActivity,
+    today: Date,
+) -> Feedback {
     let done = !ledger
         .agenda_checks()
         .contains(&(today, activity.uid.clone()));

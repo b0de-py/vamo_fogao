@@ -7,7 +7,7 @@
 | Tecla | Tela | O que mostra |
 |-------|------|--------------|
 | `1` | Hoje | A escalação do dia, as atrasadas e as fixas da agenda, com o placar, a agenda do dia, as brechas e a curiosidade do dia. |
-| `2` | Caderno | As mesmas tarefas como linhas curtas, do jeito de copiar pro caderno de papel. |
+| `2` | Caderno | O dia inteiro como no papel: as tarefas sem horário primeiro e depois a agenda (fixas e compromissos) em ordem de horário, com o evento que é tarefa aparecendo uma vez só. O espaço dá o gol na tarefa e marca a fixa. |
 | `3` | Banco | Todas as tarefas em jogo, com filtro. `enter` abre a Ficha da tarefa, com os campos e a súmula. |
 | `4` | Museu | O acervo inteiro, por data ou por tema, e a resenha separada dos fatos. |
 

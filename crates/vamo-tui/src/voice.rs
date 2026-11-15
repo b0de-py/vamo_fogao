@@ -895,7 +895,16 @@ impl Voice {
                     ),
                 ),
             ],
-            (Tab::Notebook, _) => vec![],
+            (Tab::Notebook, _) => vec![
+                ("j, k, setas", "sobe e desce na lista"),
+                (
+                    "espaço, enter",
+                    self.pick(
+                        "marca o gol (ou anula) e marca a fixa",
+                        "conclui (ou desfaz) e marca a fixa",
+                    ),
+                ),
+            ],
             (Tab::Museum, _) => vec![
                 ("j, k, setas", "sobe e desce na lista"),
                 ("o", "ordena por data ou por tema"),

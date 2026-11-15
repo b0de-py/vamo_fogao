@@ -24,12 +24,13 @@ use crate::bench::Bench;
 use crate::curiosity::Acervo;
 use crate::fire::{self, Fire};
 use crate::museum::Museum;
+use crate::notebook::Notebook;
 use crate::prompt::{Prompt, Purpose, Step};
 use crate::schedule::Schedule;
 use crate::star::Star;
 use crate::today::{self, Today};
 use crate::when::parse_day;
-use crate::{Animation, Ledger, Setup, Voice, card, notebook, theme};
+use crate::{Animation, Ledger, Setup, Voice, card, theme};
 
 /// O que aconteceu depois de uma ação de quem usa.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -132,6 +133,7 @@ pub(crate) struct App {
     banter: bool,
     today_screen: Today,
     bench: Bench,
+    notebook_screen: Notebook,
     museum: Museum,
     /// A tarefa com a Ficha aberta, por cima do Banco.
     card: Option<TaskId>,
@@ -195,6 +197,7 @@ impl App {
             banter: false,
             today_screen: Today::default(),
             bench: Bench::default(),
+            notebook_screen: Notebook::default(),
             museum: Museum::default(),
             card: None,
             prompt: None,
@@ -271,6 +274,12 @@ impl App {
         self.fire.step(strength);
     }
 
+    /// Troca a agenda do dia, pros testes das outras telas.
+    #[cfg(test)]
+    pub(crate) fn set_schedule(&mut self, schedule: Schedule) {
+        self.schedule = schedule;
+    }
+
     /// Avisa que dia é hoje. A TUI pode ficar aberta de um dia pro outro.
     pub(crate) fn set_today(&mut self, today: Date) {
         self.today = today;
@@ -334,7 +343,10 @@ impl App {
                         self.museum.on_key(key, &self.acervo, self.voice);
                         None
                     }
-                    (Tab::Notebook, _) => None,
+                    (Tab::Notebook, _) => {
+                        self.notebook_screen
+                            .on_key(key, ledger, self.today, &self.schedule)
+                    }
                 };
                 self.act(action, ledger.projection());
             }
@@ -578,7 +590,15 @@ impl App {
                 self.banter,
                 self.voice,
             ),
-            Tab::Notebook => notebook::render(frame, area, projection, self.today, self.voice),
+            Tab::Notebook => self.notebook_screen.render(
+                frame,
+                area,
+                projection,
+                self.today,
+                &self.schedule,
+                ledger.agenda_checks(),
+                self.voice,
+            ),
             Tab::Bench => match self.card.and_then(|id| projection.task(id)) {
                 Some(task) => {
                     card::render(frame, area, &task, ledger.events(), &self.zone, self.voice);
