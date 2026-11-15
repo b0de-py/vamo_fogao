@@ -35,8 +35,10 @@ Opções:
 
 Config:
   ~/.config/vamo_fogao/config.toml, com linguagem = "neutra" pra trocar o
-  padrão e animacao = false pra apagar o fogo da TUI. A --linguagem e a
-  VAMO_LINGUAGEM ganham da config. Na seção [agenda], ics = "https://..."
+  padrão. A --linguagem e a VAMO_LINGUAGEM ganham da config. Na seção
+  [visual], efeitos = "cheio", "leve" ou "nenhum" diz quanto a TUI se
+  mexe (nenhum apaga o fogo) e densidade = "compacta" ou "confortavel",
+  quanto ela respira. Na seção [agenda], ics = "https://..."
   é o link secreto da agenda (ou fonte = "google", com o vamo compilado
   com a feature google). Na seção [jogos], ics = "https://..." é a tabela
   de jogos do time. Na seção [habitos], banco e config são os caminhos do

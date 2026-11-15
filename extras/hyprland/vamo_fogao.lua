@@ -21,6 +21,18 @@
 
 local VAMO = "special:vamo"
 
+-- A letra da janela do vamo. O terminal costuma ter letra pequena, boa pra
+-- código e ruim pra uma tela que se lê de relance. O `-o` do Alacritty troca
+-- a config só nesta janela; o resto do terminal fica como está.
+--
+-- Pra usar também a fonte do r4ul.com.br, instale a Space Mono (no Arch, o
+-- pacote ttf-space-mono-nerd) e troque a linha por:
+--
+--   local LETRA = "-o font.size=13 -o 'font.normal.family=\"SpaceMono Nerd Font\"'"
+--
+-- No Kitty, o equivalente é `-o font_size=13`; no foot, `-o font=monospace:size=13`.
+local LETRA = "-o font.size=13"
+
 -- O atalho. No Omarchy, o SUPER + ALT + F já é o "Full width". Antes de
 -- trocar a tecla, confira se a nova está livre: hyprctl binds
 o.bind("SUPER + ALT + V", "vamo_fogao", hl.dsp.workspace.toggle_special("vamo"))
@@ -31,7 +43,7 @@ o.bind("SUPER + ALT + V", "vamo_fogao", hl.dsp.workspace.toggle_special("vamo"))
 -- vamo_fogao`.
 hl.on("workspace.created", function(ws)
   if ws and ws.name == VAMO and ws.is_empty then
-    hl.exec_cmd(o.launch("alacritty --class vamo_fogao -e vamo tui"), { workspace = VAMO .. " silent" })
+    hl.exec_cmd(o.launch("alacritty --class vamo_fogao " .. LETRA .. " -e vamo tui"), { workspace = VAMO .. " silent" })
   end
 end)
 

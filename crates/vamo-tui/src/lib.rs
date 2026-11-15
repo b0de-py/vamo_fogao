@@ -29,6 +29,7 @@ mod schedule;
 mod star;
 mod theme;
 mod today;
+mod visual;
 mod voice;
 mod when;
 
@@ -45,17 +46,8 @@ use ratatui::crossterm::execute;
 pub use curiosity::Acervo;
 pub use ledger::Ledger;
 pub use schedule::Schedule;
+pub use visual::{Density, Effects, UnknownDensity, UnknownEffects};
 pub use voice::Voice;
-
-/// Se o fogo do fundo anima.
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
-pub enum Animation {
-    /// O fogo queima, o GOL! pisca e o clique atiça o fogo. É o padrão.
-    #[default]
-    On,
-    /// Sem fogo e sem mouse: a TUI só acorda quando chega uma tecla.
-    Off,
-}
 
 /// O que a TUI recebe pra começar.
 #[derive(Debug, Clone)]
@@ -66,8 +58,11 @@ pub struct Setup {
     pub acervo: Acervo,
     /// O fuso dos horários da súmula. No app, o do sistema.
     pub time_zone: jiff::tz::TimeZone,
-    /// Se o fogo anima. Na config, `animacao = false` desliga.
-    pub animation: Animation,
+    /// Quanto a tela se mexe. Na config, `efeitos` na seção `[visual]`.
+    pub effects: Effects,
+    /// Quanto a tela respira. Na config, `densidade` na seção `[visual]`.
+    /// As telas ainda não leem este campo: hoje todas saem na compacta.
+    pub density: Density,
     /// A agenda do dia e as regras do tempo. Sem agenda na config, vazia.
     pub schedule: Schedule,
 }
