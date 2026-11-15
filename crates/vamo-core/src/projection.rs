@@ -98,10 +98,10 @@ impl Projection {
             Change::Status(status) => write(&mut draft.status, status, stamp),
             Change::Notes(notes) => write(&mut draft.notes, notes, stamp),
             Change::Day(day) => write(&mut draft.day, day, stamp),
-            // Cada dia é um campo à parte: marcar hoje não mexe em ontem.
-            Change::Check { day, done } => {
-                write(draft.checks.entry(*day).or_default(), done, stamp);
-            }
+            // A marcação por tarefa saiu com o status recorrente (ADR 0014).
+            // O evento continua válido no log pra os arquivos antigos
+            // carregarem, mas não muda mais nada.
+            Change::Check { .. } => {}
         }
     }
 
@@ -187,20 +187,6 @@ impl Projection {
         Ok(changes)
     }
 
-    /// A mudança que marca (ou desmarca) uma tarefa recorrente num dia.
-    ///
-    /// # Errors
-    ///
-    /// - [`Error::UnknownTask`] se a tarefa não existir.
-    /// - [`Error::NotRecurring`] se ela não for recorrente.
-    pub fn check(&self, id: TaskId, day: Date, done: bool) -> Result<Change, Error> {
-        let task = self.task(id).ok_or(Error::UnknownTask { id })?;
-        if task.status() != Status::Recurring {
-            return Err(Error::NotRecurring { id });
-        }
-        Ok(Change::Check { day, done })
-    }
-
     /// O ID pra próxima tarefa: um a mais que o maior ID que já apareceu em
     /// algum evento, ou `T-001` se ainda não tem nenhum. `None` só se os
     /// números acabarem, o que na prática não acontece.
@@ -237,7 +223,6 @@ struct Draft {
     status: Option<Latest<Status>>,
     notes: Option<Latest<String>>,
     day: Option<Latest<Option<Date>>>,
-    checks: BTreeMap<Date, Option<Latest<bool>>>,
 }
 
 impl Draft {
@@ -258,11 +243,6 @@ impl Draft {
         }
         if let Some(day) = &self.day {
             task.set_day(day.value);
-        }
-        for (&day, check) in &self.checks {
-            if let Some(check) = check {
-                task.set_checked(day, check.value);
-            }
         }
         Some(task)
     }

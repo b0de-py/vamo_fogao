@@ -12,7 +12,8 @@ use crate::Error;
 /// [`Status::can_become`].
 ///
 /// Nos arquivos e na CLI, os nomes são os de [`Status::as_str`]. A leitura
-/// também aceita `concluida`, sem acento.
+/// também aceita `concluida`, sem acento, e `recorrente`, que virou `pronta`
+/// (ADR 0014).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Status {
     /// Só a ideia, ainda sem forma (ideia).
@@ -23,8 +24,6 @@ pub enum Status {
     Ready,
     /// Com horário marcado na agenda (agendada).
     Scheduled,
-    /// Volta de tempos em tempos e não termina num gol só (recorrente).
-    Recurring,
     /// Feita: gol (concluída).
     Done,
     /// Não vai mais ser feita (descartada).
@@ -33,12 +32,11 @@ pub enum Status {
 
 impl Status {
     /// Todos os status, na ordem do caminho comum.
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 6] = [
         Self::Idea,
         Self::Refining,
         Self::Ready,
         Self::Scheduled,
-        Self::Recurring,
         Self::Done,
         Self::Dropped,
     ];
@@ -50,7 +48,6 @@ impl Status {
             Self::Refining => "destrinchando",
             Self::Ready => "pronta",
             Self::Scheduled => "agendada",
-            Self::Recurring => "recorrente",
             Self::Done => "concluída",
             Self::Dropped => "descartada",
         }
@@ -60,11 +57,10 @@ impl Status {
     ///
     /// | De | Pode virar |
     /// |----|------------|
-    /// | ideia | destrinchando, pronta, recorrente, descartada |
-    /// | destrinchando | ideia, pronta, recorrente, descartada |
-    /// | pronta | destrinchando, agendada, recorrente, concluída, descartada |
+    /// | ideia | destrinchando, pronta, descartada |
+    /// | destrinchando | ideia, pronta, descartada |
+    /// | pronta | destrinchando, agendada, concluída, descartada |
     /// | agendada | pronta (volta pro banco), concluída, descartada |
-    /// | recorrente | pronta, descartada |
     /// | concluída | pronta (o VAR anulou o gol) |
     /// | descartada | ideia (volta do arquivo) |
     ///
@@ -77,15 +73,14 @@ impl Status {
     /// assert!(!Status::Idea.can_become(Status::Done));
     /// ```
     pub fn can_become(self, next: Self) -> bool {
-        use Status::{Done, Dropped, Idea, Ready, Recurring, Refining, Scheduled};
+        use Status::{Done, Dropped, Idea, Ready, Refining, Scheduled};
 
         matches!(
             (self, next),
-            (Idea, Refining | Ready | Recurring | Dropped)
-                | (Refining, Idea | Ready | Recurring | Dropped)
-                | (Ready, Refining | Scheduled | Recurring | Done | Dropped)
+            (Idea, Refining | Ready | Dropped)
+                | (Refining, Idea | Ready | Dropped)
+                | (Ready, Refining | Scheduled | Done | Dropped)
                 | (Scheduled, Ready | Done | Dropped)
-                | (Recurring, Ready | Dropped)
                 | (Done, Ready)
                 | (Dropped, Idea)
         )
@@ -119,8 +114,12 @@ impl FromStr for Status {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s == "concluida" {
-            return Ok(Self::Done);
+        // Dois nomes antigos que continuam valendo na leitura: "concluida"
+        // sem acento e "recorrente", que sumiu (ADR 0014) e agora é pronta.
+        match s {
+            "concluida" => return Ok(Self::Done),
+            "recorrente" => return Ok(Self::Ready),
+            _ => {}
         }
         Self::ALL
             .into_iter()
@@ -134,7 +133,7 @@ impl FromStr for Status {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use Status::{Done, Dropped, Idea, Ready, Recurring, Refining, Scheduled};
+    use Status::{Done, Dropped, Idea, Ready, Refining, Scheduled};
 
     #[test]
     fn every_status_survives_display_then_parse() {
@@ -146,6 +145,12 @@ mod tests {
     #[test]
     fn done_reads_without_the_accent_too() {
         assert_eq!("concluida".parse(), Ok(Done));
+    }
+
+    #[test]
+    fn the_old_recurring_status_reads_as_ready() {
+        // Logs e exports antigos ainda trazem "recorrente" (ADR 0014).
+        assert_eq!("recorrente".parse(), Ok(Ready));
     }
 
     #[test]
@@ -180,7 +185,6 @@ mod tests {
         assert!(!Idea.can_become(Scheduled));
         assert!(!Idea.can_become(Done));
         assert!(!Refining.can_become(Done));
-        assert!(!Recurring.can_become(Done));
         assert!(!Done.can_become(Scheduled));
         assert!(!Dropped.can_become(Ready));
     }

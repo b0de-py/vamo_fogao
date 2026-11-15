@@ -125,14 +125,13 @@ pub(crate) fn text(summary: &DaySummary, voice: Voice) -> String {
         summary.day.weekday(),
         &summary.day.strftime("%d/%m").to_string(),
     )];
-    let [goals, checks, benched, stoppage, _] = voice.summary_parts();
+    let [goals, benched, stoppage, _] = voice.summary_parts();
     if summary.is_empty() {
         lines.push(String::new());
         lines.push(voice.summary_empty().to_owned());
     }
     for (title, tasks) in [
         (goals, &summary.goals),
-        (checks, &summary.checks),
         (benched, &summary.benched),
         (stoppage, &summary.stoppage),
     ] {
@@ -325,14 +324,11 @@ pub(crate) mod tests {
         let filter = log.add("Trocar o filtro da água", Status::Ready);
         let bill = log.add("Pagar a conta de luz", Status::Ready);
         let car = log.add("Lavar o carro", Status::Ready);
-        let plants = log.add("Regar as plantas", Status::Recurring);
         for id in [filter, bill, car] {
             log.schedule(id, day);
         }
         log.at("2026-11-11T13:00:00Z");
         log.finish(filter, day);
-        let change = log.projection.check(plants, day, true).unwrap();
-        log.record(plants, vec![change]);
         log.at("2026-11-11T22:00:00Z");
         log.schedule(bill, date(2026, 11, 13));
         (log, day)

@@ -14,7 +14,7 @@ Em `crates/vamo-core/src/event.rs`. Um `Event` tem cinco campos:
 | `task` | `TaskId` | A tarefa que mudou. |
 | `change` | `Change` | O que mudou. |
 
-`Change` é um enum com dados: cada variante carrega o valor novo do campo que mudou (`Title`, `Area`, `Fit`, `Status`, `Notes` e `Day`, o dia da escalação), e `Created` carrega os quatro campos de uma vez, porque uma tarefa nasce com todos eles. `Check` marca uma recorrente num dia, e cada dia conta como um campo à parte: marcar hoje não mexe em ontem.
+`Change` é um enum com dados: cada variante carrega o valor novo do campo que mudou (`Title`, `Area`, `Fit`, `Status`, `Notes` e `Day`, o dia da escalação), e `Created` carrega os quatro campos de uma vez, porque uma tarefa nasce com todos eles. `Check` marcava uma tarefa recorrente num dia. Ele continua válido no log pra os arquivos antigos carregarem, mas não muda mais nada (ADR 0014).
 
 O core só confere o UUID (`EventId::new` recusa o que não for da versão 7). Quem gera é o binário, com `Uuid::now_v7()`, porque gerar um ID desses lê o relógio e sorteia bits, e o core não lê relógio.
 

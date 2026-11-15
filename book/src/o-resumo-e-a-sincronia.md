@@ -17,7 +17,6 @@ A regra mora no core, em `DaySummary::close` (`crates/vamo-core/src/summary.rs`)
 | Onde | Quando |
 |------|--------|
 | Gols | Concluída, com o dia da súmula. O `finish` passa a tarefa pro dia do gol, então gol desse dia é gol da súmula, escalada ou não. |
-| Fixas marcadas | Recorrente marcada no dia. |
 | Voltaram pro banco | Estava no dia e saiu dele sem gol: adiada ou tirada da escalação. |
 | Acréscimos | Ficou no dia sem gol. É a tarefa que venceu. |
 

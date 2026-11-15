@@ -220,7 +220,6 @@ impl Voice {
             (Self::Game, Group::Planned) => "Escalação",
             (Self::Neutral, Group::Planned) => "Pra hoje",
             (_, Group::Late) => "Atrasadas",
-            (_, Group::Fixed) => "Fixas",
             (_, Group::Agenda) => "Fixas da agenda",
         }
     }
@@ -512,24 +511,12 @@ impl Voice {
         }
     }
 
-    /// Os títulos das partes da súmula: gols, fixas marcadas, as que
+    /// Os títulos das partes da súmula: gols, as que
     /// voltaram pro banco, os acréscimos e os hábitos.
-    pub fn summary_parts(self) -> [&'static str; 5] {
+    pub fn summary_parts(self) -> [&'static str; 4] {
         match self {
-            Self::Game => [
-                "Gols",
-                "Fixas marcadas",
-                "Voltaram pro banco",
-                "Acréscimos",
-                "Hábitos",
-            ],
-            Self::Neutral => [
-                "Concluídas",
-                "Fixas feitas",
-                "Adiadas",
-                "Vencidas",
-                "Hábitos",
-            ],
+            Self::Game => ["Gols", "Voltaram pro banco", "Acréscimos", "Hábitos"],
+            Self::Neutral => ["Concluídas", "Adiadas", "Vencidas", "Hábitos"],
         }
     }
 

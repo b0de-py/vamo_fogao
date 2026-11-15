@@ -1,6 +1,6 @@
 ---
 source: crates/vamo_fogao/src/summary.rs
-expression: "serde_json::to_string_pretty(&json(&summary)).unwrap()"
+expression: pretty(&json(&summary))
 ---
 {
   "acrescimos": [
@@ -10,12 +10,7 @@ expression: "serde_json::to_string_pretty(&json(&summary)).unwrap()"
     }
   ],
   "dia": "2026-11-11",
-  "fixas": [
-    {
-      "id": "T-004",
-      "titulo": "Regar as plantas"
-    }
-  ],
+  "fixas": [],
   "gols": [
     {
       "id": "T-001",

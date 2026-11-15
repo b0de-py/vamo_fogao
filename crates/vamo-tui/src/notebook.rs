@@ -35,15 +35,6 @@ pub(crate) fn render(
             line(task.title().as_str(), done)
         })
         .collect();
-    if !lineup.fixed.is_empty() {
-        lines.push(Line::default());
-        lines.extend(
-            lineup
-                .fixed
-                .iter()
-                .map(|task| line(task.title().as_str(), task.is_checked(today))),
-        );
-    }
     if lines.is_empty() {
         lines.push(Line::styled(voice.notebook_empty(), theme::muted()));
     }

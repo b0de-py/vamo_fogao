@@ -60,7 +60,7 @@ O caminho de uma tarefa até a agenda é este:
 2. Alguém (você, ou o Claude lendo a caixa) cria o evento na agenda e cola o rodapé na descrição.
 3. No próximo `vamo sync`, o evento liga à tarefa, que fica agendada no dia dele e sai da caixa. Se o evento mudar de dia, o sync muda o dia da tarefa junto.
 
-Tarefa concluída, descartada ou recorrente não muda pelo sync: o evento é só lembrança. Ideia e destrinchando também não, com um aviso dizendo que ela precisa ficar pronta antes.
+Tarefa concluída ou descartada não muda pelo sync: o evento é só lembrança. Ideia e destrinchando também não, com um aviso dizendo que ela precisa ficar pronta antes.
 
 ## As brechas
 

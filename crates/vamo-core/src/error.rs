@@ -53,7 +53,7 @@ pub enum Error {
     /// O texto não é um status conhecido.
     #[error(
         "`{input}` não é um status: os status são ideia, destrinchando, pronta, agendada, \
-         recorrente, concluída e descartada"
+         concluída e descartada"
     )]
     UnknownStatus {
         /// O texto recebido.
@@ -78,13 +78,6 @@ pub enum Error {
     #[error("não tem nenhuma tarefa {id}")]
     UnknownTask {
         /// O ID procurado.
-        id: TaskId,
-    },
-
-    /// Só tarefa recorrente se marca num dia.
-    #[error("{id} não é recorrente, então não tem o que marcar no dia: é só concluir")]
-    NotRecurring {
-        /// A tarefa.
         id: TaskId,
     },
 

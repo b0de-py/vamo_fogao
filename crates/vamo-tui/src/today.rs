@@ -29,8 +29,6 @@ pub(crate) enum Group {
     Planned,
     /// Escalada pra um dia que passou, e não feita.
     Late,
-    /// Recorrente, de marcar todo dia.
-    Fixed,
     /// Compromisso recorrente da agenda, de marcar sem virar tarefa.
     Agenda,
 }
@@ -51,20 +49,16 @@ impl Row<'_> {
     }
 }
 
-/// As linhas da escalação, na ordem da tela: o dia, o atraso, as fixas e as
-/// fixas da agenda.
+/// As linhas da escalação, na ordem da tela: o dia, o atraso e as fixas da
+/// agenda.
 fn rows<'a>(lineup: &'a Lineup, schedule: &'a Schedule) -> Vec<Row<'a>> {
     let planned = lineup
         .planned
         .iter()
         .map(|task| Row::Task(Group::Planned, task));
     let late = lineup.late.iter().map(|task| Row::Task(Group::Late, task));
-    let fixed = lineup
-        .fixed
-        .iter()
-        .map(|task| Row::Task(Group::Fixed, task));
     let agenda = schedule.fixed.iter().map(Row::Activity);
-    planned.chain(late).chain(fixed).chain(agenda).collect()
+    planned.chain(late).chain(agenda).collect()
 }
 
 /// O placar do dia, com as atividades fixas da agenda marcadas.
@@ -109,28 +103,24 @@ impl Today {
                 None
             }
             KeyCode::Char(' ') | KeyCode::Enter => match *rows.get(self.cursor)? {
-                Row::Task(group, task) => Some(toggle(ledger, group, task, today)),
+                Row::Task(_, task) => Some(toggle(ledger, task, today)),
                 Row::Activity(activity) => Some(toggle_activity(ledger, activity, today)),
             },
             KeyCode::Char('a') => {
-                let Row::Task(group, task) = *rows.get(self.cursor)? else {
+                let Row::Task(_, task) = *rows.get(self.cursor)? else {
                     return None;
                 };
-                (group != Group::Fixed).then(|| {
-                    let changes = ledger
-                        .projection()
-                        .schedule(task.id(), today.tomorrow().unwrap_or(today));
-                    record(ledger, task.id(), changes)
-                })
+                let changes = ledger
+                    .projection()
+                    .schedule(task.id(), today.tomorrow().unwrap_or(today));
+                Some(record(ledger, task.id(), changes))
             }
             KeyCode::Char('b') => {
-                let Row::Task(group, task) = *rows.get(self.cursor)? else {
+                let Row::Task(_, task) = *rows.get(self.cursor)? else {
                     return None;
                 };
-                (group != Group::Fixed).then(|| {
-                    let changes = ledger.projection().unschedule(task.id());
-                    record(ledger, task.id(), changes)
-                })
+                let changes = ledger.projection().unschedule(task.id());
+                Some(record(ledger, task.id(), changes))
             }
             _ => None,
         }
@@ -225,14 +215,14 @@ impl Today {
                 let heading = match group {
                     Group::Planned => theme::heading(),
                     Group::Late => theme::warning(),
-                    Group::Fixed | Group::Agenda => theme::soft(),
+                    Group::Agenda => theme::soft(),
                 };
                 lines.push(Line::styled(voice.group(group), heading));
                 current = Some(group);
             }
             let cursor = index == cursor;
             lines.push(match row {
-                Row::Task(group, task) => task_line(group, task, lineup.today(), cursor, voice),
+                Row::Task(group, task) => task_line(group, task, cursor, voice),
                 Row::Activity(activity) => {
                     let done = checks.contains(&(lineup.today(), activity.uid.clone()));
                     activity_line(activity, lineup.today(), done, cursor, width)
@@ -243,17 +233,12 @@ impl Today {
     }
 }
 
-/// Marca ou desmarca a linha: gol (ou VAR) na tarefa, marcação na fixa.
-fn toggle<L: Ledger>(ledger: &mut L, group: Group, task: &Task, today: Date) -> Feedback {
+/// Dá o gol na tarefa, ou anula o gol (VAR) se ela já estava concluída.
+fn toggle<L: Ledger>(ledger: &mut L, task: &Task, today: Date) -> Feedback {
     let projection = ledger.projection();
     let id = task.id();
-    match group {
-        Group::Fixed => {
-            let done = !task.is_checked(today);
-            let change = projection.check(id, today, done).map(|change| vec![change]);
-            record(ledger, id, change)
-        }
-        _ if task.status() == Status::Done => {
+    match task.status() {
+        Status::Done => {
             // O VAR anulou: a tarefa volta a ficar pronta, no mesmo dia.
             let change = projection
                 .status_change(id, Status::Ready)
@@ -314,11 +299,8 @@ fn activity_line(
 }
 
 /// Uma linha: a marca, o ID, o título e o detalhe do lado.
-fn task_line(group: Group, task: &Task, today: Date, cursor: bool, voice: Voice) -> Line<'static> {
-    let done = match group {
-        Group::Fixed => task.is_checked(today),
-        _ => task.status() == Status::Done,
-    };
+fn task_line(group: Group, task: &Task, cursor: bool, voice: Voice) -> Line<'static> {
+    let done = task.status() == Status::Done;
     let mark = if done { "[x]" } else { "[ ]" };
     let base = match (group, done) {
         (_, true) => theme::success(),
@@ -416,18 +398,10 @@ pub(crate) mod tests {
         let filter = schedule(&mut ledger, "Trocar o filtro da água", "casa", today);
         schedule(&mut ledger, "Revisar o capítulo dois", "estudos", today);
         schedule(&mut ledger, "Pagar a conta de luz", "casa", yesterday);
-        let water = ledger.add(
-            "Beber dois litros d'água",
-            "saúde",
-            Fit::Gap,
-            Status::Recurring,
-        );
         ledger.add("Ler o livro novo", "lazer", Fit::Focus, Status::Ready);
 
         let changes = ledger.projection().finish(filter, today).unwrap();
         ledger.record(filter, changes).unwrap();
-        let change = ledger.projection().check(water, today, true).unwrap();
-        ledger.record(water, vec![change]).unwrap();
         ledger
     }
 
@@ -455,16 +429,16 @@ pub(crate) mod tests {
     fn finishing_a_task_updates_the_score_right_away() {
         let mut app = new_app(Voice::Game);
         let mut ledger = example_day();
-        assert!(draw(&app, &ledger, 100, 18).contains("Placar: 2 de 3"));
+        assert!(draw(&app, &ledger, 100, 18).contains("Placar: 1 de 2"));
 
         // O cursor desce pra segunda tarefa do dia e marca o gol.
         app.on_key(key(KeyCode::Char('j')), &mut ledger);
         app.on_key(key(KeyCode::Char(' ')), &mut ledger);
-        assert!(draw(&app, &ledger, 100, 18).contains("Placar: 3 de 3"));
+        assert!(draw(&app, &ledger, 100, 18).contains("Placar: 2 de 2"));
 
         // O VAR anula.
         app.on_key(key(KeyCode::Char(' ')), &mut ledger);
-        assert!(draw(&app, &ledger, 100, 18).contains("Placar: 2 de 3"));
+        assert!(draw(&app, &ledger, 100, 18).contains("Placar: 1 de 2"));
     }
 
     #[test]
@@ -477,21 +451,8 @@ pub(crate) mod tests {
         app.on_key(key(KeyCode::Enter), &mut ledger);
         let lineup = Lineup::new(ledger.projection(), today());
         assert_eq!(lineup.late, []);
-        assert_eq!(lineup.score().done, 3);
-        assert_eq!(lineup.score().planned, 4);
-    }
-
-    #[test]
-    fn the_fixed_task_is_unchecked_and_checked_again() {
-        let mut app = new_app(Voice::Game);
-        let mut ledger = example_day();
-        for _ in 0..10 {
-            app.on_key(key(KeyCode::Down), &mut ledger);
-        }
-        app.on_key(key(KeyCode::Char(' ')), &mut ledger);
-        assert_eq!(Lineup::new(ledger.projection(), today()).score().done, 1);
-        app.on_key(key(KeyCode::Char(' ')), &mut ledger);
-        assert_eq!(Lineup::new(ledger.projection(), today()).score().done, 2);
+        assert_eq!(lineup.score().done, 2);
+        assert_eq!(lineup.score().planned, 3);
     }
 
     #[test]

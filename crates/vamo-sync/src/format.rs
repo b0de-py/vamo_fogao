@@ -301,7 +301,9 @@ impl From<&DaySummary> for SummaryDoc {
             versao: VERSION,
             dia: summary.day.to_string(),
             gols: tasks(&summary.goals),
-            fixas: tasks(&summary.checks),
+            // Segue no formato v1 por compatibilidade: tarefa não é mais
+            // marcada por dia (ADR 0014), então sai sempre vazio.
+            fixas: Vec::new(),
             voltaram_pro_banco: tasks(&summary.benched),
             acrescimos: tasks(&summary.stoppage),
             habitos: summary.habits.iter().map(HabitLine::from).collect(),
@@ -419,7 +421,7 @@ impl From<&WeekSummary> for WeekDoc {
                 .map(|day| WeekDay {
                     dia: day.day.to_string(),
                     gols: tasks(&day.goals),
-                    fixas: tasks(&day.checks),
+                    fixas: Vec::new(),
                     voltaram_pro_banco: tasks(&day.benched),
                     acrescimos: tasks(&day.stoppage),
                 })

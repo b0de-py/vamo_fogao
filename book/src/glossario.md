@@ -10,7 +10,7 @@ O código fala inglês e a interface fala português, com a linguagem de jogo li
 | ID da tarefa | `TaskId` | O número no formato `T-001`. |
 | Área | `Area` | O pedaço da vida a que a tarefa pertence (saúde, casa, estudos...). As áreas vêm da config. |
 | Encaixe | `Fit` | Que tipo de espaço a tarefa pede: foco, brecha ou com alguém. |
-| Status | `Status` | Em que pé a tarefa está: ideia, destrinchando, pronta, agendada, recorrente, concluída ou descartada. |
+| Status | `Status` | Em que pé a tarefa está: ideia, destrinchando, pronta, agendada, concluída ou descartada. O antigo "recorrente" saiu: o que se repete mora na agenda. |
 | Caderno | notebook | A lista do dia no formato do caderno de papel: título curto, verbo na frente. |
 | Título do caderno | `NotebookTitle` | Um título de até cinco palavras que começa com verbo. |
 | Brecha | `Gap` | Uma janela livre no expediente, onde cabe uma tarefa curta. |

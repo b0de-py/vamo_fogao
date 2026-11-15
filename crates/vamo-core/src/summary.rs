@@ -85,8 +85,6 @@ pub struct DaySummary {
     pub day: Date,
     /// Os gols: tarefas do dia concluídas.
     pub goals: Vec<Task>,
-    /// As recorrentes marcadas no dia.
-    pub checks: Vec<Task>,
     /// As que estavam no dia e saíram dele sem gol: adiadas ou tiradas da
     /// escalação.
     pub benched: Vec<Task>,
@@ -122,7 +120,6 @@ impl DaySummary {
         let mut summary = Self {
             day,
             goals: Vec::new(),
-            checks: Vec::new(),
             benched: Vec::new(),
             stoppage: Vec::new(),
             habits,
@@ -130,11 +127,6 @@ impl DaySummary {
         for task in final_whistle.tasks() {
             match task.status() {
                 Status::Dropped => {}
-                Status::Recurring => {
-                    if task.is_checked(day) {
-                        summary.checks.push(task);
-                    }
-                }
                 // O `finish` passa a tarefa pro dia do gol, então gol com
                 // esse dia é gol desse dia, escalada ou não.
                 Status::Done => {
@@ -153,10 +145,7 @@ impl DaySummary {
     /// Se o dia não teve nada: nem gol, nem fixa, nem tarefa adiada ou
     /// vencida. Os hábitos não contam.
     pub fn is_empty(&self) -> bool {
-        self.goals.is_empty()
-            && self.checks.is_empty()
-            && self.benched.is_empty()
-            && self.stoppage.is_empty()
+        self.goals.is_empty() && self.benched.is_empty() && self.stoppage.is_empty()
     }
 }
 
@@ -272,7 +261,6 @@ pub(crate) mod tests {
         let moved = log.add("Pagar a conta", Status::Ready);
         let late = log.add("Lavar o carro", Status::Ready);
         let dropped = log.add("Pintar a parede", Status::Ready);
-        let water = log.add("Beber água", Status::Recurring);
         log.add("Ler o livro", Status::Ready);
         for id in [goal, moved, late, dropped] {
             log.schedule(id, DAY);
@@ -282,12 +270,9 @@ pub(crate) mod tests {
         log.finish(goal, DAY);
         log.schedule(moved, date(2026, 11, 13));
         log.record(dropped, vec![Change::Status(Status::Dropped)]);
-        let change = log.projection.check(water, DAY, true).unwrap();
-        log.record(water, vec![change]);
 
         let summary = DaySummary::close(&log.events, DAY, window(DAY), Vec::new());
         assert_eq!(titles(&summary.goals), ["Trocar o filtro"]);
-        assert_eq!(titles(&summary.checks), ["Beber água"]);
         assert_eq!(titles(&summary.benched), ["Pagar a conta"]);
         assert_eq!(titles(&summary.stoppage), ["Lavar o carro"]);
         assert_eq!(summary.stoppage[0].id(), late);
