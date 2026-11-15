@@ -59,6 +59,19 @@ Siga a skill `fluxo-de-fase`. Em resumo:
 - Decisão de arquitetura ganha ADR em `docs/adr/` no mesmo commit.
 - No fim da fase, um PR "Fase N: Nome (Codinome)" com um `Closes` pro épico e pra cada sub-issue. O merge é do Raul.
 - Nunca: push na `main`, merge de PR, force push, apagar branch ou issue.
+- O trabalho no repo roda na máquina do Raul, com o `gh` dele: issues, commits, push e PR saem como dele, e o Claude entra como co-autor (`Co-Authored-By:` no rodapé de cada commit).
+- Tarefa que aparece no meio da fase vira uma sub-issue nova do épico, com commit próprio. Não entra de carona no commit de outra.
+- Uma conversa por fase: quando o PR de uma fase entra, a próxima começa do zero, lendo o estado no GitHub.
+
+## Decisões de produto que já valem
+
+Combinadas com o Raul antes do código; não reabra sem ele pedir.
+
+- O vamo é o lugar principal das tarefas. O caderno de papel é a cópia visual do dia, por isso o título tem até cinco palavras e verbo na frente.
+- O Claude não roda nada todo dia. Ele é chamado pra agendar e faz uma revisão semanal curta, então o MCP responde com pouco contexto.
+- Fato com dia e mês só aparece no próprio dia, como "Neste dia". O rodízio dos outros dias usa só os fatos sem dia, pra nenhum fato parecer de hoje.
+- Na curiosidade, só entra o verificado, e a zoeira mora na Resenha, separada da história.
+- O tamanho da janela da TUI se decide na prática, olhando na tela. Pode virar tela cheia, já que o atalho mostra e esconde.
 
 ## Privacidade
 
@@ -68,5 +81,6 @@ O repositório é público. Nenhum dado pessoal entra no código, nos testes, no
 
 - As cores são as do r4ul.com.br. Vermelho não entra, nunca: atraso e regra ferida usam amarelo plasma (`#ffff00`).
 - Projeto de torcedor: sem escudo e sem marca oficial do clube.
+- O símbolo do app é a Estrela Solitária (⭐), como no placar da barra. A bola (⚽) aparece só pra avisar que tem jogo.
 - A interface fala a linguagem de jogo (banco, escalação, gol, súmula), com modo neutro na config.
 - Fato do acervo só aparece no app com duas fontes independentes.

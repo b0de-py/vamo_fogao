@@ -16,6 +16,16 @@ O museu de bolso do vamo_fogao: fatos da história do Botafogo, cada um com as s
 
 O `vamo acervo validar` confere o que dá pra conferir de máquina (as fontes, a data, o formato de cada campo) e roda na CI em todo PR. O resto fica com quem revisa: se as duas fontes são independentes de verdade (uma pode copiar a outra) e se o texto diz só o que elas dizem.
 
+## Na prática
+
+O que a conferência dos primeiros fatos ensinou, além da régua:
+
+- Abra cada fonte e leia a página. Pesquisa automática (deepsearch) erra muito: troca o adversário de uma final, inverte quem foi campeão e cita página que nem fala do assunto.
+- Blog, site de torcida e fonte única não fecham fato. Bastidor de SAF e valor de contratação ficam de fora.
+- Acusação contra pessoa real só entra com duas fontes fortes. Na dúvida, fica de fora.
+- A temporada corrente ainda não é museu: o jogo entra quando a temporada acabar.
+- Quase fechou não é fechou: com uma fonte só, o fato fica `a-conferir` ou sai.
+
 ## O formato
 
 Cada fato é um arquivo TOML. O nome do arquivo é a id do fato: letra minúscula sem acento, número e hífen, como `goleada-de-24-a-0-no-mangueira.toml`.
