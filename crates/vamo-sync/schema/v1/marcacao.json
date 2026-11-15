@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MarkLine",
+  "description": "Uma marcação de atividade fixa da agenda: o evento `uid` marcado (ou\ndesmarcado) no dia. Na sincronia, a mais recente de cada `(dia, uid)`\nganha.",
+  "type": "object",
+  "properties": {
+    "dia": {
+      "description": "O dia da marcação, como `2026-11-11`.",
+      "type": "string"
+    },
+    "em": {
+      "description": "Quando foi marcada ou desmarcada, em RFC 3339 e UTC.",
+      "type": "string"
+    },
+    "feita": {
+      "description": "Se ficou marcada.",
+      "type": "boolean"
+    },
+    "uid": {
+      "description": "O UID do evento na agenda.",
+      "type": "string"
+    },
+    "versao": {
+      "description": "A versão do formato.",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "versao",
+    "dia",
+    "uid",
+    "feita",
+    "em"
+  ]
+}

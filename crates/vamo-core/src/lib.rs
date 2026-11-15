@@ -35,6 +35,13 @@
 //!
 //! - [`Lineup`]: a escalação de um dia, com o atraso e as fixas.
 //! - [`Score`]: o placar do dia.
+//! - [`DaySummary`]: a súmula, o resumo de um dia que fechou, com os
+//!   números dos hábitos ([`HabitCount`]) e o trecho do relógio que conta
+//!   como o dia ([`DayWindow`]).
+//! - [`Unbeaten`]: a invencibilidade, dias seguidos sem vencida, com o
+//!   recorde; cada dia fechado conta como um [`Outcome`].
+//! - [`WeekSummary`]: a rodada, o resumo da semana, com os impedimentos
+//!   ([`Offside`]) e os hábitos somados.
 //!
 //! # A agenda
 //!
@@ -60,6 +67,16 @@
 //! - [`GameDay`]: o dia de jogo, com as tarefas do jogo e a regra de só
 //!   tarefa leve perto do horário.
 //!
+//! # A sincronia
+//!
+//! - [`renumber_collisions`]: as tarefas desta máquina que trocam de número
+//!   ([`Renumber`]) quando outra máquina criou uma com o mesmo `T-###`.
+//! - [`AgendaMark`]: uma marcação da agenda, que viaja entre as máquinas
+//!   com a mais recente ganhando.
+//! - [`reinforcement_note`]: a linha das notas que diz de qual reforço a
+//!   tarefa veio, e [`Projection::has_reinforcement`], que impede o mesmo
+//!   reforço de virar duas tarefas.
+//!
 //! # As portas
 //!
 //! O que o core precisa do mundo de fora vira trait, e um adaptador
@@ -70,6 +87,7 @@
 //!   [`Appointment`]s.
 //! - [`Notifier`]: pra onde vão os avisos, as notificações do desktop.
 //! - [`Fixtures`]: de onde vêm os jogos do time, os [`Game`]s.
+//! - [`Habits`]: de onde vêm os números dos hábitos da súmula.
 
 mod appointment;
 mod area;
@@ -88,8 +106,12 @@ mod projection;
 mod reminder;
 mod rules;
 mod status;
+mod summary;
+mod sync;
 mod task;
 mod title;
+mod unbeaten;
+mod week;
 
 pub use appointment::{Agenda, Appointment, When};
 pub use area::Area;
@@ -108,5 +130,9 @@ pub use projection::Projection;
 pub use reminder::{DEFAULT_LEAD, MAX_CATCH_UP, Reminder, ReminderWindow, reminders};
 pub use rules::{Block, TimeRange, TimeRules, Violation, time_of_day};
 pub use status::Status;
+pub use summary::{DaySummary, DayWindow, HabitCount, Habits};
+pub use sync::{AgendaMark, REINFORCEMENT_NOTE, Renumber, reinforcement_note, renumber_collisions};
 pub use task::Task;
 pub use title::NotebookTitle;
+pub use unbeaten::{CLUB_RECORD, Outcome, Unbeaten};
+pub use week::{Offside, WeekSummary};

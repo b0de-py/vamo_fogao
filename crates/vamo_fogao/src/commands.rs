@@ -11,8 +11,8 @@ use jiff::tz::TimeZone;
 use uuid::Uuid;
 use vamo_agenda::{Footer, Freshness};
 use vamo_core::{
-    Area, Change, Event, EventId, EventStore, Fit, Machine, NotebookTitle, Notifier, Projection,
-    ReminderWindow, Skipped, Status, Task, TaskId,
+    Area, Change, DaySummary, Event, EventId, EventStore, Fit, Habits, Machine, NotebookTitle,
+    Notifier, Projection, ReminderWindow, Skipped, Status, Task, TaskId, WeekSummary,
 };
 use vamo_store::Store;
 
@@ -20,7 +20,7 @@ use crate::cli::{AcervoCommand, Command};
 use crate::config::Config;
 use crate::import::{self, Plan};
 use crate::paths;
-use crate::{acervo, agenda, bar, games, remind};
+use crate::{acervo, agenda, bar, games, remind, summary};
 use vamo_tui::Voice;
 
 /// Roda um comando e devolve o que mostrar na saída.
@@ -48,6 +48,16 @@ pub(crate) fn run(command: Command, voice: Voice, config: &Config) -> Result<Str
             Session::open(voice)?.agenda(config, day)
         }
         Command::Sync => Session::open(voice)?.sync(config),
+        Command::Summary {
+            date,
+            week: false,
+            json,
+        } => Session::open(voice)?.summary(config, date, json),
+        Command::Summary {
+            date,
+            week: true,
+            json,
+        } => Session::open(voice)?.week(config, date, json),
         Command::Games { date } => {
             games_list(config, date.unwrap_or_else(|| jiff::Zoned::now().date()))
         }
@@ -61,6 +71,11 @@ pub(crate) fn run(command: Command, voice: Voice, config: &Config) -> Result<Str
             let now = jiff::Zoned::now();
             let mut schedule = agenda::schedule(config, &now);
             schedule.game = games::today(&config.games, &now, voice);
+            schedule.unbeaten = Some(summary::unbeaten(
+                &session.events,
+                &TimeZone::system(),
+                summary::last_closed_day(&now)?,
+            )?);
             let setup = vamo_tui::Setup {
                 voice,
                 acervo: vamo_tui::Acervo { facts, banter },
@@ -97,6 +112,10 @@ fn games_list(config: &Config, today: Date) -> Result<String> {
     lines.extend(found.iter().map(|game| games::line(game, team)));
     Ok(lines.join("\n"))
 }
+
+/// Quantas vezes o `vamo sync` tenta mandar o backup quando outra máquina
+/// manda no meio.
+const SYNC_ATTEMPTS: u32 = 3;
 
 /// O banco aberto, o log lido e o estado das tarefas calculado a partir dele.
 struct Session {
@@ -307,12 +326,35 @@ impl Session {
         Ok(lines.join("\n"))
     }
 
-    /// `vamo sync`: baixa a agenda e liga cada evento com rodapé `vamo:` à
-    /// tarefa dele, que fica agendada no dia do evento.
+    /// `vamo sync`: junta o log com o das outras máquinas pelo backup, se a
+    /// config tiver a seção `[sincronia]`, e depois lê a agenda, se tiver a
+    /// `[agenda]`. O backup vem antes pra tarefa criada em outra máquina já
+    /// estar aqui quando a agenda apontar pra ela.
     fn sync(&mut self, config: &Config) -> Result<String> {
+        let mut lines = Vec::new();
+        if let Some(path) = &config.backup {
+            lines.extend(self.sync_backup(path)?);
+        }
+        match self.sync_agenda(config)? {
+            Some(agenda) => lines.push(agenda),
+            None if config.backup.is_some() => {}
+            None => bail!(
+                "nada pra sincronizar: ponha na config a agenda (a seção [agenda], com ics = \
+                 \"https://...\") ou o backup (a seção [sincronia], com repositorio = \"...\")"
+            ),
+        }
+        Ok(lines.join("\n"))
+    }
+
+    /// A metade da agenda do `vamo sync`: baixa a agenda e liga cada evento
+    /// com rodapé `vamo:` à tarefa dele, que fica agendada no dia do evento.
+    /// Sem agenda na config, `None`.
+    fn sync_agenda(&mut self, config: &Config) -> Result<Option<String>> {
         let today = jiff::Zoned::now().date();
         let (from, to) = agenda::sync_window(today)?;
-        let loaded = agenda::load(&config.agenda, from, to)?.ok_or_else(agenda::not_configured)?;
+        let Some(loaded) = agenda::load(&config.agenda, from, to)? else {
+            return Ok(None);
+        };
         let (appointments, warnings) = loaded.calendar.read(from, to);
 
         let mut lines: Vec<String> = warnings.iter().map(|w| format!("aviso: {w}")).collect();
@@ -366,7 +408,265 @@ impl Session {
             Ok(_) => {}
             Err(error) => lines.push(format!("aviso: os jogos não vieram: {error:#}")),
         }
+        Ok(Some(lines.join("\n")))
+    }
+
+    /// A metade do backup do `vamo sync`: traz o que as outras máquinas
+    /// mandaram, troca o número das tarefas daqui que colidem com as de lá,
+    /// junta os eventos e as marcações, escreve os arquivos desta máquina e
+    /// manda. Se outra máquina mandar no meio, o remoto recusa e a rodada se
+    /// repete do começo, até três vezes.
+    fn sync_backup(&mut self, path: &str) -> Result<Vec<String>> {
+        let dir = paths::expand_home(path)?;
+        let backup = vamo_sync::Backup::open(&dir, machine()?)
+            .wrap_err_with(|| format!("o backup em {} não abriu", dir.display()))?;
+        let mut lines = Vec::new();
+        for attempt in 1..=SYNC_ATTEMPTS {
+            backup.pull().wrap_err("não deu pra trazer o backup")?;
+            let snapshot = backup.read()?;
+            let own = machine()?;
+            for renumber in vamo_core::renumber_collisions(
+                &self.events,
+                &own,
+                &snapshot.exported,
+                &snapshot.remote,
+            ) {
+                self.store.renumber(&renumber.events, renumber.to)?;
+                lines.push(self.voice.renumbered(renumber.from, renumber.to));
+            }
+            let added = self.store.append(&snapshot.remote)?;
+            let mut marks = 0;
+            for mark in &snapshot.marks {
+                if self.store.merge_agenda_mark(mark)? {
+                    marks += 1;
+                }
+            }
+            self.reload()?;
+            let inbox = self.reinforcements(&backup, &mut lines)?;
+
+            backup.write(&self.events, &self.store.agenda_marks()?)?;
+            match backup.send() {
+                Ok(_) => {
+                    // A entrada só se limpa depois de as tarefas novas
+                    // estarem no backup: se o envio falhasse, o reforço
+                    // sumiria da entrada sem chegar nas outras máquinas.
+                    if let Some(inbox) = inbox.filter(|inbox| !inbox.is_empty())
+                        && backup.clear(&inbox)? == vamo_sync::Cleared::Later
+                    {
+                        lines.push(
+                            "aviso: chegou reforço no meio da leitura; a entrada se limpa na \
+                             próxima rodada"
+                                .to_owned(),
+                        );
+                    }
+                    lines.push(self.voice.backup_synced(added, marks));
+                    return Ok(lines);
+                }
+                Err(vamo_sync::Error::Rejected) if attempt < SYNC_ATTEMPTS => {
+                    tracing::debug!(attempt, "o backup recusou o envio; trazendo de novo");
+                }
+                Err(error) => {
+                    return Err(error).wrap_err("não deu pra mandar o backup");
+                }
+            }
+        }
+        Err(eyre!(
+            "o backup recusou o envio {SYNC_ATTEMPTS} vezes seguidas"
+        ))
+    }
+
+    /// Os reforços da entrada do backup: cada um que ainda não virou tarefa
+    /// (aqui ou em outra máquina) vira, com a chave nas notas. O que o
+    /// domínio recusa fica na entrada, com um aviso.
+    fn reinforcements(
+        &mut self,
+        backup: &vamo_sync::Backup,
+        lines: &mut Vec<String>,
+    ) -> Result<Option<vamo_sync::Inbox>> {
+        let Some(mut inbox) = backup.inbox()? else {
+            return Ok(None);
+        };
+        for rejected in &inbox.rejected {
+            lines.push(format!(
+                "aviso: a linha {} da entrada de reforços ficou lá: {}",
+                rejected.line, rejected.reason
+            ));
+        }
+        for reinforcement in inbox.reinforcements.clone() {
+            if self.projection.has_reinforcement(&reinforcement.chave) {
+                continue;
+            }
+            match self.reinforce(&reinforcement) {
+                Ok(id) => {
+                    let task = self.task(id)?;
+                    lines.push(self.voice.reinforced(id, task.title()));
+                }
+                Err(error) => {
+                    lines.push(format!(
+                        "aviso: o reforço {} ficou na entrada: {error:#}",
+                        reinforcement.chave
+                    ));
+                    inbox.keep(&reinforcement);
+                }
+            }
+        }
+        Ok(Some(inbox))
+    }
+
+    /// Cria a tarefa de um reforço, com o padrão do `vamo add` no que ele
+    /// não diz e a chave dele na última linha das notas.
+    fn reinforce(
+        &mut self,
+        reinforcement: &vamo_sync::format::ReinforcementLine,
+    ) -> Result<TaskId> {
+        let title: NotebookTitle = reinforcement.titulo.parse()?;
+        let area: Area = reinforcement.area.as_deref().unwrap_or("geral").parse()?;
+        let fit: Fit = reinforcement
+            .encaixe
+            .as_deref()
+            .unwrap_or("brecha")
+            .parse()?;
+        let status: Status = reinforcement
+            .status
+            .as_deref()
+            .unwrap_or("pronta")
+            .parse()?;
+        let note = vamo_core::reinforcement_note(&reinforcement.chave);
+        let notes = match reinforcement.notas.as_deref().map(str::trim) {
+            Some(notes) if !notes.is_empty() => format!("{notes}\n\n{note}"),
+            _ => note,
+        };
+        let id = self
+            .projection
+            .next_id()
+            .ok_or_else(|| eyre!("os números de tarefa acabaram"))?;
+        self.record(
+            id,
+            vec![
+                Change::Created {
+                    title,
+                    area,
+                    fit,
+                    status,
+                },
+                Change::Notes(notes),
+            ],
+        )?;
+        Ok(id)
+    }
+
+    /// Lê o log de novo do banco, depois de a sincronia mexer nele.
+    fn reload(&mut self) -> Result<()> {
+        self.events = self.store.events()?;
+        self.projection = self.events.iter().collect();
+        self.agenda_checks = self.store.agenda_checks()?;
+        Ok(())
+    }
+
+    /// `vamo resumo`: a súmula de um dia. Dia que já fechou fica guardado
+    /// no banco, uma súmula por dia: rodar de novo só troca a guardada.
+    /// Só lê as tarefas, não muda nenhuma.
+    fn summary(&mut self, config: &Config, day: Option<Date>, json: bool) -> Result<String> {
+        let zone = TimeZone::system();
+        let now = jiff::Zoned::now().with_time_zone(zone.clone());
+        let day = match day {
+            Some(day) => day,
+            None => summary::last_closed_day(&now)?,
+        };
+        let window = summary::window(day, &zone)?;
+
+        let mut warnings = Vec::new();
+        let habits = habits(config, day, day, &mut warnings);
+
+        let closed = DaySummary::close(&self.events, day, window, habits);
+        let exported = summary::json(&closed);
+        let finished = now.timestamp() >= window.end;
+        if finished {
+            self.store.save_summary(day, now.timestamp(), &exported)?;
+        }
+
+        if json {
+            // O JSON sai limpo pra quem lê; o aviso vai pra saída de erro.
+            for warning in &warnings {
+                eprintln!("{warning}");
+            }
+            return Ok(exported);
+        }
+        let mut lines = warnings;
+        lines.push(summary::text(&closed, self.voice));
+        if !finished {
+            lines.push(String::new());
+            lines.push(self.voice.summary_still_open().to_owned());
+        }
         Ok(lines.join("\n"))
+    }
+
+    /// `vamo resumo --semana`: a rodada da semana do dia, de segunda a
+    /// domingo. Não fica guardada: sai sempre do log, dos hábitos e da cópia
+    /// local da agenda.
+    fn week(&self, config: &Config, day: Option<Date>, json: bool) -> Result<String> {
+        let zone = TimeZone::system();
+        let now = jiff::Zoned::now().with_time_zone(zone.clone());
+        let last_closed = summary::last_closed_day(&now)?;
+        let monday = WeekSummary::monday_of(day.unwrap_or(last_closed));
+        let sunday = monday.checked_add(jiff::ToSpan::days(6))?;
+
+        let mut warnings = Vec::new();
+        let habits = habits(config, monday, sunday, &mut warnings);
+        let offside = self.offside(config, &zone, monday, sunday);
+        let unbeaten = summary::unbeaten(&self.events, &zone, sunday.min(last_closed))?;
+        let week = WeekSummary::close(
+            &self.events,
+            summary::days(monday, sunday, &zone)?,
+            offside,
+            habits,
+            unbeaten,
+        );
+
+        if json {
+            for warning in &warnings {
+                eprintln!("{warning}");
+            }
+            return Ok(summary::week_json(&week));
+        }
+        let mut lines = warnings;
+        lines.push(summary::week_text(&week, self.voice));
+        if sunday > last_closed {
+            lines.push(String::new());
+            lines.push(self.voice.week_still_open().to_owned());
+        }
+        Ok(lines.join("\n"))
+    }
+
+    /// Os impedimentos de `first` a `last`: as tarefas marcadas na agenda
+    /// fora das regras do tempo. A agenda vem da cópia local, e o dia de
+    /// jogo só vale na linguagem de jogo.
+    fn offside(
+        &self,
+        config: &Config,
+        zone: &TimeZone,
+        first: Date,
+        last: Date,
+    ) -> Vec<vamo_core::Offside> {
+        let appointments = agenda::cached_appointments(config, zone.clone(), first, last);
+        let found = match self.voice {
+            Voice::Game => games::cached(&config.games, zone.clone(), first, last),
+            Voice::Neutral => Vec::new(),
+        };
+        appointments
+            .iter()
+            .flat_map(|appointment| {
+                let game = games::pick(&found, &config.games, appointment.day());
+                agenda::broken_rules(appointment, &self.projection, &config.rules, game.as_ref())
+                    .into_iter()
+                    .map(|(task, violation)| vamo_core::Offside {
+                        day: appointment.day(),
+                        task,
+                        appointment: appointment.title.clone(),
+                        violation,
+                    })
+            })
+            .collect()
     }
 
     /// `vamo show`: a ficha da tarefa e o histórico dela.
@@ -493,7 +793,8 @@ impl vamo_tui::Ledger for Session {
     }
 
     fn check_agenda(&mut self, day: Date, uid: &str, done: bool) -> Result<()> {
-        self.store.set_agenda_check(day, uid, done)?;
+        self.store
+            .set_agenda_check(day, uid, done, Timestamp::now())?;
         if done {
             self.agenda_checks.insert((day, uid.to_owned()));
         } else {
@@ -501,6 +802,24 @@ impl vamo_tui::Ledger for Session {
         }
         Ok(())
     }
+}
+
+/// Os hábitos de `first` a `last`, do habit-tracker da config. Hábito que
+/// não abriu vira aviso em `warnings`: a súmula das 4h sai mesmo assim.
+fn habits(
+    config: &Config,
+    first: Date,
+    last: Date,
+    warnings: &mut Vec<String>,
+) -> Vec<vamo_core::HabitCount> {
+    let counted = summary::habit_tracker(&config.habits).and_then(|tracker| match tracker {
+        Some(tracker) => Ok(tracker.count(first, last)?),
+        None => Ok(Vec::new()),
+    });
+    counted.unwrap_or_else(|error| {
+        warnings.push(format!("aviso: os hábitos não vieram: {error:#}"));
+        Vec::new()
+    })
 }
 
 /// As tarefas em colunas: ID, status, encaixe, área e título.

@@ -5,7 +5,8 @@ use jiff::SignedDuration;
 use jiff::civil::{Date, DateTime, Time};
 use ratatui::text::{Line, Span};
 use vamo_core::{
-    Appointment, FixedActivity, GameDay, Gap, Projection, Task, TimeRules, When, fitting, gaps,
+    Appointment, FixedActivity, GameDay, Gap, Projection, Task, TimeRules, Unbeaten, When, fitting,
+    gaps,
 };
 
 use crate::{Voice, theme};
@@ -31,6 +32,9 @@ pub struct Schedule {
     pub game: Option<GameDay>,
     /// O nome do time, pro card do dia de jogo.
     pub team: String,
+    /// A invencibilidade até o último dia fechado, que o binário conta no
+    /// log. Sem ela, a linha não aparece.
+    pub unbeaten: Option<Unbeaten>,
 }
 
 /// Quantas tarefas sugerir por brecha, pra linha não virar parágrafo.

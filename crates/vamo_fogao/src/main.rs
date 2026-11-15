@@ -14,6 +14,7 @@ mod games;
 mod import;
 mod paths;
 mod remind;
+mod summary;
 
 use std::io::IsTerminal;
 use std::process::ExitCode;

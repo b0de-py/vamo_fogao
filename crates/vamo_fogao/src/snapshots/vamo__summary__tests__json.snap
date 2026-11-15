@@ -1,0 +1,44 @@
+---
+source: crates/vamo_fogao/src/summary.rs
+expression: "serde_json::to_string_pretty(&json(&summary)).unwrap()"
+---
+{
+  "acrescimos": [
+    {
+      "id": "T-003",
+      "titulo": "Lavar o carro"
+    }
+  ],
+  "dia": "2026-11-11",
+  "fixas": [
+    {
+      "id": "T-004",
+      "titulo": "Regar as plantas"
+    }
+  ],
+  "gols": [
+    {
+      "id": "T-001",
+      "titulo": "Trocar o filtro da água"
+    }
+  ],
+  "habitos": [
+    {
+      "nome": "Água",
+      "quantidade": 6,
+      "unidade": "copo"
+    },
+    {
+      "nome": "Leitura",
+      "quantidade": 1,
+      "unidade": "capítulo"
+    }
+  ],
+  "versao": 1,
+  "voltaram_pro_banco": [
+    {
+      "id": "T-002",
+      "titulo": "Pagar a conta de luz"
+    }
+  ]
+}

@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SummaryDoc",
+  "description": "A súmula de um dia que fechou.",
+  "type": "object",
+  "properties": {
+    "acrescimos": {
+      "description": "As que ficaram no dia sem gol e venceram.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/TaskRef"
+      }
+    },
+    "dia": {
+      "description": "O dia, como `2026-11-11`.",
+      "type": "string"
+    },
+    "fixas": {
+      "description": "As recorrentes marcadas no dia.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/TaskRef"
+      }
+    },
+    "gols": {
+      "description": "Os gols: as tarefas do dia concluídas.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/TaskRef"
+      }
+    },
+    "habitos": {
+      "description": "Os números dos hábitos do dia.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/HabitLine"
+      }
+    },
+    "versao": {
+      "description": "A versão do formato.",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0
+    },
+    "voltaram_pro_banco": {
+      "description": "As que estavam no dia e saíram dele sem gol.",
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/TaskRef"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "required": [
+    "versao",
+    "dia",
+    "gols",
+    "fixas",
+    "voltaram_pro_banco",
+    "acrescimos",
+    "habitos"
+  ],
+  "$defs": {
+    "HabitLine": {
+      "description": "Quanto de um hábito foi registrado.",
+      "type": "object",
+      "properties": {
+        "nome": {
+          "description": "O nome do hábito.",
+          "type": "string"
+        },
+        "quantidade": {
+          "description": "Quantas vezes foi registrado.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0
+        },
+        "unidade": {
+          "description": "A unidade, no singular.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "nome",
+        "unidade",
+        "quantidade"
+      ]
+    },
+    "TaskRef": {
+      "description": "Uma tarefa num resumo: o ID e o título.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "description": "O ID, como `T-041`.",
+          "type": "string"
+        },
+        "titulo": {
+          "description": "O título.",
+          "type": "string"
+        }
+      },
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "titulo"
+      ]
+    }
+  }
+}

@@ -49,6 +49,13 @@ ratatui = { version = "0.30", default-features = false, features = ["crossterm",
 # instalada no sistema. Sem as features padrão, que só trazem o cache de
 # comandos preparados (e três dependências a mais) e o suporte a WebAssembly.
 rusqlite = { version = "0.42", default-features = false, features = ["bundled"] }
+# O JSON Schema do formato de exportação (`vamo-sync`), gerado dos mesmos
+# tipos que escrevem e leem o JSON. Sem as features padrão, que só trazem o
+# `derive` (ligado abaixo) e o suporte a `std`.
+schemars = { version = "1.2", default-features = false, features = ["derive", "std"] }
+# Os tipos do formato de exportação (`vamo-sync`) com derive: o formato é um
+# contrato, e o derive garante que quem escreve e quem lê são o mesmo tipo.
+serde = { version = "1.0", features = ["derive"] }
 # A resposta da API do Google Agenda (feature `google` do vamo-agenda). Sem
 # o serde derive: os campos são lidos na mão, como no TOML.
 serde_json = "1.0"

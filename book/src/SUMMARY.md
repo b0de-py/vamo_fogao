@@ -10,5 +10,6 @@
 - [A TUI](a-tui.md)
 - [A agenda](a-agenda.md)
 - [A barra, os lembretes e o dia de jogo](a-barra.md)
+- [O resumo e a sincronia](o-resumo-e-a-sincronia.md)
 - [O Rust que aparece aqui](rust-que-aparece-aqui.md)
 - [Glossário](glossario.md)

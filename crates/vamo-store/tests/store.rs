@@ -9,6 +9,10 @@ use uuid::Builder;
 use vamo_core::{Change, Event, EventId, EventStore, Fit, Status, TaskId};
 use vamo_store::{Error, Store};
 
+/// A versão do esquema depois de todas as migrações. Migração nova sobe
+/// este número.
+const LATEST_SCHEMA: u32 = 5;
+
 /// Um banco numa pasta que ainda não existe, dentro de uma pasta temporária
 /// que some no fim do teste.
 fn temp_db() -> (TempDir, PathBuf) {
@@ -62,7 +66,7 @@ fn a_new_database_is_created_and_migrated_from_zero() {
     let store = Store::open(&path).unwrap();
 
     assert!(path.exists());
-    assert_eq!(store.schema_version().unwrap(), 3);
+    assert_eq!(store.schema_version().unwrap(), LATEST_SCHEMA);
     assert_eq!(store.events().unwrap(), []);
 }
 
@@ -158,7 +162,7 @@ fn a_database_from_a_newer_version_is_refused_and_left_alone() {
         result,
         Err(Error::NewerSchema {
             found: 99,
-            known: 3
+            known: LATEST_SCHEMA
         })
     ));
     let version: u32 = Connection::open(&path)
@@ -236,7 +240,7 @@ fn a_database_from_the_first_version_is_migrated_with_its_events() {
         .unwrap();
     }
     let mut store = Store::open(&path).unwrap();
-    assert_eq!(store.schema_version().unwrap(), 3);
+    assert_eq!(store.schema_version().unwrap(), LATEST_SCHEMA);
     let old = store.events().unwrap();
     assert_eq!(old.len(), 1);
     assert_eq!(old[0].change, Change::Status(Status::Ready));
@@ -257,18 +261,38 @@ fn agenda_checks_are_kept_per_day_and_event() {
     let mut store = Store::in_memory().unwrap();
     let day = jiff::civil::date(2026, 11, 12);
     store
-        .set_agenda_check(day, "caminhada@exemplo", true)
+        .set_agenda_check(
+            day,
+            "caminhada@exemplo",
+            true,
+            Timestamp::from_second(1).unwrap(),
+        )
         .unwrap();
     // Marcar de novo não duplica.
     store
-        .set_agenda_check(day, "caminhada@exemplo", true)
+        .set_agenda_check(
+            day,
+            "caminhada@exemplo",
+            true,
+            Timestamp::from_second(1).unwrap(),
+        )
         .unwrap();
     store
-        .set_agenda_check(day.tomorrow().unwrap(), "caminhada@exemplo", true)
+        .set_agenda_check(
+            day.tomorrow().unwrap(),
+            "caminhada@exemplo",
+            true,
+            Timestamp::from_second(1).unwrap(),
+        )
         .unwrap();
     assert_eq!(store.agenda_checks().unwrap().len(), 2);
     store
-        .set_agenda_check(day, "caminhada@exemplo", false)
+        .set_agenda_check(
+            day,
+            "caminhada@exemplo",
+            false,
+            Timestamp::from_second(1).unwrap(),
+        )
         .unwrap();
     assert_eq!(
         store
@@ -278,4 +302,77 @@ fn agenda_checks_are_kept_per_day_and_event() {
             .collect::<Vec<_>>(),
         [(day.tomorrow().unwrap(), "caminhada@exemplo".to_owned())]
     );
+}
+
+#[test]
+fn closing_the_same_day_twice_keeps_one_summary() {
+    let mut store = Store::in_memory().unwrap();
+    let day = jiff::civil::date(2026, 11, 11);
+    let first: jiff::Timestamp = "2026-11-12T07:00:00Z".parse().unwrap();
+    let second: jiff::Timestamp = "2026-11-12T09:30:00Z".parse().unwrap();
+
+    store.save_summary(day, first, r#"{"gols":1}"#).unwrap();
+    store.save_summary(day, second, r#"{"gols":2}"#).unwrap();
+    store
+        .save_summary(jiff::civil::date(2026, 11, 10), first, "{}")
+        .unwrap();
+
+    assert_eq!(
+        store.summaries().unwrap(),
+        [
+            (jiff::civil::date(2026, 11, 10), "{}".to_owned()),
+            (day, r#"{"gols":2}"#.to_owned()),
+        ]
+    );
+}
+
+#[test]
+fn a_mark_from_another_machine_wins_only_if_newer() {
+    use vamo_core::AgendaMark;
+    let mut store = Store::in_memory().unwrap();
+    let day = jiff::civil::date(2026, 11, 12);
+    let uid = "caminhada@exemplo";
+    store
+        .set_agenda_check(day, uid, true, Timestamp::from_second(100).unwrap())
+        .unwrap();
+
+    let older = AgendaMark {
+        day,
+        uid: uid.to_owned(),
+        done: false,
+        at: Timestamp::from_second(50).unwrap(),
+    };
+    assert!(!store.merge_agenda_mark(&older).unwrap());
+    assert_eq!(store.agenda_checks().unwrap().len(), 1);
+
+    let newer = AgendaMark {
+        at: Timestamp::from_second(150).unwrap(),
+        ..older
+    };
+    assert!(store.merge_agenda_mark(&newer).unwrap());
+    assert_eq!(store.agenda_checks().unwrap().len(), 0);
+    // A desmarcação fica guardada, pra viajar também.
+    assert_eq!(store.agenda_marks().unwrap(), [newer]);
+}
+
+#[test]
+fn renumbering_moves_only_the_given_events() {
+    let mut store = Store::in_memory().unwrap();
+    let first = event(1, 1, created("Trocar o filtro"));
+    let second = event(2, 1, Change::Notes("Com calma".to_owned()));
+    let other = event(3, 2, created("Lavar o carro"));
+    store
+        .append(&[first.clone(), second.clone(), other.clone()])
+        .unwrap();
+
+    let to = TaskId::new(7).unwrap();
+    store.renumber(&[first.id, second.id], to).unwrap();
+
+    let tasks: Vec<u32> = store
+        .events()
+        .unwrap()
+        .iter()
+        .map(|event| event.task.number())
+        .collect();
+    assert_eq!(tasks, [7, 7, 2]);
 }

@@ -1,0 +1,13 @@
+texto = "2 x 2 no Allianz Parque, gol do Palmeiras anulado no fim, e o Botafogo elimina o Palmeiras nas oitavas da Libertadores de 2024."
+data = "2024-08-21"
+status = "verificado"
+tags = ["titulo:libertadores", "adversario:palmeiras"]
+notas = "Na ida, 2 x 1 no Nilton Santos. O gol anulado é de Gustavo Gómez, por toque de mão."
+
+[[fontes]]
+nome = "Trivela"
+url = "https://trivela.com.br/america-do-sul/libertadores/botafogo-empata-elimina-palmeiras/"
+
+[[fontes]]
+nome = "Gazeta Esportiva"
+url = "https://www.gazetaesportiva.com/times/palmeiras/palmeiras-tem-gol-anulado-nos-acrescimos-empata-com-o-botafogo-e-cai-nas-oitavas-da-libertadores/"

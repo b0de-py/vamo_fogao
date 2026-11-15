@@ -5,6 +5,10 @@
 //! versionados, aplicados em ordem com `PRAGMA user_version` (veja o módulo
 //! de migrações).
 //!
+//! Também lê, só lendo, o banco do habit-tracker: é de lá que vêm os
+//! números dos hábitos da súmula ([`HabitTracker`], adaptador da porta
+//! [`Habits`](vamo_core::Habits)).
+//!
 //! O adaptador só traduz. Cada valor vai pro banco como o texto que o tipo do
 //! domínio escreve (`T-041`, `brecha`) e volta pelo `FromStr` do mesmo tipo,
 //! que confere de novo. Um banco mexido por fora vira erro na leitura, nunca
@@ -20,6 +24,7 @@
 //! ```
 
 mod error;
+mod habits;
 mod migrations;
 
 use std::collections::BTreeSet;
@@ -29,9 +34,10 @@ use std::time::Duration;
 
 use jiff::civil::Date;
 use rusqlite::{Connection, Row, params};
-use vamo_core::{Change, Event, EventStore};
+use vamo_core::{AgendaMark, Change, Event, EventStore, TaskId};
 
 pub use error::Error;
+pub use habits::{Habit, HabitTracker};
 
 /// O banco do `vamo_fogao`.
 #[derive(Debug)]
@@ -100,39 +106,146 @@ impl Store {
     ///
     /// Quando o SQLite falha, ou um dia guardado não é um dia válido.
     pub fn agenda_checks(&self) -> Result<BTreeSet<(Date, String)>, Error> {
-        let mut select = self.conn.prepare("SELECT day, uid FROM agenda_checks")?;
-        let mut rows = select.query([])?;
-        let mut checks = BTreeSet::new();
-        while let Some(row) = rows.next()? {
-            let day: String = row.get(0)?;
-            let day = day
-                .parse()
-                .map_err(|source| Error::InvalidCheckDay { day, source })?;
-            checks.insert((day, row.get(1)?));
-        }
-        Ok(checks)
+        Ok(self
+            .agenda_marks()?
+            .into_iter()
+            .filter(|mark| mark.done)
+            .map(|mark| (mark.day, mark.uid))
+            .collect())
     }
 
-    /// Marca (`done`) ou desmarca a atividade fixa `uid` em `day`. Marcar o
-    /// que já está marcado não muda nada.
+    /// Todas as marcações da agenda, as desfeitas inclusas, com o instante
+    /// de cada uma: é o que vai pra sincronia.
+    ///
+    /// # Errors
+    ///
+    /// Quando o SQLite falha, ou um dia ou instante guardado não é válido.
+    pub fn agenda_marks(&self) -> Result<Vec<AgendaMark>, Error> {
+        let mut select = self
+            .conn
+            .prepare("SELECT day, uid, done, at FROM agenda_checks ORDER BY day, uid")?;
+        let mut rows = select.query([])?;
+        let mut marks = Vec::new();
+        while let Some(row) = rows.next()? {
+            let day: String = row.get(0)?;
+            let at: String = row.get(3)?;
+            marks.push(AgendaMark {
+                day: day
+                    .parse()
+                    .map_err(|source| Error::InvalidCheckDay { day, source })?,
+                uid: row.get(1)?,
+                done: row.get(2)?,
+                at: at
+                    .parse()
+                    .map_err(|source| Error::InvalidCheckInstant { at, source })?,
+            });
+        }
+        Ok(marks)
+    }
+
+    /// Marca (`done`) ou desmarca a atividade fixa `uid` em `day`, no
+    /// instante `at`.
     ///
     /// # Errors
     ///
     /// Quando o SQLite falha.
-    pub fn set_agenda_check(&mut self, day: Date, uid: &str, done: bool) -> Result<(), Error> {
-        let day = day.to_string();
-        if done {
-            self.conn.execute(
-                "INSERT OR IGNORE INTO agenda_checks (day, uid) VALUES (?1, ?2)",
-                params![day, uid],
-            )?;
-        } else {
-            self.conn.execute(
-                "DELETE FROM agenda_checks WHERE day = ?1 AND uid = ?2",
-                params![day, uid],
-            )?;
-        }
+    pub fn set_agenda_check(
+        &mut self,
+        day: Date,
+        uid: &str,
+        done: bool,
+        at: jiff::Timestamp,
+    ) -> Result<(), Error> {
+        self.conn.execute(
+            "INSERT INTO agenda_checks (day, uid, done, at) VALUES (?1, ?2, ?3, ?4)
+             ON CONFLICT (day, uid) DO UPDATE SET done = ?3, at = ?4",
+            params![day.to_string(), uid, done, at.to_string()],
+        )?;
         Ok(())
+    }
+
+    /// Junta uma marcação que veio de outra máquina: ela só entra se for
+    /// mais recente que a daqui (ou se aqui não tiver nenhuma). Devolve se
+    /// entrou.
+    ///
+    /// # Errors
+    ///
+    /// Quando o SQLite falha, ou a marcação guardada não é válida.
+    pub fn merge_agenda_mark(&mut self, mark: &AgendaMark) -> Result<bool, Error> {
+        let current = self
+            .agenda_marks()?
+            .into_iter()
+            .find(|known| known.day == mark.day && known.uid == mark.uid);
+        if current.is_some_and(|current| !mark.wins_over(&current)) {
+            return Ok(false);
+        }
+        self.set_agenda_check(mark.day, &mark.uid, mark.done, mark.at)?;
+        Ok(true)
+    }
+
+    /// Passa os eventos dados pra outra tarefa: é a troca de número da
+    /// sincronia, quando outra máquina criou uma tarefa com o mesmo número
+    /// (veja [`vamo_core::renumber_collisions`]). Só serve pra evento que
+    /// ainda não saiu desta máquina. Tudo numa transação: ou passam todos,
+    /// ou nenhum.
+    ///
+    /// # Errors
+    ///
+    /// Quando o SQLite falha.
+    pub fn renumber(&mut self, events: &[vamo_core::EventId], to: TaskId) -> Result<(), Error> {
+        let tx = self.conn.transaction()?;
+        {
+            let mut update = tx.prepare("UPDATE events SET task = ?1 WHERE id = ?2")?;
+            for id in events {
+                update.execute(params![to.to_string(), id.to_string()])?;
+            }
+        }
+        tx.commit()?;
+        Ok(())
+    }
+}
+
+impl Store {
+    /// Guarda a súmula fechada de `day`, já no formato de exportação. Fechar
+    /// o mesmo dia de novo troca a súmula guardada: nunca fica mais de uma
+    /// por dia.
+    ///
+    /// # Errors
+    ///
+    /// Quando o SQLite falha.
+    pub fn save_summary(
+        &mut self,
+        day: Date,
+        closed_at: jiff::Timestamp,
+        content: &str,
+    ) -> Result<(), Error> {
+        self.conn.execute(
+            "INSERT INTO summaries (day, closed_at, content) VALUES (?1, ?2, ?3)
+             ON CONFLICT (day) DO UPDATE SET closed_at = ?2, content = ?3",
+            params![day.to_string(), closed_at.to_string(), content],
+        )?;
+        Ok(())
+    }
+
+    /// As súmulas guardadas, em ordem de dia, como `(dia, conteúdo)`.
+    ///
+    /// # Errors
+    ///
+    /// Quando o SQLite falha, ou um dia guardado não é um dia válido.
+    pub fn summaries(&self) -> Result<Vec<(Date, String)>, Error> {
+        let mut select = self
+            .conn
+            .prepare("SELECT day, content FROM summaries ORDER BY day")?;
+        let mut rows = select.query([])?;
+        let mut summaries = Vec::new();
+        while let Some(row) = rows.next()? {
+            let day: String = row.get(0)?;
+            let day = day
+                .parse()
+                .map_err(|source| Error::InvalidSummaryDay { day, source })?;
+            summaries.push((day, row.get(1)?));
+        }
+        Ok(summaries)
     }
 }
 

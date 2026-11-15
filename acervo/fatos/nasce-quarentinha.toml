@@ -1,0 +1,12 @@
+texto = "Nasce Quarentinha, em Belém do Pará: o futuro maior artilheiro da história do Botafogo."
+data = "1933-09-15"
+status = "verificado"
+tags = ["idolo:quarentinha"]
+
+[[fontes]]
+nome = "Terceiro Tempo"
+url = "https://terceirotempo.uol.com.br/que-fim-levou/quarentinha-2697"
+
+[[fontes]]
+nome = "Wikipédia em português: Quarentinha"
+url = "https://pt.wikipedia.org/wiki/Quarentinha"

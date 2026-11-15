@@ -1,0 +1,23 @@
+---
+source: crates/vamo_fogao/src/summary.rs
+expression: "week_text(&week, Voice::Game)"
+---
+Rodada de 09/11 a 15/11
+
+2 gols · 1 voltou pro banco · 2 nos acréscimos
+
+  segunda 09/11  1 gol
+  terça   10/11  sem jogo
+  quarta  11/11  1 gol · 1 voltou pro banco · 1 nos acréscimos
+  quinta  12/11  sem jogo
+  sexta   13/11  1 nos acréscimos
+  sábado  14/11  sem jogo
+  domingo 15/11  sem jogo
+
+Impedimentos (1)
+  13/11  T-003 Lavar o carro: foco depois do teto da noite (22:00)
+
+Hábitos
+  Água  38 copos
+
+Invencibilidade: 0 · recorde 3 · o do clube é 52, em 1977 e 1978

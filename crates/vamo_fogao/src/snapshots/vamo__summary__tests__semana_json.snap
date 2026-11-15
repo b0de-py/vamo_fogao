@@ -1,0 +1,113 @@
+---
+source: crates/vamo_fogao/src/summary.rs
+expression: "serde_json::to_string_pretty(&week_json(&week)).unwrap()"
+---
+{
+  "acrescimos": 2,
+  "dias": [
+    {
+      "acrescimos": [],
+      "dia": "2026-11-09",
+      "fixas": [],
+      "gols": [
+        {
+          "id": "T-005",
+          "titulo": "Ler o capítulo novo"
+        }
+      ],
+      "voltaram_pro_banco": []
+    },
+    {
+      "acrescimos": [],
+      "dia": "2026-11-10",
+      "fixas": [],
+      "gols": [],
+      "voltaram_pro_banco": []
+    },
+    {
+      "acrescimos": [
+        {
+          "id": "T-003",
+          "titulo": "Lavar o carro"
+        }
+      ],
+      "dia": "2026-11-11",
+      "fixas": [
+        {
+          "id": "T-004",
+          "titulo": "Regar as plantas"
+        }
+      ],
+      "gols": [
+        {
+          "id": "T-001",
+          "titulo": "Trocar o filtro da água"
+        }
+      ],
+      "voltaram_pro_banco": [
+        {
+          "id": "T-002",
+          "titulo": "Pagar a conta de luz"
+        }
+      ]
+    },
+    {
+      "acrescimos": [],
+      "dia": "2026-11-12",
+      "fixas": [],
+      "gols": [],
+      "voltaram_pro_banco": []
+    },
+    {
+      "acrescimos": [
+        {
+          "id": "T-002",
+          "titulo": "Pagar a conta de luz"
+        }
+      ],
+      "dia": "2026-11-13",
+      "fixas": [],
+      "gols": [],
+      "voltaram_pro_banco": []
+    },
+    {
+      "acrescimos": [],
+      "dia": "2026-11-14",
+      "fixas": [],
+      "gols": [],
+      "voltaram_pro_banco": []
+    },
+    {
+      "acrescimos": [],
+      "dia": "2026-11-15",
+      "fixas": [],
+      "gols": [],
+      "voltaram_pro_banco": []
+    }
+  ],
+  "fim": "2026-11-15",
+  "gols": 2,
+  "habitos": [
+    {
+      "nome": "Água",
+      "quantidade": 38,
+      "unidade": "copo"
+    }
+  ],
+  "impedimentos": [
+    {
+      "compromisso": "Lavar o carro",
+      "dia": "2026-11-13",
+      "regra": "foco depois do teto da noite (22:00)",
+      "tarefa": "T-003"
+    }
+  ],
+  "inicio": "2026-11-09",
+  "invencibilidade": {
+    "atual": 0,
+    "recorde": 3,
+    "recorde_do_clube": 52
+  },
+  "versao": 1,
+  "voltaram_pro_banco": 1
+}

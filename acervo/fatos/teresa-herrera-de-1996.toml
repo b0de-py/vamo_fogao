@@ -1,0 +1,13 @@
+texto = "Na Corunha, 4 x 4 com a Juventus campeã da Europa e 3 x 0 nos pênaltis: o Botafogo ganha o Troféu Teresa Herrera."
+data = "1996-08-10"
+status = "verificado"
+tags = ["adversario:juventus"]
+notas = "Pela Trivela, o goleiro Wagner pegou os pênaltis de Amoruso e Di Livio."
+
+[[fontes]]
+nome = "Trivela"
+url = "https://trivela.com.br/brasil/20-jogos-marcantes-de-clubes-brasileiros-em-torneios-amistosos-no-exterior/"
+
+[[fontes]]
+nome = "Wikipédia em galego: Trofeo Teresa Herrera 1996"
+url = "https://gl.wikipedia.org/wiki/Trofeo_Teresa_Herrera_1996"

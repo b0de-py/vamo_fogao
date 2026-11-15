@@ -9,7 +9,7 @@ use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::style::Style;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Paragraph, Wrap};
-use vamo_core::{FixedActivity, Lineup, Projection, Score, Status, Task};
+use vamo_core::{FixedActivity, Lineup, Projection, Score, Status, Task, Unbeaten};
 
 use crate::app::{Action, Feedback, record};
 use crate::curiosity::{self, Acervo};
@@ -156,7 +156,8 @@ impl Today {
         let lineup = Lineup::new(projection, today);
         let [top, rest] =
             Layout::vertical([Constraint::Length(2), Constraint::Fill(1)]).areas(area);
-        render_scoreboard(frame, top, &lineup, score(&lineup, schedule, checks), voice);
+        let score = score(&lineup, schedule, checks);
+        render_scoreboard(frame, top, &lineup, score, schedule.unbeaten, voice);
 
         // Com espaço, a curiosidade vai do lado; sem, embaixo, no que sobrar
         // da escalação. Se sobrar pouco, a escalação fica com a tela toda:
@@ -341,14 +342,27 @@ fn task_line(group: Group, task: &Task, today: Date, cursor: bool, voice: Voice)
     }
 }
 
-/// A linha de cima: o dia da semana, a data e o placar.
+/// A linha de cima: o dia da semana, a data e o placar. Embaixo do placar,
+/// a invencibilidade, quando tem alguma.
 fn render_scoreboard(
     frame: &mut Frame<'_>,
     area: Rect,
     lineup: &Lineup,
     score: Score,
+    unbeaten: Option<Unbeaten>,
     voice: Voice,
 ) {
+    let [area, below] = Layout::vertical([Constraint::Length(1), Constraint::Fill(1)]).areas(area);
+    if let Some(unbeaten) = unbeaten.filter(|u| u.record > 0) {
+        frame.render_widget(
+            Paragraph::new(Line::styled(
+                voice.unbeaten(unbeaten.current, unbeaten.record),
+                theme::soft(),
+            ))
+            .right_aligned(),
+            below,
+        );
+    }
     let today = lineup.today();
     let date = format!(
         "{}, {}",

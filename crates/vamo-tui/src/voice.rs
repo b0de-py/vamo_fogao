@@ -417,6 +417,175 @@ impl Voice {
         format!("Agenda lida: {appointments}, {moved} pela agenda.")
     }
 
+    /// A invencibilidade, embaixo do placar da tela Hoje.
+    pub fn unbeaten(self, current: u32, record: u32) -> String {
+        let days = |n: u32| {
+            if n == 1 {
+                "1 dia".to_owned()
+            } else {
+                format!("{n} dias")
+            }
+        };
+        match self {
+            Self::Game => format!("Invicto há {} · recorde {record}", days(current)),
+            Self::Neutral => format!("Sem vencida há {} · recorde {record}", days(current)),
+        }
+    }
+
+    /// O título do resumo da semana, como "Rodada de 09/11 a 15/11".
+    pub fn week_title(self, first: &str, last: &str) -> String {
+        match self {
+            Self::Game => format!("Rodada de {first} a {last}"),
+            Self::Neutral => format!("Semana de {first} a {last}"),
+        }
+    }
+
+    /// Os números de um dia ou de uma semana numa linha, como "2 gols · 1
+    /// voltou pro banco". Número zero fica de fora.
+    pub fn summary_counts(self, goals: usize, benched: usize, stoppage: usize) -> String {
+        let plural = |n: usize, one: &str, many: &str| {
+            if n == 1 {
+                format!("1 {one}")
+            } else {
+                format!("{n} {many}")
+            }
+        };
+        let parts: Vec<String> = match self {
+            Self::Game => [
+                (goals > 0).then(|| plural(goals, "gol", "gols")),
+                (benched > 0).then(|| plural(benched, "voltou pro banco", "voltaram pro banco")),
+                (stoppage > 0).then(|| format!("{stoppage} nos acréscimos")),
+            ],
+            Self::Neutral => [
+                (goals > 0).then(|| plural(goals, "concluída", "concluídas")),
+                (benched > 0).then(|| plural(benched, "adiada", "adiadas")),
+                (stoppage > 0).then(|| plural(stoppage, "vencida", "vencidas")),
+            ],
+        }
+        .into_iter()
+        .flatten()
+        .collect();
+        if parts.is_empty() {
+            match self {
+                Self::Game => "sem jogo".to_owned(),
+                Self::Neutral => "nada".to_owned(),
+            }
+        } else {
+            parts.join(" · ")
+        }
+    }
+
+    /// O título dos impedimentos da semana: as tarefas marcadas fora das
+    /// regras do tempo.
+    pub fn offside_title(self) -> &'static str {
+        match self {
+            Self::Game => "Impedimentos",
+            Self::Neutral => "Regras feridas",
+        }
+    }
+
+    /// A invencibilidade no resumo da semana, com o recorde do clube na
+    /// linguagem de jogo.
+    pub fn week_unbeaten(self, current: u32, record: u32, club: u32) -> String {
+        match self {
+            Self::Game => format!(
+                "Invencibilidade: {current} · recorde {record} · o do clube é {club}, em 1977 e 1978"
+            ),
+            Self::Neutral => format!("Dias seguidos sem vencida: {current} · recorde {record}"),
+        }
+    }
+
+    /// Quando a semana pedida ainda não acabou.
+    pub fn week_still_open(self) -> &'static str {
+        match self {
+            Self::Game => "A rodada ainda está em andamento.",
+            Self::Neutral => "A semana ainda não acabou.",
+        }
+    }
+
+    /// O título da súmula de um dia, como "Súmula de quarta, 11/11".
+    pub fn summary_title(self, weekday: Weekday, day: &str) -> String {
+        let weekday = self.weekday(weekday);
+        match self {
+            Self::Game => format!("Súmula de {weekday}, {day}"),
+            Self::Neutral => format!("Resumo de {weekday}, {day}"),
+        }
+    }
+
+    /// Os títulos das partes da súmula: gols, fixas marcadas, as que
+    /// voltaram pro banco, os acréscimos e os hábitos.
+    pub fn summary_parts(self) -> [&'static str; 5] {
+        match self {
+            Self::Game => [
+                "Gols",
+                "Fixas marcadas",
+                "Voltaram pro banco",
+                "Acréscimos",
+                "Hábitos",
+            ],
+            Self::Neutral => [
+                "Concluídas",
+                "Fixas feitas",
+                "Adiadas",
+                "Vencidas",
+                "Hábitos",
+            ],
+        }
+    }
+
+    /// Quando o dia da súmula não teve tarefa nenhuma.
+    pub fn summary_empty(self) -> &'static str {
+        match self {
+            Self::Game => "Dia sem jogo: nenhuma tarefa escalada, nenhum gol.",
+            Self::Neutral => "Nenhuma tarefa no dia.",
+        }
+    }
+
+    /// Quando a súmula pedida é de um dia que ainda não fechou.
+    pub fn summary_still_open(self) -> &'static str {
+        match self {
+            Self::Game => "O jogo ainda não acabou: a súmula fecha às 4h e só aí fica guardada.",
+            Self::Neutral => "O dia ainda não fechou: o resumo fecha às 4h e só aí fica guardado.",
+        }
+    }
+
+    /// Quando uma tarefa desta máquina troca de número na sincronia, porque
+    /// outra máquina criou uma com o mesmo.
+    pub fn renumbered(self, from: TaskId, to: TaskId) -> String {
+        match self {
+            Self::Game => format!(
+                "{from} desta máquina trocou de camisa e agora é {to}: outra máquina já tinha \
+                 um {from}. Se a agenda aponta pra ele, troque o rodapé."
+            ),
+            Self::Neutral => format!(
+                "{from} desta máquina agora é {to}: outra máquina já tinha um {from}. Se a \
+                 agenda aponta pra ele, troque o rodapé."
+            ),
+        }
+    }
+
+    /// Quando um reforço da entrada vira tarefa.
+    pub fn reinforced(self, id: TaskId, title: &NotebookTitle) -> String {
+        match self {
+            Self::Game => format!("Reforço contratado: {id} {title}"),
+            Self::Neutral => format!("Tarefa recebida: {id} {title}"),
+        }
+    }
+
+    /// O resumo da sincronia pelo backup: quantos eventos e marcações
+    /// vieram das outras máquinas.
+    pub fn backup_synced(self, events: usize, marks: usize) -> String {
+        let events = match events {
+            1 => "1 evento".to_owned(),
+            n => format!("{n} eventos"),
+        };
+        let marks = match marks {
+            1 => "1 marcação".to_owned(),
+            n => format!("{n} marcações"),
+        };
+        format!("Backup sincronizado: {events} e {marks} das outras máquinas.")
+    }
+
     /// Quando a lista do `vamo list` não tem nenhuma tarefa.
     pub fn nothing_to_list(self) -> &'static str {
         match self {

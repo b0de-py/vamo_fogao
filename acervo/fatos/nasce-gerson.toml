@@ -1,0 +1,12 @@
+texto = "Nasce Gérson, o Canhotinha de Ouro, em Niterói. Pelo Botafogo, ganha o bi carioca de 1967 e 1968 e a Taça Brasil de 1968."
+data = "1941-01-11"
+status = "verificado"
+tags = ["idolo:gerson"]
+
+[[fontes]]
+nome = "Lance!"
+url = "https://www.lance.com.br/tim4g/tim-gerson-canhotinha-ouro.html"
+
+[[fontes]]
+nome = "Wikipédia em português: Gérson de Oliveira Nunes"
+url = "https://pt.wikipedia.org/wiki/G%C3%A9rson_de_Oliveira_Nunes"

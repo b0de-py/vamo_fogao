@@ -72,7 +72,7 @@ Em `crates/vamo-acervo/src/draw.rs`. A curiosidade é um "sorteio" que não sort
 
 1. Só fato `verificado` entra.
 2. Se algum fato aconteceu neste dia e mês, em qualquer ano, ele tem prioridade: é o "Neste dia". Com mais de um, cada ano mostra um.
-3. Sem "Neste dia", vale o rodízio. Os fatos, em ordem de id, são embaralhados uma vez, sempre do mesmo jeito (um Fisher-Yates com semente fixa), e cada dia anda uma casa. Um fato só repete depois que todos passaram.
+3. Sem "Neste dia", vale o rodízio, só com os fatos que não têm dia e mês. O fato com dia é do dia dele: muitos contam o acontecido no presente ("Nasce Garrincha") e, num dia qualquer, pareceriam ser de hoje. Se o acervo só tiver fato com dia, o rodízio usa esses mesmo, pra curiosidade não sumir. Os fatos do rodízio, em ordem de id, são embaralhados uma vez, sempre do mesmo jeito (um Fisher-Yates com semente fixa), e cada dia anda uma casa. Um fato só repete depois que todos passaram.
 
 A casa do dia é o número de dias desde 1º de janeiro de 1970, contado pelo algoritmo `days_from_civil`, de Howard Hinnant. O acervo não lê o relógio: quem chama passa o `Day` de hoje.
 

@@ -10,18 +10,26 @@ use tempfile::TempDir;
 /// Um `vamo` com a casa numa pasta temporária, que some no fim do teste.
 struct Vamo {
     home: TempDir,
+    machine: &'static str,
 }
 
 impl Vamo {
     fn new() -> Self {
+        Self::on("notebook")
+    }
+
+    /// Um `vamo` numa máquina com outro nome, pra sincronia.
+    fn on(machine: &'static str) -> Self {
         Self {
             home: tempfile::tempdir().expect("o sistema deveria criar uma pasta temporária"),
+            machine,
         }
     }
 
     /// Roda o `vamo` com os argumentos dados, num ambiente controlado: a
     /// pasta temporária é a casa e o diretório atual, o banco fica nela, a
-    /// máquina se chama `notebook` e o fuso é o de Brasília.
+    /// máquina se chama `notebook` (ou a de [`Vamo::on`]) e o fuso é o de
+    /// Brasília.
     fn run(&self, args: &[&str]) -> Output {
         Command::new(env!("CARGO_BIN_EXE_vamo"))
             .args(args)
@@ -31,7 +39,10 @@ impl Vamo {
             .env("XDG_CONFIG_HOME", self.home.path().join("config"))
             .env("XDG_CACHE_HOME", self.home.path().join("cache"))
             .env("XDG_STATE_HOME", self.home.path().join("estado"))
-            .env("VAMO_MAQUINA", "notebook")
+            .env("VAMO_MAQUINA", self.machine)
+            // O git dos testes de sincronia não lê a config de quem roda.
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .env("GIT_CONFIG_GLOBAL", "/dev/null")
             .env("TZ", "America/Sao_Paulo")
             .env_remove("VAMO_LINGUAGEM")
             .env_remove("VAMO_LOG")
@@ -946,5 +957,353 @@ mod games {
             fixture.display().to_string()
         ));
         insta::assert_snapshot!(vamo.ok(&["jogos", "--data", "2026-11-01"]));
+    }
+}
+
+mod resumo {
+    use super::*;
+
+    #[test]
+    fn closing_the_same_day_twice_keeps_one_summary() {
+        let vamo = Vamo::new();
+        vamo.ok(&["add", "Trocar o filtro"]);
+        let first = vamo.ok(&["resumo", "--data", "2026-01-05"]);
+        let second = vamo.ok(&["resumo", "--data", "2026-01-05"]);
+        assert_eq!(first, second);
+
+        let store = vamo_store::Store::open(&vamo.database()).unwrap();
+        let summaries = store.summaries().unwrap();
+        assert_eq!(summaries.len(), 1);
+        assert_eq!(summaries[0].0, jiff::civil::date(2026, 1, 5));
+    }
+
+    #[test]
+    fn the_summary_does_not_touch_the_tasks() {
+        use vamo_core::EventStore;
+        let vamo = Vamo::new();
+        vamo.ok(&["add", "Trocar o filtro"]);
+        let before = vamo_store::Store::open(&vamo.database())
+            .unwrap()
+            .events()
+            .unwrap();
+        vamo.ok(&["resumo", "--data", "2026-01-05"]);
+        let after = vamo_store::Store::open(&vamo.database())
+            .unwrap()
+            .events()
+            .unwrap();
+        assert_eq!(before, after);
+    }
+
+    #[test]
+    fn the_json_carries_the_version() {
+        let vamo = Vamo::new();
+        let out = vamo.ok(&["resumo", "--data", "2026-01-05", "--json"]);
+        let json: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(json["versao"], 1);
+        assert_eq!(json["dia"], "2026-01-05");
+    }
+
+    #[test]
+    fn the_week_goes_from_monday_to_sunday() {
+        let vamo = Vamo::new();
+        let out = vamo.ok(&["resumo", "--semana", "--data", "2026-01-07"]);
+        assert!(out.starts_with("Rodada de 05/01 a 11/01"), "{out}");
+        let json: serde_json::Value = serde_json::from_str(&vamo.ok(&[
+            "resumo",
+            "--semana",
+            "--data",
+            "2026-01-07",
+            "--json",
+        ]))
+        .unwrap();
+        assert_eq!(json["inicio"], "2026-01-05");
+        assert_eq!(json["fim"], "2026-01-11");
+        assert_eq!(json["dias"].as_array().unwrap().len(), 7);
+        assert_eq!(json["invencibilidade"]["recorde_do_clube"], 52);
+    }
+
+    #[test]
+    fn a_day_that_is_still_open_is_not_saved() {
+        let vamo = Vamo::new();
+        let out = vamo.ok(&["resumo", "--data", "2099-01-05"]);
+        assert!(out.contains("a súmula fecha às 4h"), "{out}");
+        let store = vamo_store::Store::open(&vamo.database()).unwrap();
+        assert_eq!(store.summaries().unwrap(), []);
+    }
+}
+
+mod sincronia {
+    use super::*;
+
+    /// O repositório de backup de mentira: um remoto vazio numa pasta
+    /// temporária, que cada máquina clona.
+    struct Remote {
+        dir: TempDir,
+    }
+
+    impl Remote {
+        fn new() -> Self {
+            let dir = tempfile::tempdir().expect("o sistema deveria criar uma pasta temporária");
+            git(
+                dir.path(),
+                &[
+                    "init",
+                    "--quiet",
+                    "--bare",
+                    "--initial-branch=main",
+                    "backup.git",
+                ],
+            );
+            Self { dir }
+        }
+
+        /// Clona o remoto dentro da casa da máquina e aponta a config pra lá.
+        fn connect(&self, vamo: &Vamo) {
+            let remote = self.dir.path().join("backup.git");
+            git(
+                vamo.home.path(),
+                &[
+                    "clone",
+                    "--quiet",
+                    remote.to_str().expect("a pasta temporária tem nome UTF-8"),
+                    "backup",
+                ],
+            );
+            vamo.configure("[sincronia]\nrepositorio = \"~/backup\"\n");
+        }
+    }
+
+    fn git(dir: &Path, args: &[&str]) {
+        let out = Command::new("git")
+            .args(args)
+            .current_dir(dir)
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .env("GIT_CONFIG_GLOBAL", "/dev/null")
+            .output()
+            .expect("o git deveria estar instalado pra rodar os testes de sincronia");
+        assert!(out.status.success(), "git {args:?}: {}", text(&out.stderr));
+    }
+
+    #[test]
+    fn two_divergent_logs_end_up_the_same() {
+        let remote = Remote::new();
+        let notebook = Vamo::on("notebook");
+        let pc = Vamo::on("pc");
+        remote.connect(&notebook);
+        remote.connect(&pc);
+
+        notebook.ok(&["add", "Trocar o filtro"]);
+        notebook.ok(&["sync"]);
+        pc.ok(&["sync"]);
+        // Cada lado mexe numa coisa diferente antes de sincronizar de novo.
+        pc.ok(&["done", "1"]);
+        notebook.ok(&["add", "Lavar o carro"]);
+        notebook.ok(&["sync"]);
+        pc.ok(&["sync"]);
+        notebook.ok(&["sync"]);
+
+        let seen = notebook.ok(&["list", "--todas"]);
+        assert_eq!(seen, pc.ok(&["list", "--todas"]));
+        assert!(seen.contains("T-001  concluída"), "{seen}");
+        assert!(seen.contains("Lavar o carro"), "{seen}");
+    }
+
+    #[test]
+    fn the_same_number_on_both_machines_loses_no_task() {
+        let remote = Remote::new();
+        let notebook = Vamo::on("notebook");
+        let pc = Vamo::on("pc");
+        remote.connect(&notebook);
+        remote.connect(&pc);
+
+        // As duas criam o T-001 sem saber uma da outra.
+        notebook.ok(&["add", "Trocar o filtro"]);
+        pc.ok(&["add", "Lavar o carro", "-n", "Com sabão"]);
+        notebook.ok(&["sync"]);
+        let out = pc.ok(&["sync"]);
+        assert!(
+            out.contains("T-001 desta máquina trocou de camisa e agora é T-002"),
+            "{out}"
+        );
+        notebook.ok(&["sync"]);
+
+        let seen = notebook.ok(&["list"]);
+        assert_eq!(seen, pc.ok(&["list"]));
+        assert!(
+            seen.contains("T-001") && seen.contains("Trocar o filtro"),
+            "{seen}"
+        );
+        assert!(
+            seen.contains("T-002") && seen.contains("Lavar o carro"),
+            "{seen}"
+        );
+        // As notas foram junto com a tarefa.
+        assert!(notebook.ok(&["show", "2"]).contains("Com sabão"));
+    }
+
+    #[test]
+    fn syncing_again_changes_nothing() {
+        let remote = Remote::new();
+        let notebook = Vamo::on("notebook");
+        remote.connect(&notebook);
+        notebook.ok(&["add", "Trocar o filtro"]);
+        notebook.ok(&["sync"]);
+        let out = notebook.ok(&["sync"]);
+        assert_eq!(
+            out,
+            "Backup sincronizado: 0 eventos e 0 marcações das outras máquinas.\n"
+        );
+    }
+
+    /// Manda reforços pra branch `vamo-entrada`, de um clone à parte, como
+    /// faria quem está fora do app.
+    fn send_reinforcements(remote: &Remote, lines: &str) {
+        let outside = tempfile::tempdir().expect("o sistema deveria criar uma pasta temporária");
+        let url = remote.dir.path().join("backup.git");
+        git(
+            outside.path(),
+            &[
+                "clone",
+                "--quiet",
+                url.to_str().expect("a pasta temporária tem nome UTF-8"),
+                "fora",
+            ],
+        );
+        let clone = outside.path().join("fora");
+        // Se a branch já existe, continua dela; se não, nasce sozinha.
+        let exists = Command::new("git")
+            .args(["rev-parse", "--verify", "--quiet", "origin/vamo-entrada"])
+            .current_dir(&clone)
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .env("GIT_CONFIG_GLOBAL", "/dev/null")
+            .output()
+            .expect("o git deveria estar instalado pra rodar os testes de sincronia")
+            .status
+            .success();
+        if exists {
+            git(
+                &clone,
+                &[
+                    "checkout",
+                    "--quiet",
+                    "-B",
+                    "vamo-entrada",
+                    "origin/vamo-entrada",
+                ],
+            );
+        } else {
+            git(&clone, &["checkout", "--quiet", "--orphan", "vamo-entrada"]);
+        }
+        let file = clone.join("reforcos.jsonl");
+        let mut text = std::fs::read_to_string(&file).unwrap_or_default();
+        text.push_str(lines);
+        std::fs::write(&file, text).expect("o arquivo da entrada deveria ser gravado");
+        git(&clone, &["add", "reforcos.jsonl"]);
+        git(
+            &clone,
+            &[
+                "-c",
+                "user.name=fora",
+                "-c",
+                "user.email=fora@exemplo",
+                "commit",
+                "--quiet",
+                "-m",
+                "Reforço",
+            ],
+        );
+        git(&clone, &["push", "--quiet", "origin", "vamo-entrada"]);
+    }
+
+    /// O `reforcos.jsonl` como está no remoto.
+    fn inbox(remote: &Remote) -> String {
+        let out = Command::new("git")
+            .args(["show", "vamo-entrada:reforcos.jsonl"])
+            .current_dir(remote.dir.path().join("backup.git"))
+            .output()
+            .expect("o git deveria estar instalado pra rodar os testes de sincronia");
+        text(&out.stdout)
+    }
+
+    #[test]
+    fn a_reinforcement_becomes_a_task_once() {
+        let remote = Remote::new();
+        let notebook = Vamo::on("notebook");
+        let pc = Vamo::on("pc");
+        remote.connect(&notebook);
+        remote.connect(&pc);
+        notebook.ok(&["sync"]);
+
+        send_reinforcements(
+            &remote,
+            concat!(
+                r#"{"versao":1,"chave":"fora-1","titulo":"Comprar o filtro novo","notas":"Na loja"}"#,
+                "\n",
+                r#"{"versao":1,"chave":"fora-1","titulo":"Comprar o filtro novo"}"#,
+                "\n",
+                r#"{"versao":1,"chave":"fora-2","titulo":"filtro"}"#,
+                "\n",
+                "isto não é json\n",
+            ),
+        );
+        let out = notebook.ok(&["sync"]);
+        assert!(
+            out.contains("Reforço contratado: T-001 Comprar o filtro novo"),
+            "{out}"
+        );
+        assert!(out.contains("o reforço fora-2 ficou na entrada"), "{out}");
+        assert!(
+            out.contains("a linha 4 da entrada de reforços ficou lá"),
+            "{out}"
+        );
+        // Ficou na entrada só o que não virou tarefa.
+        let left = inbox(&remote);
+        assert!(!left.contains("fora-1"), "{left}");
+        assert!(
+            left.contains("fora-2") && left.contains("isto não é json"),
+            "{left}"
+        );
+
+        // O mesmo reforço mandado de novo, lido pela outra máquina, não
+        // vira tarefa duplicada.
+        send_reinforcements(
+            &remote,
+            concat!(
+                r#"{"versao":1,"chave":"fora-1","titulo":"Comprar o filtro novo"}"#,
+                "\n"
+            ),
+        );
+        pc.ok(&["sync"]);
+        notebook.ok(&["sync"]);
+        let list = pc.ok(&["list"]);
+        assert_eq!(list.matches("Comprar o filtro novo").count(), 1, "{list}");
+        assert_eq!(list, notebook.ok(&["list"]));
+        assert!(pc.ok(&["show", "1"]).contains("reforço: fora-1"));
+    }
+
+    #[test]
+    fn the_public_repository_is_refused() {
+        let notebook = Vamo::new();
+        let clone = notebook.home.path().join("backup");
+        std::fs::create_dir_all(&clone).unwrap();
+        git(&clone, &["init", "--quiet"]);
+        git(
+            &clone,
+            &[
+                "remote",
+                "add",
+                "origin",
+                "https://github.com/b0de-py/vamo_fogao.git",
+            ],
+        );
+        notebook.configure("[sincronia]\nrepositorio = \"~/backup\"\n");
+        let err = notebook.fails(&["sync"], 1);
+        assert!(err.contains("repositório público"), "{err}");
+    }
+
+    #[test]
+    fn nothing_configured_says_what_to_add() {
+        let err = Vamo::new().fails(&["sync"], 1);
+        assert!(err.contains("[sincronia]"), "{err}");
     }
 }

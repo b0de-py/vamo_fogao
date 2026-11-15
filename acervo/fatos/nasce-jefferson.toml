@@ -1,0 +1,13 @@
+texto = "Nasce Jefferson, em São Vicente, São Paulo: o goleiro que defendeu o Botafogo de 2009 a 2018."
+data = "1983-01-02"
+status = "verificado"
+tags = ["idolo:jefferson"]
+notas = "A ficha técnica do Meu Botafogo diz 03/01/1983, mas o texto da mesma página e a Wikipédia dizem 2 de janeiro."
+
+[[fontes]]
+nome = "Wikipédia em português: Jefferson de Oliveira Galvão"
+url = "https://pt.wikipedia.org/wiki/Jefferson_de_Oliveira_Galv%C3%A3o"
+
+[[fontes]]
+nome = "Meu Botafogo"
+url = "https://meubotafogo.com.br/jogador/jefferson3/"

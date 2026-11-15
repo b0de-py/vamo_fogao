@@ -26,6 +26,16 @@ O código fala inglês e a interface fala português, com a linguagem de jogo li
 | Projeção | `Projection` | O estado das tarefas calculado a partir do log de eventos. |
 | Máquina | `Machine` | O nome do PC onde a mudança aconteceu. |
 | Banco | `Store` | O SQLite onde o log de eventos fica guardado. |
+| Súmula | `DaySummary` | O resumo de um dia que fechou: gols, fixas, o que voltou pro banco e os acréscimos. |
+| Apito final | `DayWindow` | O trecho do relógio que conta como o dia, da meia-noite às 4h seguintes. |
+| Invencibilidade | `Unbeaten` | Os dias seguidos com gol e sem vencida, e o recorde. |
+| Resultado do dia | `Outcome` | Vitória, derrota ou dia sem jogo, pra invencibilidade. |
+| Rodada | `WeekSummary` | O resumo da semana, de segunda a domingo. |
+| Impedimento | `Offside` | Tarefa marcada na agenda fora das regras do tempo. |
+| Backup | `Backup` | O clone git privado por onde as máquinas se juntam. |
+| Troca de camisa | `Renumber` | A tarefa não exportada que troca de número porque outra máquina já tinha o mesmo. |
+| Reforço | `ReinforcementLine` | Tarefa que chega de fora pela branch `vamo-entrada` do backup. |
+| Hábito | `HabitCount` | Quanto de um hábito o habit-tracker registrou, pela porta `Habits`. |
 
 ## Do acervo ao código
 

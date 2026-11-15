@@ -1,0 +1,8 @@
+# Fecha a súmula do dia que acabou (vamo resumo): os gols, o que voltou pro
+# banco e os hábitos, guardados no banco, uma súmula por dia.
+[Unit]
+Description=Súmula do dia do vamo_fogao
+
+[Service]
+Type=oneshot
+ExecStart=%h/.cargo/bin/vamo resumo

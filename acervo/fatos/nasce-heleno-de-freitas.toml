@@ -1,0 +1,12 @@
+texto = "Nasce Heleno de Freitas, em São João Nepomuceno, Minas Gerais: um dos grandes ídolos da história do Botafogo."
+data = "1920-02-12"
+status = "verificado"
+tags = ["idolo:heleno-de-freitas"]
+
+[[fontes]]
+nome = "Terceiro Tempo"
+url = "https://terceirotempo.uol.com.br/noticias/idolo-botafoguense-heleno-de-freitas-completaria-102-anos-neste-sabado"
+
+[[fontes]]
+nome = "Wikipédia em português: Heleno de Freitas"
+url = "https://pt.wikipedia.org/wiki/Heleno_de_Freitas"

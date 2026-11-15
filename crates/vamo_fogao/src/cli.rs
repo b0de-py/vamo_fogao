@@ -39,7 +39,9 @@ Config:
   VAMO_LINGUAGEM ganham da config. Na seção [agenda], ics = \"https://...\"
   é o link secreto da agenda (ou fonte = \"google\", com o vamo compilado
   com a feature google). Na seção [jogos], ics = \"https://...\" é a tabela
-  de jogos do time.
+  de jogos do time. Na seção [habitos], banco e config são os caminhos do
+  banco e da config do habit-tracker, pros hábitos da súmula. Na seção
+  [sincronia], repositorio é o clone do repositório privado de backup.
 
 Variáveis de ambiente:
   VAMO_LINGUAGEM   jogo ou neutra, o mesmo que --linguagem
@@ -222,6 +224,28 @@ pub(crate) enum Command {
         banter: bool,
     },
 
+    /// Fecha a súmula do dia (ou mostra a rodada da semana): gols, banco e hábitos
+    #[command(
+        name = "resumo",
+        override_usage = "vamo resumo [OPÇÕES]",
+        help_template = SUBCOMMAND_HELP_TEMPLATE,
+        next_help_heading = "Opções"
+    )]
+    Summary {
+        /// O dia, como 2026-11-11 (sem ela, o último dia que fechou: o dia
+        /// fecha às 4h do dia seguinte)
+        #[arg(long = "data", value_name = "DATA", value_parser = parse_date)]
+        date: Option<jiff::civil::Date>,
+
+        /// A rodada: o resumo da semana (de segunda a domingo) do dia
+        #[arg(long = "semana")]
+        week: bool,
+
+        /// Sai em JSON, no formato de exportação
+        #[arg(long = "json")]
+        json: bool,
+    },
+
     /// Mostra os compromissos do dia, lidos da agenda
     #[command(
         override_usage = "vamo agenda [OPÇÕES]",
@@ -234,7 +258,7 @@ pub(crate) enum Command {
         date: Option<jiff::civil::Date>,
     },
 
-    /// Lê a agenda e liga os eventos com rodapé vamo: às tarefas
+    /// Junta as máquinas pelo backup e liga a agenda às tarefas
     #[command(
         override_usage = "vamo sync",
         help_template = SUBCOMMAND_HELP_TEMPLATE,

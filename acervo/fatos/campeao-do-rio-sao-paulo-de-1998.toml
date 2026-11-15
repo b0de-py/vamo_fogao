@@ -1,0 +1,12 @@
+texto = "3 x 2 no Morumbi e 2 x 2 no Maracanã: o Botafogo bate o São Paulo na final e é campeão do Rio-São Paulo de 1998."
+data = "1998-03-04"
+status = "verificado"
+tags = ["titulo:rio-sao-paulo", "adversario:sao-paulo"]
+
+[[fontes]]
+nome = "RSSSF Brasil"
+url = "https://rsssfbrasil.com/tablesr/rjsp1998.htm"
+
+[[fontes]]
+nome = "Wikipédia em inglês: 1998 Torneio Rio-São Paulo"
+url = "https://en.wikipedia.org/wiki/1998_Torneio_Rio-S%C3%A3o_Paulo"
