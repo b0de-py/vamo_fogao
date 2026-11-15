@@ -71,6 +71,25 @@ struct Message {
     style: Style,
 }
 
+/// A dica de uma tela, no rodapé, na primeira vez que a tela abre.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Tip {
+    /// De qual tela é a dica.
+    tab: Tab,
+    /// Quando ela some sozinha. `None` até a TUI saber que horas são: quem
+    /// conta o tempo é o laço principal, pelo [`App::wake`].
+    until: Option<Instant>,
+    /// Quantas letras já apareceram: com os efeitos no cheio, a dica entra
+    /// como se fosse digitada.
+    shown: usize,
+}
+
+/// Quanto tempo a dica fica no rodapé quando ninguém aperta nada.
+const TIP_TIME: Duration = Duration::from_secs(6);
+
+/// Quantas letras da dica aparecem a cada passo da animação.
+const TIP_LETTERS_PER_STEP: usize = 3;
+
 /// As abas, na ordem em que aparecem no topo.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Tab {
@@ -140,6 +159,13 @@ pub(crate) struct App {
     card: Option<TaskId>,
     prompt: Option<Prompt>,
     message: Option<Message>,
+    /// A dica da tela, enquanto ela está no rodapé.
+    tip: Option<Tip>,
+    /// As telas que já mostraram a dica: cada uma mostra uma vez só.
+    tipped: Vec<Tab>,
+    /// A hora do último sinal de vida de quem usa, pra dica saber quando
+    /// sumir.
+    last_input: Option<Instant>,
     help: bool,
     quit: bool,
     effects: Effects,
@@ -206,6 +232,14 @@ impl App {
             card: None,
             prompt: None,
             message: None,
+            // A tela que abre primeiro já chega com a dica.
+            tip: Some(Tip {
+                tab: Tab::Today,
+                until: None,
+                shown: 0,
+            }),
+            tipped: vec![Tab::Today],
+            last_input: None,
             help: false,
             quit: false,
             effects: setup.effects,
@@ -236,6 +270,25 @@ impl App {
     /// do mouse e as teclas fazem.
     pub(crate) fn wake(&mut self, now: Instant) {
         self.awake_until = Some(now + IDLE);
+        self.last_input = Some(now);
+        // A dica que chegou antes de a TUI saber a hora começa a contar aqui.
+        if let Some(tip) = &mut self.tip {
+            tip.until.get_or_insert(now + TIP_TIME);
+        }
+    }
+
+    /// A próxima hora em que a tela muda sozinha, sem ninguém mexer: quando
+    /// a dica do rodapé some. Quem roda a TUI acorda nessa hora mesmo com o
+    /// fogo parado.
+    pub(crate) fn deadline(&self) -> Option<Instant> {
+        self.tip.and_then(|tip| tip.until)
+    }
+
+    /// Tira do rodapé a dica que já passou da hora.
+    pub(crate) fn expire(&mut self, now: Instant) {
+        if self.deadline().is_some_and(|until| now >= until) {
+            self.tip = None;
+        }
     }
 
     /// Avisa se a janela ganhou ou perdeu o foco.
@@ -256,6 +309,9 @@ impl App {
     pub(crate) fn tick<L: Ledger>(&mut self, ledger: &L, now: Instant) {
         if !self.animating(now) {
             return;
+        }
+        if let Some(tip) = &mut self.tip {
+            tip.shown = tip.shown.saturating_add(TIP_LETTERS_PER_STEP);
         }
         let (columns, rows) = self.fire_area.get();
         self.fire.resize(columns, rows);
@@ -297,8 +353,9 @@ impl App {
 
     /// Reage a uma tecla.
     pub(crate) fn on_key<L: Ledger>(&mut self, key: KeyEvent, ledger: &mut L) {
-        // A mensagem do rodapé vale até a próxima tecla.
+        // A mensagem e a dica do rodapé valem até a próxima tecla.
         self.message = None;
+        self.tip = None;
         // O ctrl+c fecha de qualquer lugar, como em todo programa de terminal.
         if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
             self.quit = true;
@@ -362,6 +419,15 @@ impl App {
     fn go_to(&mut self, tab: Tab) {
         self.tab = tab;
         self.card = None;
+        // Na primeira visita, a tela chega com a dica dela.
+        if !self.tipped.contains(&tab) {
+            self.tipped.push(tab);
+            self.tip = Some(Tip {
+                tab,
+                until: self.last_input.map(|at| at + TIP_TIME),
+                shown: 0,
+            });
+        }
     }
 
     /// Faz o que a tela pediu.
@@ -508,7 +574,10 @@ impl App {
                 Span::styled("▏", theme::selected()),
             ]),
             (None, Some(message)) => Line::styled(message.text.clone(), message.style),
-            (None, None) => self.hud(ledger, usize::from(footer.width)),
+            (None, None) => match self.tip {
+                Some(tip) => self.tip_line(tip, ledger.projection()),
+                None => self.hud(ledger, usize::from(footer.width)),
+            },
         };
         // O rodapé é uma faixa de vidro de ponta a ponta, como o do site: é
         // onde a brasa é mais clara e as dicas são mais apagadas.
@@ -531,6 +600,20 @@ impl App {
         if shouting {
             self.render_shout(frame, body);
         }
+    }
+
+    /// A dica da tela, no lugar das teclas do rodapé. Com os efeitos no
+    /// cheio, ela entra letra por letra; nos outros níveis, aparece inteira.
+    fn tip_line(&self, tip: Tip, projection: &Projection) -> Line<'static> {
+        let text = self.voice.tip(tip.tab, projection.inbox().len());
+        let text: String = match self.effects {
+            Effects::Full => text.chars().take(tip.shown).collect(),
+            Effects::Light | Effects::Off => text,
+        };
+        Line::from(vec![
+            Span::styled(" ▸ ", theme::selected()),
+            Span::styled(text, theme::soft()),
+        ])
     }
 
     /// O rodapé em repouso: as teclas da tela aberta e o placar do dia.
@@ -819,7 +902,7 @@ pub(crate) mod tests {
     }
 
     pub(crate) fn new_app(voice: Voice) -> App {
-        App::new(
+        let mut app = App::new(
             Setup {
                 voice,
                 acervo: acervo(),
@@ -831,7 +914,24 @@ pub(crate) mod tests {
                 schedule: Schedule::default(),
             },
             today(),
-        )
+        );
+        // Os snapshots mostram o rodapé em repouso. A dica de primeira
+        // visita tem os testes dela.
+        app.tip = None;
+        app.tipped = Tab::ALL.to_vec();
+        app
+    }
+
+    /// Um app como o que abre de verdade: com a dica de primeira visita.
+    fn fresh_app() -> App {
+        let mut app = new_app(Voice::Game);
+        app.tip = Some(Tip {
+            tab: Tab::Today,
+            until: None,
+            shown: 0,
+        });
+        app.tipped = vec![Tab::Today];
+        app
     }
 
     pub(crate) fn ledger() -> MemoryLedger {
@@ -901,6 +1001,77 @@ pub(crate) mod tests {
             });
             app.on_key(key(KeyCode::Tab), &mut ledger);
         }
+    }
+
+    #[test]
+    fn each_screen_shows_its_tip_on_the_first_visit_only() {
+        let mut app = fresh_app();
+        let mut ledger = ledger();
+        let footer = |app: &App, ledger: &MemoryLedger| {
+            let screen = draw(app, ledger, 90, 8);
+            screen.lines().last().map(str::to_owned).unwrap_or_default()
+        };
+        // A Hoje abre com a dica, no lugar das teclas.
+        assert!(
+            footer(&app, &ledger).contains("▸"),
+            "{}",
+            footer(&app, &ledger)
+        );
+        assert!(!footer(&app, &ledger).contains("ajuda"));
+        // A primeira tecla tira a dica, e a tela nova chega com a dela.
+        app.on_key(key(KeyCode::Tab), &mut ledger);
+        let notebook = footer(&app, &ledger);
+        assert!(notebook.contains("▸"), "{notebook}");
+        // De volta à Hoje, que já deu a dica: só as teclas.
+        app.on_key(key(KeyCode::BackTab), &mut ledger);
+        assert!(!footer(&app, &ledger).contains("▸"));
+        assert!(footer(&app, &ledger).contains("ajuda"));
+        // E o Caderno também não repete.
+        app.on_key(key(KeyCode::Tab), &mut ledger);
+        assert!(!footer(&app, &ledger).contains("▸"));
+    }
+
+    #[test]
+    fn the_tip_leaves_by_itself_after_a_while() {
+        let mut app = fresh_app();
+        let now = Instant::now();
+        // Antes de a TUI saber a hora, a dica não tem hora pra sumir.
+        assert_eq!(app.deadline(), None);
+        app.wake(now);
+        assert_eq!(app.deadline(), Some(now + TIP_TIME));
+        // Mexer o mouse acorda o fogo, mas não empurra a dica pra frente.
+        app.wake(now + Duration::from_secs(2));
+        assert_eq!(app.deadline(), Some(now + TIP_TIME));
+
+        app.expire(now + Duration::from_secs(5));
+        assert!(app.tip.is_some());
+        app.expire(now + TIP_TIME);
+        assert_eq!(app.tip, None);
+        assert_eq!(app.deadline(), None);
+    }
+
+    #[test]
+    fn the_tip_types_itself_in_only_with_full_effects() {
+        let mut app = fresh_app();
+        let ledger = ledger();
+        let now = Instant::now();
+        let tip = app.voice.tip(Tab::Today, 0);
+        // Sem efeitos, a dica aparece inteira, sem animar.
+        assert!(draw(&app, &ledger, 90, 18).contains(&tip));
+
+        app.effects = Effects::Full;
+        app.wake(now);
+        assert!(!draw(&app, &ledger, 90, 18).contains(&tip));
+        let steps = tip.chars().count().div_ceil(TIP_LETTERS_PER_STEP);
+        for _ in 0..steps {
+            app.tick(&ledger, now);
+        }
+        assert!(draw(&app, &ledger, 90, 18).contains(&tip));
+
+        // No leve, só o fogo anima: a dica chega pronta.
+        let mut app = fresh_app();
+        app.effects = Effects::Light;
+        assert!(draw(&app, &ledger, 90, 18).contains(&tip));
     }
 
     #[test]

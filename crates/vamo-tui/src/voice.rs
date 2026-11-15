@@ -106,6 +106,33 @@ impl Voice {
         }
     }
 
+    /// A dica de uma tela, no rodapé, na primeira vez que ela abre. `ready`
+    /// é quantas tarefas prontas esperam no banco.
+    pub(crate) fn tip(self, tab: Tab, ready: usize) -> String {
+        match (tab, ready) {
+            (Tab::Today, _) => "A tecla ? mostra tudo o que dá pra fazer em cada tela.".to_owned(),
+            (Tab::Notebook, _) => {
+                "Esta é a lista do dia do jeito que vai pro caderno de papel.".to_owned()
+            }
+            (Tab::Bench, 0) => "A tecla n cria uma tarefa nova.".to_owned(),
+            (Tab::Bench, 1) => self
+                .pick(
+                    "Tem 1 pronta: a tecla e escala a tarefa escolhida pra hoje.",
+                    "Tem 1 pronta: a tecla e marca a tarefa escolhida pra hoje.",
+                )
+                .to_owned(),
+            (Tab::Bench, ready) => match self {
+                Self::Game => {
+                    format!("Tem {ready} prontas: a tecla e escala a escolhida pra hoje.")
+                }
+                Self::Neutral => {
+                    format!("Tem {ready} prontas: a tecla e marca a escolhida pra hoje.")
+                }
+            },
+            (Tab::Museum, _) => "A tecla o troca a ordem: por data ou por tema.".to_owned(),
+        }
+    }
+
     /// As teclas de sempre, no rodapé de toda tela.
     pub(crate) fn always_keys(self) -> [Key; 3] {
         [("?", "ajuda"), ("tab", "telas"), ("q", "sai")]
