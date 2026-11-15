@@ -11,6 +11,7 @@ use vamo_core::{Change, Event, Fit, Status, Task};
 
 use crate::app::{Action, record};
 use crate::bench::task_key;
+use crate::panel::{Panel, Tone};
 use crate::prompt::{Prompt, Purpose};
 use crate::voice::Field;
 use crate::{Ledger, Voice, theme};
@@ -66,6 +67,7 @@ pub(crate) fn render(
     task: &Task,
     events: &[Event],
     zone: &TimeZone,
+    tone: Tone,
     voice: Voice,
 ) {
     let field = |name: &str, value: String| {
@@ -158,7 +160,11 @@ pub(crate) fn render(
             Span::styled(voice.change(&event.change), theme::soft()),
         ]));
     }
-    frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
+    frame.render_widget(Panel::new().tone(tone), area);
+    frame.render_widget(
+        Paragraph::new(lines).wrap(Wrap { trim: false }),
+        Panel::inner(area),
+    );
 }
 
 #[cfg(test)]

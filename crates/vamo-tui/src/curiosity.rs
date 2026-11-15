@@ -4,11 +4,12 @@ use jiff::civil::Date;
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Paragraph, Wrap};
+use ratatui::widgets::{Paragraph, Wrap};
 use vamo_acervo::{
     Banter, Curiosity, Day, Fact, banter_of_the_day, curiosity_of_the_day, matchup_fact,
 };
 
+use crate::panel::Panel;
 use crate::{Voice, theme};
 
 /// O acervo que a TUI mostra.
@@ -56,13 +57,13 @@ pub(crate) fn render(
     };
     // Uma caixa de vidro, como as do site: o fogo passa por trás dela mais
     // escuro do que no resto da tela.
-    let block = Block::bordered()
-        .border_style(theme::line())
-        .title(Line::styled(format!(" {title} "), theme::museum()))
-        .style(theme::surface());
     frame.render_widget(
-        Paragraph::new(lines).block(block).wrap(Wrap { trim: true }),
+        Panel::new().title(Line::styled(title, theme::museum())),
         area,
+    );
+    frame.render_widget(
+        Paragraph::new(lines).wrap(Wrap { trim: true }),
+        Panel::inner(area),
     );
 }
 

@@ -5,10 +5,11 @@ use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
+use ratatui::widgets::{Paragraph, Wrap};
 use vamo_acervo::{Fact, Tag, happened_on};
 
 use crate::curiosity::{Acervo, day};
+use crate::panel::Panel;
 use crate::{Voice, theme};
 
 /// Como o Museu está arrumado.
@@ -215,14 +216,10 @@ impl Museum {
             ],
             _ => Vec::new(),
         };
-        let block = Block::new()
-            .borders(Borders::LEFT)
-            .border_style(theme::line());
+        frame.render_widget(Panel::new(), detail_area);
         frame.render_widget(
-            Paragraph::new(detail)
-                .block(block)
-                .wrap(Wrap { trim: false }),
-            detail_area,
+            Paragraph::new(detail).wrap(Wrap { trim: false }),
+            Panel::inner(detail_area),
         );
     }
 }

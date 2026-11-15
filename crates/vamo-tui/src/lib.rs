@@ -24,6 +24,7 @@ mod ledger;
 mod matchday;
 mod museum;
 mod notebook;
+mod panel;
 mod prompt;
 mod schedule;
 mod star;

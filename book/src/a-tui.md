@@ -123,6 +123,7 @@ A regra acha a janela pela classe `vamo_fogao`, que o terminal recebe na linha d
 
 - **Estado e desenho.** O `App` (`app.rs`) guarda tudo: a aba, os cursores, a Ficha aberta, a linha de digitar, o fogo. As teclas mudam o estado; o `render` desenha o quadro inteiro a partir dele e não muda nada.
 - **Cada tela num módulo.** `today.rs`, `notebook.rs`, `bench.rs`, `card.rs` e `museum.rs` têm o estado da tela (cursor, filtro), as teclas e o desenho. Uma tecla vira uma `Action`: gravar uma mudança, abrir a Ficha, pedir um texto.
+- **A caixa.** Toda caixa (a curiosidade, a ajuda, a Ficha, o detalhe do Museu) é um `Panel` (`panel.rs`): um vidro fumê com colchetes só nos quatro cantos, como os cards do r4ul.com.br. A cor dos cantos conta o estado: apagada no repouso, ciano na caixa em uso e amarelo plasma quando a Ficha é de uma tarefa atrasada. Mudar a cara das caixas é mexer nesse arquivo.
 - **A porta `Ledger`.** A TUI não abre o banco. Ela pede ao core a mudança (`Projection::finish`, `schedule`...) e grava pela trait `Ledger`, que o binário implementa com a mesma sessão da CLI. Nos testes, um log em memória faz esse papel.
 - **O dicionário.** Todo texto de interface sai da `Voice` (`voice.rs`), na linguagem de jogo ou na neutra. A CLI usa o mesmo dicionário.
 - **Os testes.** Cada tela é desenhada num terminal de mentira (o `TestBackend` do ratatui) e comparada com um snapshot do insta. Um teste desenha todas as telas no modo neutro e confere que nenhuma palavra do futebol escapa.

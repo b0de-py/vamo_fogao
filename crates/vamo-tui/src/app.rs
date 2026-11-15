@@ -25,6 +25,7 @@ use crate::curiosity::Acervo;
 use crate::fire::{self, Fire};
 use crate::museum::Museum;
 use crate::notebook::Notebook;
+use crate::panel::{Panel, Tone};
 use crate::prompt::{Prompt, Purpose, Step};
 use crate::schedule::Schedule;
 use crate::star::Star;
@@ -601,7 +602,15 @@ impl App {
             ),
             Tab::Bench => match self.card.and_then(|id| projection.task(id)) {
                 Some(task) => {
-                    card::render(frame, area, &task, ledger.events(), &self.zone, self.voice);
+                    card::render(
+                        frame,
+                        area,
+                        &task,
+                        ledger.events(),
+                        &self.zone,
+                        card_tone(projection, task.id(), self.today),
+                        self.voice,
+                    );
                 }
                 None => self
                     .bench
@@ -635,19 +644,27 @@ impl App {
             .map(Line::width)
             .max()
             .unwrap_or(0)
-            .saturating_add(4);
-        let height = lines.len().saturating_add(2);
+            .saturating_add(Panel::CHROME.0);
+        let height = lines.len().saturating_add(Panel::CHROME.1);
         let popup = centered(area, width, height);
-        let block = Block::bordered()
-            .border_style(theme::line())
-            .title(Line::styled(
-                format!(" {} ", self.voice.help_title()),
-                theme::heading(),
-            ))
-            .style(theme::surface());
+        let panel = Panel::new()
+            .title(Line::styled(self.voice.help_title(), theme::heading()))
+            .tone(Tone::Focus);
         frame.render_widget(Clear, popup);
-        frame.render_widget(Paragraph::new(lines).block(block), popup);
+        frame.render_widget(panel, popup);
+        frame.render_widget(Paragraph::new(lines), Panel::inner(popup));
     }
+}
+
+/// O estado dos cantos da Ficha: amarelo plasma quando a tarefa está
+/// atrasada, ciano nas outras. Quem diz o que é atraso é a escalação do
+/// core, a mesma da tela Hoje.
+fn card_tone(projection: &Projection, id: TaskId, today: Date) -> Tone {
+    let late = Lineup::new(projection, today)
+        .late
+        .iter()
+        .any(|task| task.id() == id);
+    if late { Tone::Alert } else { Tone::Focus }
 }
 
 /// Um retângulo do tamanho pedido no meio de `area`, sem passar dela.
@@ -789,6 +806,19 @@ pub(crate) mod tests {
         // Sem nenhuma sequência ainda, a linha não aparece.
         app.schedule.unbeaten = Some(vamo_core::Unbeaten::default());
         assert!(!draw(&app, &crate::today::tests::example_day(), 100, 18).contains("Invicto"));
+    }
+
+    #[test]
+    fn the_card_of_a_late_task_opens_in_alert() {
+        let ledger = crate::today::tests::example_day();
+        let projection = ledger.projection();
+        let id = |n| TaskId::new(n).expect("os IDs do exemplo começam em 1");
+        // No dia de exemplo, a T-003 foi escalada pra véspera e não saiu.
+        assert_eq!(card_tone(projection, id(3), today()), Tone::Alert);
+        assert_eq!(card_tone(projection, id(2), today()), Tone::Focus);
+        // A que já teve o gol não está atrasada, nem a que não existe.
+        assert_eq!(card_tone(projection, id(1), today()), Tone::Focus);
+        assert_eq!(card_tone(projection, id(99), today()), Tone::Focus);
     }
 
     #[test]
