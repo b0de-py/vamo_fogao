@@ -28,10 +28,10 @@ local VAMO = "special:vamo"
 -- Pra usar também a fonte do r4ul.com.br, instale a Space Mono (no Arch, o
 -- pacote ttf-space-mono-nerd) e troque a linha por:
 --
---   local LETRA = "-o font.size=13 -o 'font.normal.family=\"SpaceMono Nerd Font\"'"
+--   local LETRA = "-o font.size=11 -o 'font.normal.family=\"SpaceMono Nerd Font\"'"
 --
--- No Kitty, o equivalente é `-o font_size=13`; no foot, `-o font=monospace:size=13`.
-local LETRA = "-o font.size=13"
+-- No Kitty, o equivalente é `-o font_size=11`; no foot, `-o font=monospace:size=11`.
+local LETRA = "-o font.size=11"
 
 -- O atalho. No Omarchy, o SUPER + ALT + F já é o "Full width". Antes de
 -- trocar a tecla, confira se a nova está livre: hyprctl binds
