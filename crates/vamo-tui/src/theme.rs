@@ -108,6 +108,12 @@ pub(crate) fn shout() -> Style {
         .add_modifier(Modifier::BOLD)
 }
 
+/// Uma tecla no rodapé: branco em negrito num fundo um tom acima do vidro,
+/// pra parecer a tampa de uma tecla.
+pub(crate) fn keycap() -> Style {
+    Style::new().fg(WHITE).bg(LINE).add_modifier(Modifier::BOLD)
+}
+
 /// O acervo e a resenha.
 pub(crate) fn museum() -> Style {
     Style::new().fg(MAGENTA)

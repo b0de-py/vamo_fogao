@@ -13,6 +13,7 @@ use vamo_core::{Change, Interval, NotebookTitle, TaskId};
 
 use crate::Effects;
 use crate::app::Tab;
+use crate::hud::Key;
 use crate::museum::Shelf;
 use crate::today::Group;
 
@@ -105,11 +106,48 @@ impl Voice {
         }
     }
 
-    /// Os atalhos de sempre, no rodapé.
-    pub(crate) fn hints(self) -> &'static str {
-        match self {
-            Self::Game => "tab troca de tela · ? ajuda · q encerra a partida",
-            Self::Neutral => "tab troca de tela · ? ajuda · q sai",
+    /// As teclas de sempre, no rodapé de toda tela.
+    pub(crate) fn always_keys(self) -> [Key; 3] {
+        [("?", "ajuda"), ("tab", "telas"), ("q", "sai")]
+    }
+
+    /// As teclas da tela aberta, pro rodapé, da mais importante pra menos:
+    /// numa tela estreita, as do fim somem primeiro. A lista completa, com
+    /// a explicação de cada uma, é a da ajuda ([`Voice::help`]).
+    pub(crate) fn keys(self, tab: Tab, card: bool) -> Vec<Key> {
+        let goal = ("␣", self.pick("gol", "conclui"));
+        let pull = ("e", self.pick("escala", "marca"));
+        let back = ("b", self.pick("banco", "lista"));
+        match (tab, card) {
+            (Tab::Today, _) => vec![
+                goal,
+                pull,
+                ("a", "adia"),
+                back,
+                ("r", self.pick("resenha", "piada")),
+            ],
+            (Tab::Notebook, _) => vec![goal],
+            (Tab::Bench, false) => vec![
+                ("enter", "ficha"),
+                ("n", "nova"),
+                ("/", "filtra"),
+                goal,
+                pull,
+                back,
+                ("x", "descarta"),
+            ],
+            (Tab::Bench, true) => vec![
+                ("esc", "volta"),
+                goal,
+                pull,
+                ("t", "título"),
+                ("d", "dia"),
+                ("s", "status"),
+                ("f", "encaixe"),
+                back,
+                ("x", "descarta"),
+            ],
+            (Tab::Museum, _) => vec![("o", "ordena"), ("z", self.pick("resenha", "piadas"))],
         }
     }
 

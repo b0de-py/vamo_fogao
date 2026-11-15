@@ -31,7 +31,7 @@ use crate::schedule::Schedule;
 use crate::star::Star;
 use crate::today::{self, Today};
 use crate::when::parse_day;
-use crate::{Density, Effects, Ledger, Setup, Voice, card, theme};
+use crate::{Density, Effects, Ledger, Setup, Voice, card, hud, theme};
 
 /// O que aconteceu depois de uma ação de quem usa.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -508,7 +508,7 @@ impl App {
                 Span::styled("▏", theme::selected()),
             ]),
             (None, Some(message)) => Line::styled(message.text.clone(), message.style),
-            (None, None) => Line::styled(self.voice.hints(), theme::muted()),
+            (None, None) => self.hud(ledger, usize::from(footer.width)),
         };
         // O rodapé é uma faixa de vidro de ponta a ponta, como o do site: é
         // onde a brasa é mais clara e as dicas são mais apagadas.
@@ -531,6 +531,22 @@ impl App {
         if shouting {
             self.render_shout(frame, body);
         }
+    }
+
+    /// O rodapé em repouso: as teclas da tela aberta e o placar do dia.
+    fn hud<L: Ledger>(&self, ledger: &L, width: usize) -> Line<'static> {
+        // Na Hoje, o placar já está no alto da tela.
+        let score = (self.tab != Tab::Today).then(|| {
+            let lineup = Lineup::new(ledger.projection(), self.today);
+            let score = today::score(&lineup, &self.schedule, ledger.agenda_checks());
+            self.voice.score(score.done, score.planned)
+        });
+        hud::line(
+            &self.voice.keys(self.tab, self.card.is_some()),
+            &self.voice.always_keys(),
+            score.as_deref(),
+            width,
+        )
     }
 
     /// A Estrela Solitária do canto da tela. Só na linguagem de jogo: no
@@ -942,7 +958,7 @@ pub(crate) mod tests {
         assert!(screen.contains('▀'), "{screen}");
         // O fogo passa por trás: o que estava escrito continua escrito.
         assert!(screen.contains("vamo_fogao"), "{screen}");
-        assert!(screen.contains(app.voice.hints()), "{screen}");
+        assert!(screen.contains("ajuda"), "{screen}");
         assert_snapshot!(screen);
     }
 

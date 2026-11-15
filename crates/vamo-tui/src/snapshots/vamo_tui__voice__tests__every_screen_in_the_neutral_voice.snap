@@ -16,7 +16,7 @@ expression: screens
 "  [ ] T-003  Pagar a conta de luz  era pra 10/11         ┃                                        ┃ "
 "                                                         ┗━                                      ━┛ "
 "                                                                                                    "
-"tab troca de tela · ? ajuda · q sai                                                                 "
+"  ␣  conclui   e  marca   a  adia   b  lista   r  piada   ?  ajuda   tab  telas   q  sai            "
 
 ── Hoje com a piada
 " vamo_fogao   1 HOJE  2 Caderno  3 Tarefas  4 Museu                                                 "
@@ -32,7 +32,7 @@ expression: screens
 "  [ ] T-003  Pagar a conta de luz  era pra 10/11         ┃                                        ┃ "
 "                                                         ┗━                                      ━┛ "
 "                                                                                                    "
-"tab troca de tela · ? ajuda · q sai                                                                 "
+"  ␣  conclui   e  marca   a  adia   b  lista   r  piada   ?  ajuda   tab  telas   q  sai            "
 
 ── Caderno
 " vamo_fogao   1 Hoje  2 CADERNO  3 Tarefas  4 Museu                                                 "
@@ -48,7 +48,7 @@ expression: screens
 "                                                                                                    "
 "                                                                                                    "
 "                                                                                                    "
-"tab troca de tela · ? ajuda · q sai                                                                 "
+"  ␣  conclui   ?  ajuda   tab  telas   q  sai                                        Feitas: 1 de 2 "
 
 ── Tarefas
 " vamo_fogao   1 Hoje  2 Caderno  3 TAREFAS  4 Museu                                                 "
@@ -64,7 +64,7 @@ expression: screens
 "                                                                                                    "
 "                                                                                                    "
 "                                                                                                    "
-"tab troca de tela · ? ajuda · q sai                                                                 "
+"  enter  ficha   n  nova   /  filtra   ␣  conclui   e  marca   ?  ajuda   tab  telas   q  sai       "
 
 ── Ficha
 " vamo_fogao   1 Hoje  2 Caderno  3 TAREFAS  4 Museu                                                 "
@@ -80,7 +80,7 @@ expression: screens
 " ┃                                                                                                ┃ "
 " ┗━                                                                                              ━┛ "
 "                                                                                                    "
-"tab troca de tela · ? ajuda · q sai                                                                 "
+"  esc  volta   ␣  conclui   e  marca   t  título   d  dia   ?  ajuda   tab  telas   q  sai          "
 
 ── Museu
 " vamo_fogao   1 Hoje  2 Caderno  3 Tarefas  4 MUSEU                                                 "
@@ -96,7 +96,7 @@ expression: screens
 "                                              ┃  Fontes                                           ┃ "
 "                                              ┗━                                                 ━┛ "
 "                                                                                                    "
-"tab troca de tela · ? ajuda · q sai                                                                 "
+"  o  ordena   z  piadas   ?  ajuda   tab  telas   q  sai                             Feitas: 1 de 2 "
 
 ── Museu por tema
 " vamo_fogao   1 Hoje  2 Caderno  3 Tarefas  4 MUSEU                                                 "
@@ -112,7 +112,7 @@ expression: screens
 "                                              ┃  Fontes                                           ┃ "
 "                                              ┗━                                                 ━┛ "
 "                                                                                                    "
-"tab troca de tela · ? ajuda · q sai                                                                 "
+"  o  ordena   z  piadas   ?  ajuda   tab  telas   q  sai                             Feitas: 1 de 2 "
 
 ── Ajuda
 " vamo_fogao   1 Hoje  2 Caderno  3 Tarefas  4 MUSEU                                                 "
@@ -128,4 +128,4 @@ expression: screens
 "                      ┃ q, ctrl+c       sai                                  ┃                    ┃ "
 "                      ┗━                                                    ━┛                   ━┛ "
 "                                                                                                    "
-"tab troca de tela · ? ajuda · q sai                                                                 "
+"  o  ordena   z  piadas   ?  ajuda   tab  telas   q  sai                             Feitas: 1 de 2 "

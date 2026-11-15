@@ -1989,6 +1989,7 @@ version = "0.1.0"
 dependencies = [
  "insta",
  "jiff",
+ "proptest",
  "ratatui",
  "uuid",
  "vamo-acervo",

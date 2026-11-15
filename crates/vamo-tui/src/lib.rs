@@ -20,6 +20,7 @@ mod bench;
 mod card;
 mod curiosity;
 mod fire;
+mod hud;
 mod ledger;
 mod matchday;
 mod museum;
