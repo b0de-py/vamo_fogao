@@ -2,7 +2,7 @@
 source: crates/vamo-tui/src/card.rs
 expression: "draw(&app, &ledger, 80, 18)"
 ---
-" vamo_fogao   1 Hoje  2 Caderno  3 BANCO  4 Museu                               "
+" vamo_fogao   1 Hoje  2 Caderno  3 BANCO  4 Museu   ▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌"
 "────────────────────────────────━━━━━━━━━───────────────────────────────────────"
 "                                                                                "
 " ┏━                                                                          ━┓ "

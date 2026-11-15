@@ -2,7 +2,7 @@
 source: crates/vamo-tui/src/museum.rs
 expression: screen
 ---
-" vamo_fogao   1 Hoje  2 Caderno  3 Banco  4 MUSEU                                                   "
+" vamo_fogao   1 Hoje  2 Caderno  3 Banco  4 MUSEU   ▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌"
 "─────────────────────────────────────────━━━━━━━━━──────────────────────────────────────────────────"
 "                                                                                                    "
 " Museu · por data (o: por tema · z: resenha)                                                        "

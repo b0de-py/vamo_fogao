@@ -700,7 +700,11 @@ impl App {
             };
             spans.push(span);
         }
+        let used: usize = spans.iter().map(Span::width).sum();
         frame.render_widget(Paragraph::new(Line::from(spans)), tabs_area);
+        if self.voice == Voice::Game {
+            render_stripes(frame, tabs_area, used);
+        }
 
         let width = usize::from(rule_area.width);
         let (start, len) = (current.0.min(width), current.1);
@@ -811,6 +815,42 @@ impl App {
         frame.render_widget(panel, popup);
         frame.render_widget(Paragraph::new(lines), inner);
     }
+}
+
+/// Quantas colunas livres a faixa do topo precisa ter pras listras
+/// entrarem. Com menos, elas só fariam barulho.
+const STRIPES_MIN: u16 = 8;
+
+/// As listras alvinegras, no que sobra da faixa do topo depois das abas.
+///
+/// Cada célula é um meio-bloco `▌`: a metade da esquerda acesa e a da
+/// direita apagada, o que dá listras de pé com meia letra de largura, como
+/// as da camisa. Elas nascem apagadas perto das abas e clareiam até o
+/// branco na borda, pra não disputar com o texto. É só o desenho das
+/// listras: nada de escudo nem de marca do clube.
+fn render_stripes(frame: &mut Frame<'_>, area: Rect, used: usize) {
+    // Duas colunas de respiro depois da última aba.
+    let skip = u16::try_from(used).unwrap_or(u16::MAX).saturating_add(2);
+    let width = area.width.saturating_sub(skip);
+    if width < STRIPES_MIN || area.height == 0 {
+        return;
+    }
+    let spans: Vec<Span<'_>> = (0..width)
+        .map(|step| {
+            // Larguras de terminal cabem com folga num u8 depois da regra de
+            // três: o passo vira um número de 0 a 255.
+            let amount =
+                u8::try_from(u32::from(step) * 255 / u32::from(width - 1)).unwrap_or(u8::MAX);
+            let color = theme::blend(theme::LINE, theme::WHITE, amount, u8::MAX);
+            Span::styled("▌", Style::new().fg(color))
+        })
+        .collect();
+    let stripes = Rect {
+        x: area.x + skip,
+        width,
+        ..area
+    };
+    frame.render_widget(Paragraph::new(Line::from(spans)), stripes);
 }
 
 /// O estado dos cantos da Ficha: amarelo plasma quando a tarefa está
@@ -1125,6 +1165,25 @@ pub(crate) mod tests {
             // A linha escolhida continua marcada, com a barra.
             assert!(draw(&app, &ledger, 100, 12).contains('▌'));
         }
+    }
+
+    #[test]
+    fn the_top_band_wears_the_stripes_only_in_the_game_voice() {
+        let top = |voice, width| {
+            let screen = draw(&new_app(voice), &ledger(), width, 8);
+            screen.lines().next().map(str::to_owned).unwrap_or_default()
+        };
+        let game = top(Voice::Game, 80);
+        // As abas continuam inteiras, e as listras vão até a borda.
+        assert!(
+            game.contains("1 HOJE  2 Caderno  3 Banco  4 Museu  "),
+            "{game}"
+        );
+        assert!(game.trim_end_matches('"').ends_with("▌▌▌▌▌▌▌▌"), "{game}");
+        // No modo neutro, a TUI não fala de futebol nem por desenho.
+        assert!(!top(Voice::Neutral, 80).contains('▌'));
+        // Sem espaço depois das abas, as listras ficam de fora.
+        assert!(!top(Voice::Game, 56).contains('▌'));
     }
 
     #[test]

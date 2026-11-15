@@ -2,7 +2,7 @@
 source: crates/vamo-tui/src/notebook.rs
 expression: screen
 ---
-" vamo_fogao   1 Hoje  2 CADERNO  3 Banco  4 Museu                     "
+" vamo_fogao   1 Hoje  2 CADERNO  3 Banco  4 Museu   ▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌"
 "─────────────────────━━━━━━━━━━━──────────────────────────────────────"
 "                                                                      "
 " Caderno · 11/11                                                      "
