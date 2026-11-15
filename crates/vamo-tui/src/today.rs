@@ -30,8 +30,9 @@ pub(crate) enum Group {
     Planned,
     /// Escalada pra um dia que passou, e não feita.
     Late,
-    /// Compromisso recorrente da agenda, de marcar sem virar tarefa.
-    Agenda,
+    /// A fixa: o compromisso que se repete na agenda, de marcar sem virar
+    /// tarefa. É o único tipo de fixa que a tela mostra.
+    Fixed,
 }
 
 /// Uma linha da escalação: uma tarefa ou uma atividade fixa da agenda.
@@ -45,7 +46,7 @@ impl Row<'_> {
     fn group(self) -> Group {
         match self {
             Self::Task(group, _) => group,
-            Self::Activity(_) => Group::Agenda,
+            Self::Activity(_) => Group::Fixed,
         }
     }
 }
@@ -236,7 +237,7 @@ impl Today {
                 let heading = match group {
                     Group::Planned => theme::heading(),
                     Group::Late => theme::warning(),
-                    Group::Agenda => theme::soft(),
+                    Group::Fixed => theme::soft(),
                 };
                 lines.push(Line::styled(voice.group(group), heading));
                 current = Some(group);

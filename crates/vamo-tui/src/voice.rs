@@ -221,7 +221,7 @@ impl Voice {
             (Self::Game, Group::Planned) => "Escalação",
             (Self::Neutral, Group::Planned) => "Pra hoje",
             (_, Group::Late) => "Atrasadas",
-            (_, Group::Agenda) => "Fixas da agenda",
+            (_, Group::Fixed) => "Fixas",
         }
     }
 

@@ -83,7 +83,7 @@ Os testes de propriedade garantem as três regras que não podem falhar: a brech
 
 ## As atividades fixas
 
-Os compromissos recorrentes da agenda (a caminhada, a reunião diária) aparecem na Hoje num grupo à parte, "Fixas da agenda", como itens de marcar. O título é o apelido da config ou o título inteiro do evento: a fixa não vai pro caderno, então a regra das cinco palavras não vale pra ela. Na tela, o título dos eventos (das fixas e da agenda) usa a largura da coluna e só é cortado, com reticências, quando não cabe.
+Os compromissos recorrentes da agenda (a caminhada, a reunião diária) aparecem na Hoje num grupo à parte, "Fixas", como itens de marcar. É o único tipo de fixa: o que se repete mora na agenda, e o app só lê ([ADR 0014](https://github.com/b0de-py/vamo_fogao/blob/main/docs/adr/0014-recorrencia-mora-na-agenda.md)). O título é o apelido da config ou o título inteiro do evento: a fixa não vai pro caderno, então a regra das cinco palavras não vale pra ela. Na tela, o título dos eventos (das fixas e da agenda) usa a largura da coluna e só é cortado, com reticências, quando não cabe.
 
 Marcar uma delas conta no placar do dia, mas não vira tarefa: a marcação mora numa tabela própria do banco, `agenda_checks`, com a chave dia e UID do evento (migração 0003). O log de eventos é todo de tarefa, e um compromisso que já mora na agenda viraria duplicata a cada sync.
 
