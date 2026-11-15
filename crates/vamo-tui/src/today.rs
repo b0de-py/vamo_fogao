@@ -15,6 +15,7 @@ use crate::app::{Action, Feedback, record};
 use crate::curiosity::{self, Acervo};
 use crate::prompt::{Prompt, Purpose};
 use crate::schedule::{self, Schedule};
+use crate::visual::Look;
 use crate::{Density, Ledger, Voice, bigtext, dayline, meter, theme};
 
 /// Onde está o cursor na escalação.
@@ -158,9 +159,10 @@ impl Today {
         schedule: &Schedule,
         checks: &BTreeSet<(Date, String)>,
         banter: bool,
-        density: Density,
+        look: Look,
         voice: Voice,
     ) {
+        let density = look.density;
         let lineup = Lineup::new(projection, today);
         let [top, rest] =
             Layout::vertical([Constraint::Length(top_height(area)), Constraint::Fill(1)])
@@ -216,9 +218,7 @@ impl Today {
         frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), list);
         if !corner.is_empty() {
             let opponent = schedule.game.as_ref().map(|g| g.game.opponent.as_str());
-            curiosity::render(
-                frame, corner, acervo, today, opponent, banter, density, voice,
-            );
+            curiosity::render(frame, corner, acervo, today, opponent, banter, look, voice);
         }
     }
 

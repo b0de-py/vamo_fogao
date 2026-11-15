@@ -147,6 +147,35 @@ impl FromStr for Density {
     }
 }
 
+/// Quanto de um texto que entra digitado já apareceu: o passo `step` de
+/// `of`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct Reveal {
+    /// Quantos passos já foram.
+    pub(crate) step: u8,
+    /// Quantos passos a digitação leva inteira.
+    pub(crate) of: u8,
+}
+
+impl Reveal {
+    /// Quantas letras de um texto de `len` letras já apareceram. A conta é
+    /// por fração, então um texto comprido e um curto terminam juntos.
+    pub(crate) fn letters(self, len: usize) -> usize {
+        let (step, of) = (usize::from(self.step), usize::from(self.of.max(1)));
+        (len * step.min(of)).div_ceil(of)
+    }
+}
+
+/// As escolhas de visual que valem num quadro, pras telas que desenham.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct Look {
+    /// A densidade que cabe na tela deste quadro.
+    pub(crate) density: Density,
+    /// Com a curiosidade ainda entrando digitada, o quanto dela já
+    /// apareceu. `None` quando ela está inteira.
+    pub(crate) reveal: Option<Reveal>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -167,6 +196,18 @@ mod tests {
         assert!(Effects::Full.animated());
         assert!(Effects::Light.animated());
         assert!(!Effects::Off.animated());
+    }
+
+    #[test]
+    fn a_typed_text_grows_step_by_step_and_ends_whole() {
+        let at = |step| Reveal { step, of: 10 }.letters(95);
+        assert_eq!(at(0), 0);
+        assert_eq!(at(5), 48);
+        assert_eq!(at(10), 95);
+        // Passar do fim não passa do texto.
+        assert_eq!(at(200), 95);
+        // Um texto curto aparece desde o primeiro passo.
+        assert_eq!(Reveal { step: 1, of: 30 }.letters(3), 1);
     }
 
     #[test]

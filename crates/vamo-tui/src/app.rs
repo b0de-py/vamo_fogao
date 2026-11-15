@@ -30,9 +30,10 @@ use crate::prompt::{Prompt, Purpose, Step};
 use crate::schedule::Schedule;
 use crate::star::Star;
 use crate::today::{self, Today};
+use crate::visual::{Look, Reveal};
 use crate::when::parse_day;
 use crate::{
-    Density, Effects, Ledger, Setup, Voice, bigtext, card, constellation, glow, hud, theme,
+    Density, Effects, Ledger, Setup, Voice, bigtext, card, constellation, glitch, glow, hud, theme,
 };
 
 /// O que aconteceu depois de uma ação de quem usa.
@@ -85,6 +86,10 @@ struct Tip {
     /// como se fosse digitada.
     shown: usize,
 }
+
+/// Quantos passos a curiosidade do dia leva pra entrar digitada: com um
+/// passo a cada 40 ms, um segundo.
+const TYPING_STEPS: u8 = 25;
 
 /// Quanto tempo a dica fica no rodapé quando ninguém aperta nada.
 const TIP_TIME: Duration = Duration::from_secs(6);
@@ -189,6 +194,11 @@ pub(crate) struct App {
     flash: u8,
     /// Quantos passos faltam pro brilho da linha escolhida assentar.
     glow: u8,
+    /// Quantos passos faltam pro glitch da troca de tela acabar.
+    glitch: u8,
+    /// Quantos passos faltam pra curiosidade do dia acabar de entrar
+    /// digitada.
+    typing: u8,
 }
 
 /// Se a janela da TUI está à vista, pelo foco que o terminal avisa.
@@ -221,6 +231,7 @@ const FIRE_MIN_HEIGHT: u16 = 16;
 
 impl App {
     pub(crate) fn new(setup: Setup, today: Date) -> Self {
+        let setup_effects = setup.effects;
         Self {
             voice: setup.voice,
             acervo: setup.acervo,
@@ -254,6 +265,12 @@ impl App {
             fire_area: Cell::new((0, 0)),
             flash: 0,
             glow: 0,
+            glitch: 0,
+            // A curiosidade entra digitada quando a TUI abre.
+            typing: match setup_effects {
+                Effects::Full => TYPING_STEPS,
+                Effects::Light | Effects::Off => 0,
+            },
         }
     }
 
@@ -267,9 +284,18 @@ impl App {
     /// alguém mexendo há pouco (ou um gol sendo gritado). Quando não está,
     /// quem roda a TUI só espera um evento e não gasta CPU.
     pub(crate) fn animating(&self, now: Instant) -> bool {
-        let awake =
-            self.flash > 0 || self.glow > 0 || self.awake_until.is_some_and(|until| now < until);
+        let awake = self.flash > 0
+            || self.transition()
+            || self.awake_until.is_some_and(|until| now < until);
         self.animated() && self.window == Window::Visible && awake
+    }
+
+    /// Se algum efeito com hora pra acabar ainda está no meio: o brilho da
+    /// linha escolhida, o glitch da troca de tela ou a curiosidade entrando
+    /// digitada. Enquanto está, a TUI segue animando; quando acaba, pode
+    /// voltar a dormir.
+    fn transition(&self) -> bool {
+        self.glow > 0 || self.glitch > 0 || self.typing > 0
     }
 
     /// Acorda o fogo: alguém mexeu em `now`. No site, é o que o movimento
@@ -320,6 +346,8 @@ impl App {
             tip.shown = tip.shown.saturating_add(TIP_LETTERS_PER_STEP);
         }
         self.glow = self.glow.saturating_sub(1);
+        self.glitch = self.glitch.saturating_sub(1);
+        self.typing = self.typing.saturating_sub(1);
         let (columns, rows) = self.fire_area.get();
         self.fire.resize(columns, rows);
         let score = self.score(ledger);
@@ -409,7 +437,11 @@ impl App {
         match key.code {
             KeyCode::Char('q') => self.quit = true,
             KeyCode::Char('?') => self.help = true,
-            KeyCode::Char('r') => self.banter = !self.banter,
+            KeyCode::Char('r') => {
+                self.banter = !self.banter;
+                // A resenha (ou o fato, na volta) entra digitada.
+                self.type_in();
+            }
             KeyCode::Tab => self.go_to(self.tab.next()),
             KeyCode::BackTab => self.go_to(self.tab.previous()),
             KeyCode::Char(digit @ '1'..='4') => {
@@ -443,6 +475,14 @@ impl App {
 
     /// Troca de aba, fechando a Ficha.
     fn go_to(&mut self, tab: Tab) {
+        // A troca de tela dá um glitch curto, e a Hoje chega com a
+        // curiosidade entrando digitada. Só com os efeitos no cheio.
+        if tab != self.tab && self.effects == Effects::Full {
+            self.glitch = glitch::STEPS;
+        }
+        if tab == Tab::Today {
+            self.type_in();
+        }
         self.tab = tab;
         self.card = None;
         // Na primeira visita, a tela chega com a dica dela.
@@ -453,6 +493,13 @@ impl App {
                 until: self.last_input.map(|at| at + TIP_TIME),
                 shown: 0,
             });
+        }
+    }
+
+    /// Recomeça a digitação da curiosidade do dia, com os efeitos no cheio.
+    fn type_in(&mut self) {
+        if self.effects == Effects::Full {
+            self.typing = TYPING_STEPS;
         }
     }
 
@@ -600,6 +647,7 @@ impl App {
         self.render_header(frame, header);
         self.render_body(frame, body, ledger);
         glow::settle(body, frame.buffer_mut(), self.glow);
+        glitch::apply(body, frame.buffer_mut(), self.glitch);
         let footer_line = match (&self.prompt, &self.message) {
             (Some(prompt), _) => Line::from(vec![
                 Span::styled(prompt.label(self.voice), theme::selected()),
@@ -808,7 +856,13 @@ impl App {
                 &self.schedule,
                 ledger.agenda_checks(),
                 self.banter,
-                density,
+                Look {
+                    density,
+                    reveal: (self.typing > 0).then(|| Reveal {
+                        step: TYPING_STEPS - self.typing,
+                        of: TYPING_STEPS,
+                    }),
+                },
                 self.voice,
             ),
             Tab::Notebook => self.notebook_screen.render(
@@ -1263,6 +1317,66 @@ pub(crate) mod tests {
         assert!(!top(Voice::Neutral, 80).contains('▌'));
         // Sem espaço depois das abas, as listras ficam de fora.
         assert!(!top(Voice::Game, 56).contains('▌'));
+    }
+
+    #[test]
+    fn switching_screens_glitches_for_a_moment_and_then_rests() {
+        let (mut app, mut ledger, now) = burning();
+        app.on_key(key(KeyCode::Tab), &mut ledger);
+        assert_eq!(app.glitch, glitch::STEPS);
+        // No meio do glitch, a tela não é a tela limpa.
+        let glitched = draw(&app, &ledger, 100, 30);
+        let later = now + IDLE + Duration::from_secs(1);
+        assert!(app.animating(later));
+        for _ in 0..glow::STEPS.max(glitch::STEPS) {
+            app.tick(&ledger, later);
+        }
+        assert_eq!(app.glitch, 0);
+        assert_ne!(draw(&app, &ledger, 100, 30), glitched);
+        // Acabou: a TUI volta a dormir.
+        assert!(!app.animating(later));
+        // Ir pra tela em que já se está não dá glitch.
+        app.on_key(key(KeyCode::Char('2')), &mut ledger);
+        assert_eq!(app.glitch, 0);
+    }
+
+    #[test]
+    fn the_curiosity_types_itself_in_and_ends_whole() {
+        let (mut app, mut ledger, now) = burning();
+        let fact = "Uma goleada inventada pros testes.";
+        // A resenha (e o fato, na volta) entra digitada.
+        app.on_key(key(KeyCode::Char('r')), &mut ledger);
+        app.on_key(key(KeyCode::Char('r')), &mut ledger);
+        assert_eq!(app.typing, TYPING_STEPS);
+        assert!(!draw(&app, &ledger, 100, 30).contains(fact));
+        let later = now + IDLE + Duration::from_secs(1);
+        for _ in 0..TYPING_STEPS / 2 {
+            app.tick(&ledger, later);
+        }
+        // No meio do caminho, o começo do texto já chegou.
+        let half = draw(&app, &ledger, 100, 30);
+        assert!(
+            half.contains("Uma goleada") && !half.contains(fact),
+            "{half}"
+        );
+        for _ in 0..TYPING_STEPS {
+            app.tick(&ledger, later);
+        }
+        assert!(draw(&app, &ledger, 100, 30).contains(fact));
+        assert!(!app.animating(later));
+    }
+
+    #[test]
+    fn without_full_effects_nothing_glitches_or_types() {
+        for effects in [Effects::Light, Effects::Off] {
+            let mut app = new_app(Voice::Game);
+            let mut ledger = crate::today::tests::example_day();
+            app.effects = effects;
+            app.on_key(key(KeyCode::Char('r')), &mut ledger);
+            app.on_key(key(KeyCode::Tab), &mut ledger);
+            app.on_key(key(KeyCode::BackTab), &mut ledger);
+            assert_eq!((app.glitch, app.typing), (0, 0), "{effects}");
+        }
     }
 
     #[test]

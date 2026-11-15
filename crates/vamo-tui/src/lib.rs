@@ -23,6 +23,7 @@ mod constellation;
 mod curiosity;
 mod dayline;
 mod fire;
+mod glitch;
 mod glow;
 mod hud;
 mod ledger;
