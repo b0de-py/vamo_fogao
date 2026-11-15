@@ -31,7 +31,7 @@ use crate::schedule::Schedule;
 use crate::star::Star;
 use crate::today::{self, Today};
 use crate::when::parse_day;
-use crate::{Density, Effects, Ledger, Setup, Voice, card, glow, hud, theme};
+use crate::{Density, Effects, Ledger, Setup, Voice, card, constellation, glow, hud, theme};
 
 /// O que aconteceu depois de uma ação de quem usa.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -613,6 +613,10 @@ impl App {
             .set((area.width, if burns { area.height } else { 0 }));
         let shouting = burns && self.flash > 0 && !(self.flash / BLINK_EVERY).is_multiple_of(2);
         let star = self.star(area).map(|star| star.glowing(shouting));
+        // A constelação entra antes do fogo: uma estrelinha por dia invicto.
+        if let (Some(star), Some(unbeaten)) = (&star, self.schedule.unbeaten) {
+            constellation::render(frame.buffer_mut(), area, star, unbeaten.current);
+        }
         if burns || star.is_some() {
             self.fire.underlay(area, frame.buffer_mut(), star.as_ref());
         }

@@ -19,6 +19,7 @@ mod app;
 mod bench;
 mod bigtext;
 mod card;
+mod constellation;
 mod curiosity;
 mod dayline;
 mod fire;
