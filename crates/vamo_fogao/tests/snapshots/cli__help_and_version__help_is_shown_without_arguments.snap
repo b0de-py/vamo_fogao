@@ -10,6 +10,7 @@ Comandos:
   add              Põe uma tarefa nova no banco
   list             Lista as tarefas em jogo (sem as concluídas e as descartadas)
   done             Conclui uma tarefa: gol!
+  jogada           Transforma uma tarefa que já existe em jogada em sequência
   item             Marca (ou desmarca) um item do passo da vez de uma jogada
   espera           Põe a jogada pra esperar algo de fora, ou tira dessa espera
   volta            Define de quanto em quanto tempo uma tarefa volta depois do gol

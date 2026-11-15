@@ -196,6 +196,23 @@ pub(crate) enum Command {
         date: Option<Date>,
     },
 
+    /// Transforma uma tarefa que já existe em jogada em sequência
+    #[command(
+        override_usage = "vamo jogada <ID> --passo <PASSO>...",
+        help_template = SUBCOMMAND_HELP_TEMPLATE,
+        next_help_heading = "Opções"
+    )]
+    Jogada {
+        /// O ID da tarefa, como T-041 ou só 41
+        #[arg(value_name = "ID", value_parser = parse_task_id, help_heading = "Argumentos")]
+        id: TaskId,
+
+        /// Um passo da jogada, em ordem; repita a opção pra cada passo.
+        /// Forma: "Título (@48h ou @pedir) (+ item)..."
+        #[arg(long = "passo", value_name = "PASSO", required = true)]
+        steps: Vec<Step>,
+    },
+
     /// Marca (ou desmarca) um item do passo da vez de uma jogada
     #[command(
         override_usage = "vamo item <ID> <N>",
