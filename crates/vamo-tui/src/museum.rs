@@ -5,11 +5,12 @@ use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
+use ratatui::widgets::{Paragraph, Wrap};
 use vamo_acervo::{Fact, Tag, happened_on};
 
 use crate::curiosity::{Acervo, day};
-use crate::{Voice, theme};
+use crate::panel::Panel;
+use crate::{Density, Voice, theme};
 
 /// Como o Museu está arrumado.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -120,6 +121,7 @@ impl Museum {
         area: Rect,
         acervo: &Acervo,
         today: Date,
+        density: Density,
         voice: Voice,
     ) {
         let [top, rest] =
@@ -168,7 +170,11 @@ impl Museum {
         let mut cursor_line = 0;
         for entry in &entries {
             match entry {
-                Entry::Heading(text) => lines.push(Line::styled(text.clone(), theme::soft())),
+                // O tema e o adversário vêm do acervo e podem ser compridos,
+                // então ganham a cor de rótulo, mas não a caixa-alta espaçada.
+                Entry::Heading(text) => {
+                    lines.push(Line::styled(text.clone(), theme::section()));
+                }
                 Entry::Fact(fact) => {
                     let this_day = today.is_some_and(|today| happened_on(fact, today));
                     let date = fact.date().map(|date| date.to_string()).unwrap_or_default();
@@ -215,15 +221,10 @@ impl Museum {
             ],
             _ => Vec::new(),
         };
-        let block = Block::new()
-            .borders(Borders::LEFT)
-            .border_style(theme::line());
-        frame.render_widget(
-            Paragraph::new(detail)
-                .block(block)
-                .wrap(Wrap { trim: false }),
-            detail_area,
-        );
+        let panel = Panel::new().density(density);
+        let inner = panel.inner(detail_area);
+        frame.render_widget(panel, detail_area);
+        frame.render_widget(Paragraph::new(detail).wrap(Wrap { trim: false }), inner);
     }
 }
 

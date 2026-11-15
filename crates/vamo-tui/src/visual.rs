@@ -89,6 +89,22 @@ impl Density {
     /// As duas densidades.
     pub const ALL: [Self; 2] = [Self::Compact, Self::Comfortable];
 
+    /// A menor tela, em `(colunas, linhas)`, em que a confortável cabe sem
+    /// espremer o conteúdo.
+    pub const ROOMY: (u16, u16) = (100, 30);
+
+    /// A densidade que cabe numa tela de `columns` por `rows`: a escolhida
+    /// quando tem espaço, e a compacta quando a tela é pequena demais pra
+    /// respirar.
+    #[must_use]
+    pub fn fitting(self, columns: u16, rows: u16) -> Self {
+        if columns >= Self::ROOMY.0 && rows >= Self::ROOMY.1 {
+            self
+        } else {
+            Self::Compact
+        }
+    }
+
     /// O nome da densidade na config.
     pub fn name(self) -> &'static str {
         match self {
@@ -151,6 +167,24 @@ mod tests {
         assert!(Effects::Full.animated());
         assert!(Effects::Light.animated());
         assert!(!Effects::Off.animated());
+    }
+
+    #[test]
+    fn a_small_screen_falls_back_to_compact() {
+        let (columns, rows) = Density::ROOMY;
+        assert_eq!(
+            Density::Comfortable.fitting(columns, rows),
+            Density::Comfortable
+        );
+        assert_eq!(
+            Density::Comfortable.fitting(columns - 1, rows),
+            Density::Compact
+        );
+        assert_eq!(
+            Density::Comfortable.fitting(columns, rows - 1),
+            Density::Compact
+        );
+        assert_eq!(Density::Compact.fitting(columns, rows), Density::Compact);
     }
 
     #[test]

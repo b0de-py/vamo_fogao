@@ -12,7 +12,7 @@ use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Borders, Clear, Paragraph};
+use ratatui::widgets::{Block, Clear, Paragraph};
 
 use jiff::civil::Date;
 
@@ -25,12 +25,13 @@ use crate::curiosity::Acervo;
 use crate::fire::{self, Fire};
 use crate::museum::Museum;
 use crate::notebook::Notebook;
+use crate::panel::{Panel, Tone};
 use crate::prompt::{Prompt, Purpose, Step};
 use crate::schedule::Schedule;
 use crate::star::Star;
 use crate::today::{self, Today};
 use crate::when::parse_day;
-use crate::{Effects, Ledger, Setup, Voice, card, theme};
+use crate::{Density, Effects, Ledger, Setup, Voice, card, theme};
 
 /// O que aconteceu depois de uma ação de quem usa.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -142,6 +143,9 @@ pub(crate) struct App {
     help: bool,
     quit: bool,
     effects: Effects,
+    /// A densidade pedida na config. A que vale em cada quadro depende do
+    /// tamanho da tela: veja [`App::density`].
+    density: Density,
     /// Se a janela está à vista. Quando some (outro workspace, outra
     /// janela por cima), o fogo pausa.
     window: Window,
@@ -205,6 +209,7 @@ impl App {
             help: false,
             quit: false,
             effects: setup.effects,
+            density: setup.density,
             window: Window::Visible,
             awake_until: None,
             fire: Fire::new(fire::SEED),
@@ -552,31 +557,59 @@ impl App {
     }
 
     /// O nome do app e as abas, com uma linha embaixo.
+    ///
+    /// A aba da tela atual se destaca de três jeitos, pra não depender só
+    /// de cor: fica em caixa-alta, com o fundo aceso, e o trecho da linha
+    /// embaixo dela engrossa.
     fn render_header(&self, frame: &mut Frame<'_>, area: Rect) {
+        let [tabs_area, rule_area] =
+            Layout::vertical([Constraint::Length(1), Constraint::Length(1)]).areas(area);
         let mut spans = vec![
             Span::styled(" vamo_fogao ", theme::heading()),
             Span::raw(" "),
         ];
+        // Onde a aba atual começa e quanto mede, pra linha de baixo.
+        let mut current = (0, 0);
         for (number, tab) in (1..).zip(Tab::ALL) {
-            let style = if tab == self.tab {
-                theme::selected()
+            let name = self.voice.tab(tab);
+            let span = if tab == self.tab {
+                let label = format!(" {number} {} ", name.to_uppercase());
+                let start: usize = spans.iter().map(Span::width).sum();
+                current = (start, Span::raw(label.as_str()).width());
+                Span::styled(label, theme::cursor())
             } else {
-                theme::muted()
+                Span::styled(format!(" {number} {name} "), theme::muted())
             };
-            spans.push(Span::styled(
-                format!(" {number} {} ", self.voice.tab(tab)),
-                style,
-            ));
+            spans.push(span);
         }
-        let block = Block::new()
-            .borders(Borders::BOTTOM)
-            .border_style(theme::line());
-        frame.render_widget(Paragraph::new(Line::from(spans)).block(block), area);
+        frame.render_widget(Paragraph::new(Line::from(spans)), tabs_area);
+
+        let width = usize::from(rule_area.width);
+        let (start, len) = (current.0.min(width), current.1);
+        let end = (start + len).min(width);
+        let rule = Line::from(vec![
+            Span::styled("─".repeat(start), theme::line()),
+            Span::styled("━".repeat(end - start), theme::selected()),
+            Span::styled("─".repeat(width - end), theme::line()),
+        ]);
+        frame.render_widget(Paragraph::new(rule), rule_area);
+    }
+
+    /// A densidade que vale num quadro de `area`: a da config quando a tela
+    /// tem espaço, e a compacta quando é pequena demais pra respirar.
+    fn density(&self, area: Rect) -> Density {
+        self.density.fitting(area.width, area.height)
     }
 
     /// O miolo da tela atual.
     fn render_body<L: Ledger>(&self, frame: &mut Frame<'_>, area: Rect, ledger: &L) {
-        let area = area.inner(ratatui::layout::Margin::new(1, 1));
+        let density = self.density(frame.area());
+        // A margem dos lados: na confortável, o miolo se afasta da borda.
+        let side = match density {
+            Density::Compact => 1,
+            Density::Comfortable => 3,
+        };
+        let area = area.inner(ratatui::layout::Margin::new(side, 1));
         let projection = ledger.projection();
         match self.tab {
             Tab::Today => self.today_screen.render(
@@ -588,6 +621,7 @@ impl App {
                 &self.schedule,
                 ledger.agenda_checks(),
                 self.banter,
+                density,
                 self.voice,
             ),
             Tab::Notebook => self.notebook_screen.render(
@@ -601,20 +635,36 @@ impl App {
             ),
             Tab::Bench => match self.card.and_then(|id| projection.task(id)) {
                 Some(task) => {
-                    card::render(frame, area, &task, ledger.events(), &self.zone, self.voice);
+                    card::render(
+                        frame,
+                        area,
+                        &task,
+                        ledger.events(),
+                        &self.zone,
+                        Panel::new()
+                            .tone(card_tone(projection, task.id(), self.today))
+                            .density(density),
+                        self.voice,
+                    );
                 }
                 None => self
                     .bench
                     .render(frame, area, projection, self.today, self.voice),
             },
-            Tab::Museum => self
-                .museum
-                .render(frame, area, &self.acervo, self.today, self.voice),
+            Tab::Museum => {
+                self.museum
+                    .render(frame, area, &self.acervo, self.today, density, self.voice);
+            }
         }
     }
 
     /// A ajuda, numa caixa por cima da tela.
     fn render_help(&self, frame: &mut Frame<'_>, area: Rect) {
+        let panel = Panel::new()
+            .title(Line::styled(self.voice.help_title(), theme::heading()))
+            .tone(Tone::Focus)
+            .density(self.density(frame.area()));
+        let chrome = panel.chrome();
         let rows = self.voice.help(self.tab, self.card.is_some(), self.effects);
         let key_width = rows
             .iter()
@@ -635,19 +685,25 @@ impl App {
             .map(Line::width)
             .max()
             .unwrap_or(0)
-            .saturating_add(4);
-        let height = lines.len().saturating_add(2);
+            .saturating_add(chrome.0);
+        let height = lines.len().saturating_add(chrome.1);
         let popup = centered(area, width, height);
-        let block = Block::bordered()
-            .border_style(theme::line())
-            .title(Line::styled(
-                format!(" {} ", self.voice.help_title()),
-                theme::heading(),
-            ))
-            .style(theme::surface());
+        let inner = panel.inner(popup);
         frame.render_widget(Clear, popup);
-        frame.render_widget(Paragraph::new(lines).block(block), popup);
+        frame.render_widget(panel, popup);
+        frame.render_widget(Paragraph::new(lines), inner);
     }
+}
+
+/// O estado dos cantos da Ficha: amarelo plasma quando a tarefa está
+/// atrasada, ciano nas outras. Quem diz o que é atraso é a escalação do
+/// core, a mesma da tela Hoje.
+fn card_tone(projection: &Projection, id: TaskId, today: Date) -> Tone {
+    let late = Lineup::new(projection, today)
+        .late
+        .iter()
+        .any(|task| task.id() == id);
+    if late { Tone::Alert } else { Tone::Focus }
 }
 
 /// Um retângulo do tamanho pedido no meio de `area`, sem passar dela.
@@ -789,6 +845,46 @@ pub(crate) mod tests {
         // Sem nenhuma sequência ainda, a linha não aparece.
         app.schedule.unbeaten = Some(vamo_core::Unbeaten::default());
         assert!(!draw(&app, &crate::today::tests::example_day(), 100, 18).contains("Invicto"));
+    }
+
+    #[test]
+    fn the_card_of_a_late_task_opens_in_alert() {
+        let ledger = crate::today::tests::example_day();
+        let projection = ledger.projection();
+        let id = |n| TaskId::new(n).expect("os IDs do exemplo começam em 1");
+        // No dia de exemplo, a T-003 foi escalada pra véspera e não saiu.
+        assert_eq!(card_tone(projection, id(3), today()), Tone::Alert);
+        assert_eq!(card_tone(projection, id(2), today()), Tone::Focus);
+        // A que já teve o gol não está atrasada, nem a que não existe.
+        assert_eq!(card_tone(projection, id(1), today()), Tone::Focus);
+        assert_eq!(card_tone(projection, id(99), today()), Tone::Focus);
+    }
+
+    #[test]
+    fn the_comfortable_density_gives_the_screen_room_to_breathe() {
+        let mut app = new_app(Voice::Game);
+        let ledger = crate::today::tests::example_day();
+        app.density = Density::Comfortable;
+        assert_snapshot!(draw(&app, &ledger, 110, 30));
+    }
+
+    #[test]
+    fn a_small_terminal_falls_back_to_compact_by_itself() {
+        let mut app = new_app(Voice::Game);
+        let mut ledger = crate::today::tests::example_day();
+        // As quatro telas, numa janela pequena demais pra respirar.
+        for _ in Tab::ALL {
+            app.density = Density::Compact;
+            let compact = draw(&app, &ledger, 99, 30);
+            app.density = Density::Comfortable;
+            assert_eq!(draw(&app, &ledger, 99, 30), compact);
+            // Com espaço, a confortável muda a tela.
+            assert_ne!(draw(&app, &ledger, 100, 30), {
+                app.density = Density::Compact;
+                draw(&app, &ledger, 100, 30)
+            });
+            app.on_key(key(KeyCode::Tab), &mut ledger);
+        }
     }
 
     #[test]

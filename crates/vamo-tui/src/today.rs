@@ -15,7 +15,7 @@ use crate::app::{Action, Feedback, record};
 use crate::curiosity::{self, Acervo};
 use crate::prompt::{Prompt, Purpose};
 use crate::schedule::{self, Schedule};
-use crate::{Ledger, Voice, theme};
+use crate::{Density, Ledger, Voice, theme};
 
 /// Onde está o cursor na escalação.
 #[derive(Debug, Default)]
@@ -158,6 +158,7 @@ impl Today {
         schedule: &Schedule,
         checks: &BTreeSet<(Date, String)>,
         banter: bool,
+        density: Density,
         voice: Voice,
     ) {
         let lineup = Lineup::new(projection, today);
@@ -182,7 +183,7 @@ impl Today {
             }
             None => Vec::new(),
         };
-        lines.extend(self.lines(&lineup, schedule, checks, width, voice));
+        lines.extend(self.lines(&lineup, schedule, checks, width, density, voice));
         lines.extend(schedule.lines(projection, today, width, voice));
         let ready = projection.inbox().len();
         if ready > 0 {
@@ -195,7 +196,12 @@ impl Today {
             let [list, corner] = Layout::horizontal([Constraint::Fill(1), Constraint::Length(42)])
                 .spacing(2)
                 .areas(rest);
-            let [corner] = Layout::vertical([Constraint::Max(10)]).areas(corner);
+            // Na confortável, a caixa cresce o que a margem de dentro come.
+            let height = match density {
+                Density::Compact => 10,
+                Density::Comfortable => 12,
+            };
+            let [corner] = Layout::vertical([Constraint::Max(height)]).areas(corner);
             (list, corner)
         } else if spare >= 5 {
             let [list, corner] =
@@ -208,7 +214,9 @@ impl Today {
         frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), list);
         if !corner.is_empty() {
             let opponent = schedule.game.as_ref().map(|g| g.game.opponent.as_str());
-            curiosity::render(frame, corner, acervo, today, opponent, banter, voice);
+            curiosity::render(
+                frame, corner, acervo, today, opponent, banter, density, voice,
+            );
         }
     }
 
@@ -219,6 +227,7 @@ impl Today {
         schedule: &Schedule,
         checks: &BTreeSet<(Date, String)>,
         width: usize,
+        density: Density,
         voice: Voice,
     ) -> Vec<Line<'static>> {
         let rows = rows(lineup, schedule);
@@ -235,11 +244,18 @@ impl Today {
                     lines.push(Line::default());
                 }
                 let heading = match group {
-                    Group::Planned => theme::heading(),
+                    Group::Planned => theme::section(),
                     Group::Late => theme::warning(),
                     Group::Fixed => theme::soft(),
                 };
-                lines.push(Line::styled(voice.group(group), heading));
+                lines.push(Line::styled(
+                    theme::spaced_caps(voice.group(group)),
+                    heading,
+                ));
+                // Na confortável, o rótulo ganha uma linha de respiro.
+                if density == Density::Comfortable {
+                    lines.push(Line::default());
+                }
                 current = Some(group);
             }
             let cursor = index == cursor;

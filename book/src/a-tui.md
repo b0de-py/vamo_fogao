@@ -78,7 +78,7 @@ densidade = "confortavel"
 A seção `[visual]` é a cara da TUI:
 
 - `efeitos` diz quanto a tela se mexe. `cheio` liga tudo. `leve` deixa só o fogo do fundo, sem cenas nem transições. `nenhum` apaga o fogo e solta o mouse: a TUI só acorda quando chega uma tecla.
-- `densidade` diz quanto a tela respira: `compacta` cola uma linha na outra, e `confortavel` dá margem nas caixas e espaço entre os blocos. Por enquanto a config só guarda a escolha: as telas passam a ler a densidade na tarefa [#105](https://github.com/b0de-py/vamo_fogao/issues/105).
+- `densidade` diz quanto a tela respira: `compacta` cola uma linha na outra, e `confortavel` afasta o miolo das bordas, dobra a margem de dentro das caixas e dá uma linha de respiro embaixo de cada rótulo da Hoje. Numa tela menor que 100 colunas por 30 linhas, a TUI usa a compacta sozinha, pra não cortar conteúdo (`Density::fitting` em `visual.rs`).
 
 Todo efeito pergunta pelo `efeitos` antes de animar (`Effects` em `visual.rs`), então dá pra desligar tudo num lugar só. O `animacao = false` das versões antigas continua valendo como `efeitos = "nenhum"`; quando os dois aparecem, o `efeitos` ganha.
 
@@ -123,6 +123,7 @@ A regra acha a janela pela classe `vamo_fogao`, que o terminal recebe na linha d
 
 - **Estado e desenho.** O `App` (`app.rs`) guarda tudo: a aba, os cursores, a Ficha aberta, a linha de digitar, o fogo. As teclas mudam o estado; o `render` desenha o quadro inteiro a partir dele e não muda nada.
 - **Cada tela num módulo.** `today.rs`, `notebook.rs`, `bench.rs`, `card.rs` e `museum.rs` têm o estado da tela (cursor, filtro), as teclas e o desenho. Uma tecla vira uma `Action`: gravar uma mudança, abrir a Ficha, pedir um texto.
+- **A caixa.** Toda caixa (a curiosidade, a ajuda, a Ficha, o detalhe do Museu) é um `Panel` (`panel.rs`): um vidro fumê com colchetes só nos quatro cantos, como os cards do r4ul.com.br. A cor dos cantos conta o estado: apagada no repouso, ciano na caixa em uso e amarelo plasma quando a Ficha é de uma tarefa atrasada. Mudar a cara das caixas é mexer nesse arquivo.
 - **A porta `Ledger`.** A TUI não abre o banco. Ela pede ao core a mudança (`Projection::finish`, `schedule`...) e grava pela trait `Ledger`, que o binário implementa com a mesma sessão da CLI. Nos testes, um log em memória faz esse papel.
 - **O dicionário.** Todo texto de interface sai da `Voice` (`voice.rs`), na linguagem de jogo ou na neutra. A CLI usa o mesmo dicionário.
 - **Os testes.** Cada tela é desenhada num terminal de mentira (o `TestBackend` do ratatui) e comparada com um snapshot do insta. Um teste desenha todas as telas no modo neutro e confere que nenhuma palavra do futebol escapa.

@@ -11,6 +11,7 @@ use vamo_core::{Change, Event, Fit, Status, Task};
 
 use crate::app::{Action, record};
 use crate::bench::task_key;
+use crate::panel::Panel;
 use crate::prompt::{Prompt, Purpose};
 use crate::voice::Field;
 use crate::{Ledger, Voice, theme};
@@ -66,6 +67,7 @@ pub(crate) fn render(
     task: &Task,
     events: &[Event],
     zone: &TimeZone,
+    panel: Panel<'_>,
     voice: Voice,
 ) {
     let field = |name: &str, value: String| {
@@ -140,7 +142,7 @@ pub(crate) fn render(
     }
 
     lines.push(Line::default());
-    lines.push(Line::styled(voice.history(), theme::heading()));
+    lines.push(theme::section_line(voice.history()));
     let mut history: Vec<&Event> = events
         .iter()
         .filter(|event| event.task == task.id())
@@ -158,7 +160,9 @@ pub(crate) fn render(
             Span::styled(voice.change(&event.change), theme::soft()),
         ]));
     }
-    frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), area);
+    let inner = panel.inner(area);
+    frame.render_widget(panel, area);
+    frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: false }), inner);
 }
 
 #[cfg(test)]

@@ -4,12 +4,13 @@ use jiff::civil::Date;
 use ratatui::Frame;
 use ratatui::layout::Rect;
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Block, Paragraph, Wrap};
+use ratatui::widgets::{Paragraph, Wrap};
 use vamo_acervo::{
     Banter, Curiosity, Day, Fact, banter_of_the_day, curiosity_of_the_day, matchup_fact,
 };
 
-use crate::{Voice, theme};
+use crate::panel::Panel;
+use crate::{Density, Voice, theme};
 
 /// O acervo que a TUI mostra.
 #[derive(Debug, Clone, Default)]
@@ -42,6 +43,7 @@ pub(crate) fn render(
     today: Date,
     opponent: Option<&str>,
     banter: bool,
+    density: Density,
     voice: Voice,
 ) {
     let matchup = |today| {
@@ -56,14 +58,12 @@ pub(crate) fn render(
     };
     // Uma caixa de vidro, como as do site: o fogo passa por trás dela mais
     // escuro do que no resto da tela.
-    let block = Block::bordered()
-        .border_style(theme::line())
-        .title(Line::styled(format!(" {title} "), theme::museum()))
-        .style(theme::surface());
-    frame.render_widget(
-        Paragraph::new(lines).block(block).wrap(Wrap { trim: true }),
-        area,
-    );
+    let panel = Panel::new()
+        .title(Line::styled(title, theme::museum()))
+        .density(density);
+    let inner = panel.inner(area);
+    frame.render_widget(panel, area);
+    frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: true }), inner);
 }
 
 fn curiosity_lines(acervo: &Acervo, today: Day, voice: Voice) -> (String, Vec<Line<'static>>) {
