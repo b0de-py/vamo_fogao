@@ -10,7 +10,8 @@ use vamo_acervo::{
 };
 
 use crate::panel::Panel;
-use crate::{Density, Voice, theme};
+use crate::visual::Look;
+use crate::{Voice, theme};
 
 /// O acervo que a TUI mostra.
 #[derive(Debug, Clone, Default)]
@@ -43,7 +44,7 @@ pub(crate) fn render(
     today: Date,
     opponent: Option<&str>,
     banter: bool,
-    density: Density,
+    look: Look,
     voice: Voice,
 ) {
     let matchup = |today| {
@@ -51,7 +52,7 @@ pub(crate) fn render(
         let fact = matchup_fact(&acervo.facts, opponent, today)?;
         Some((voice.matchup_title(opponent), fact_lines(fact, voice)))
     };
-    let (title, lines) = match day(today) {
+    let (title, mut lines) = match day(today) {
         Some(today) if banter => banter_lines(acervo, today, voice),
         Some(today) => matchup(today).unwrap_or_else(|| curiosity_lines(acervo, today, voice)),
         None => (voice.curiosity_title().to_owned(), Vec::new()),
@@ -60,7 +61,22 @@ pub(crate) fn render(
     // escuro do que no resto da tela.
     let panel = Panel::new()
         .title(Line::styled(title, theme::museum()))
-        .density(density);
+        .density(look.density);
+    // Enquanto a curiosidade entra digitada, a primeira linha (o texto do
+    // fato ou da resenha) mostra só as letras que já chegaram.
+    if let (Some(reveal), Some(first)) = (look.reveal, lines.first_mut()) {
+        let text: String = first
+            .spans
+            .iter()
+            .map(|span| span.content.as_ref())
+            .collect();
+        let shown = reveal.letters(text.chars().count());
+        let style = first
+            .spans
+            .first()
+            .map_or(first.style, |span| span.style.patch(first.style));
+        *first = Line::styled(text.chars().take(shown).collect::<String>(), style);
+    }
     let inner = panel.inner(area);
     frame.render_widget(panel, area);
     frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: true }), inner);

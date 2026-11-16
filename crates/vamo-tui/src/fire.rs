@@ -67,6 +67,53 @@ const BLAST: usize = 7;
 /// e o quadro da curiosidade.
 const BRIDGE: usize = 20;
 
+/// O vento do fogo, que muda com o momento do dia.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) enum Wind {
+    /// O vento do site: a chama balança um pouco pros dois lados. É o dia
+    /// comum.
+    #[default]
+    Breeze,
+    /// Sem vento: a chama sobe reta e parada. É o dia com tarefa atrasada.
+    Still,
+    /// Vento forte: a chama deita pra esquerda. É o dia de jogo.
+    Gale,
+}
+
+impl Wind {
+    /// O vento do momento: forte em dia de jogo, parado com atraso e o de
+    /// sempre nos outros dias. O jogo ganha do atraso.
+    pub(crate) fn of(game_day: bool, late: bool) -> Self {
+        match (game_day, late) {
+            (true, _) => Self::Gale,
+            (false, true) => Self::Still,
+            (false, false) => Self::Breeze,
+        }
+    }
+}
+
+/// Quanto da brasa sobra quando tem tarefa atrasada.
+const LATE_EMBERS: f64 = 0.6;
+
+/// A altura mínima da brasa em dia de jogo, mesmo com o placar zerado.
+const GAME_DAY_EMBERS: f64 = 0.4;
+
+/// A força da brasa no momento, de 0 a 1, a partir do placar do dia
+/// (`score`, as feitas sobre as previstas).
+///
+/// Com tarefa atrasada, a brasa baixa: o fogo fica mais tímido até o atraso
+/// sair. Em dia de jogo, ela já começa alta e o placar faz o resto.
+pub(crate) fn embers(score: f64, game_day: bool, late: bool) -> f64 {
+    let mut strength = score.clamp(0.0, 1.0);
+    if late {
+        strength *= LATE_EMBERS;
+    }
+    if game_day {
+        strength = GAME_DAY_EMBERS + (1.0 - GAME_DAY_EMBERS) * strength;
+    }
+    strength
+}
+
 /// O fogo: uma grade de calor, de 0 (apagado) a [`HOTTEST`].
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct Fire {
@@ -77,6 +124,8 @@ pub(crate) struct Fire {
     heat: Vec<u8>,
     /// O estado do gerador de acaso.
     state: u64,
+    /// O vento do momento.
+    wind: Wind,
 }
 
 impl Fire {
@@ -87,7 +136,14 @@ impl Fire {
             height: 0,
             heat: Vec::new(),
             state: seed,
+            wind: Wind::default(),
         }
+    }
+
+    /// Troca o vento. O calor que já está na tela continua: só as próximas
+    /// chamas sobem com o vento novo.
+    pub(crate) fn set_wind(&mut self, wind: Wind) {
+        self.wind = wind;
     }
 
     /// Ajusta o tamanho do fogo ao da área, em células do terminal. Com o
@@ -139,9 +195,18 @@ impl Fire {
                 let index = y * self.width + x;
                 let random = self.next();
                 let loss = u8::try_from(random % losses).unwrap_or(0);
-                // O vento: uma célula pra direita, nenhuma ou uma pra
-                // esquerda. Na beirada, a chama dá a volta pra linha vizinha.
-                let wind = usize::try_from((random >> 8) % 3).unwrap_or(1);
+                // O vento: uma célula pra direita (0), nenhuma (1) ou uma
+                // pra esquerda (2). Na beirada, a chama dá a volta pra linha
+                // vizinha. Os três ventos gastam o mesmo sorteio, então
+                // trocar de vento não muda o resto do acaso.
+                let roll = (random >> 8) % 4;
+                let wind = match self.wind {
+                    // O do site: as três direções com a mesma chance.
+                    Wind::Breeze => usize::try_from((random >> 8) % 3).unwrap_or(1),
+                    Wind::Still => 1,
+                    // Metade das vezes pra esquerda.
+                    Wind::Gale => usize::try_from(roll.min(2)).unwrap_or(1),
+                };
                 let Some(target) = (index + 1).checked_sub(wind) else {
                     continue;
                 };
@@ -458,6 +523,77 @@ mod tests {
             other.step(0.5);
         }
         assert_ne!(burnt(0.5, 40), other);
+    }
+
+    /// O mesmo fogo de [`burnt`], com o vento dado.
+    fn blown(wind: Wind) -> Fire {
+        let mut fire = Fire::new(SEED);
+        fire.set_wind(wind);
+        fire.resize(24, 12);
+        for _ in 0..40 {
+            fire.step(0.6);
+        }
+        fire
+    }
+
+    /// Em que coluna, na média, está o calor das chamas (fora a brasa).
+    fn lean(fire: &Fire) -> f64 {
+        let (mut weight, mut total) = (0.0, 0.0);
+        for (index, &heat) in fire.heat.iter().enumerate() {
+            if heat == HOTTEST {
+                continue;
+            }
+            #[expect(clippy::cast_precision_loss, reason = "colunas de um fogo de teste")]
+            let column = (index % fire.width) as f64;
+            weight += column * f64::from(heat);
+            total += f64::from(heat);
+        }
+        weight / total
+    }
+
+    #[test]
+    fn the_breeze_is_the_fire_of_always() {
+        // O vento padrão não muda nada: é o fogo de antes, célula por célula.
+        assert_eq!(blown(Wind::Breeze), burnt(0.6, 40));
+    }
+
+    #[test]
+    fn each_wind_burns_its_own_way_and_always_the_same() {
+        for wind in [Wind::Still, Wind::Gale] {
+            assert_eq!(blown(wind), blown(wind), "{wind:?}");
+            assert_ne!(blown(wind).heat, blown(Wind::Breeze).heat, "{wind:?}");
+        }
+        assert_snapshot!("the_still_fire", picture(&blown(Wind::Still)));
+        assert_snapshot!("the_gale_fire", picture(&blown(Wind::Gale)));
+    }
+
+    #[test]
+    fn the_gale_lays_the_flames_to_the_left() {
+        assert!(lean(&blown(Wind::Gale)) < lean(&blown(Wind::Still)));
+    }
+
+    #[test]
+    fn the_wind_follows_the_day() {
+        assert_eq!(Wind::of(false, false), Wind::Breeze);
+        assert_eq!(Wind::of(false, true), Wind::Still);
+        // O jogo ganha do atraso.
+        assert_eq!(Wind::of(true, false), Wind::Gale);
+        assert_eq!(Wind::of(true, true), Wind::Gale);
+    }
+
+    #[test]
+    fn the_embers_follow_the_day() {
+        let close = |a: f64, b: f64| (a - b).abs() < 1e-9;
+        // No dia comum, a brasa é o placar.
+        assert!(close(embers(0.5, false, false), 0.5));
+        // Com atraso, ela baixa.
+        assert!(close(embers(0.5, false, true), 0.3));
+        // Em dia de jogo, já começa alta, e o placar fechado dá o máximo.
+        assert!(close(embers(0.0, true, false), GAME_DAY_EMBERS));
+        assert!(close(embers(1.0, true, false), 1.0));
+        // Nunca sai de 0 a 1.
+        assert!(close(embers(7.0, true, true), embers(1.0, true, true)));
+        assert!(embers(1.0, true, true) <= 1.0);
     }
 
     #[test]

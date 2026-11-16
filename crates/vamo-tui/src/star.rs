@@ -60,6 +60,16 @@ impl Star {
         })
     }
 
+    /// O centro da estrela, em células do fogo: `(coluna, linha)`.
+    pub(crate) fn center(&self) -> (f64, f64) {
+        (self.center_x, self.center_y)
+    }
+
+    /// O raio das pontas, em células do fogo.
+    pub(crate) fn radius(&self) -> f64 {
+        self.radius
+    }
+
     /// A mesma estrela, acesa no máximo ou não.
     pub(crate) fn glowing(self, glowing: bool) -> Self {
         Self { glowing, ..self }

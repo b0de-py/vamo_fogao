@@ -30,8 +30,11 @@ use crate::prompt::{Prompt, Purpose, Step};
 use crate::schedule::Schedule;
 use crate::star::Star;
 use crate::today::{self, Today};
+use crate::visual::{Look, Reveal};
 use crate::when::parse_day;
-use crate::{Density, Effects, Ledger, Setup, Voice, card, glow, hud, theme};
+use crate::{
+    Density, Effects, Ledger, Setup, Voice, bigtext, card, constellation, glitch, glow, hud, theme,
+};
 
 /// O que aconteceu depois de uma ação de quem usa.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -83,6 +86,14 @@ struct Tip {
     /// como se fosse digitada.
     shown: usize,
 }
+
+/// Quantos passos a curiosidade do dia leva pra entrar digitada: com um
+/// passo a cada 40 ms, um segundo.
+const TYPING_STEPS: u8 = 25;
+
+/// Quantos passos dura a cena de abertura: com um passo a cada 40 ms, um
+/// pouco menos de um segundo.
+const INTRO_STEPS: u8 = 22;
 
 /// Quanto tempo a dica fica no rodapé quando ninguém aperta nada.
 const TIP_TIME: Duration = Duration::from_secs(6);
@@ -187,6 +198,13 @@ pub(crate) struct App {
     flash: u8,
     /// Quantos passos faltam pro brilho da linha escolhida assentar.
     glow: u8,
+    /// Quantos passos faltam pro glitch da troca de tela acabar.
+    glitch: u8,
+    /// Quantos passos faltam pra curiosidade do dia acabar de entrar
+    /// digitada.
+    typing: u8,
+    /// Quantos passos faltam pra cena de abertura acabar.
+    intro: u8,
 }
 
 /// Se a janela da TUI está à vista, pelo foco que o terminal avisa.
@@ -219,6 +237,7 @@ const FIRE_MIN_HEIGHT: u16 = 16;
 
 impl App {
     pub(crate) fn new(setup: Setup, today: Date) -> Self {
+        let setup_effects = setup.effects;
         Self {
             voice: setup.voice,
             acervo: setup.acervo,
@@ -252,6 +271,17 @@ impl App {
             fire_area: Cell::new((0, 0)),
             flash: 0,
             glow: 0,
+            glitch: 0,
+            // A curiosidade entra digitada quando a TUI abre.
+            typing: match setup_effects {
+                Effects::Full => TYPING_STEPS,
+                Effects::Light | Effects::Off => 0,
+            },
+            // A TUI abre com a cena de abertura.
+            intro: match setup_effects {
+                Effects::Full => INTRO_STEPS,
+                Effects::Light | Effects::Off => 0,
+            },
         }
     }
 
@@ -265,9 +295,18 @@ impl App {
     /// alguém mexendo há pouco (ou um gol sendo gritado). Quando não está,
     /// quem roda a TUI só espera um evento e não gasta CPU.
     pub(crate) fn animating(&self, now: Instant) -> bool {
-        let awake =
-            self.flash > 0 || self.glow > 0 || self.awake_until.is_some_and(|until| now < until);
+        let awake = self.flash > 0
+            || self.transition()
+            || self.awake_until.is_some_and(|until| now < until);
         self.animated() && self.window == Window::Visible && awake
+    }
+
+    /// Se algum efeito com hora pra acabar ainda está no meio: o brilho da
+    /// linha escolhida, o glitch da troca de tela ou a curiosidade entrando
+    /// digitada. Enquanto está, a TUI segue animando; quando acaba, pode
+    /// voltar a dormir.
+    fn transition(&self) -> bool {
+        self.glow > 0 || self.glitch > 0 || self.typing > 0 || self.intro > 0
     }
 
     /// Acorda o fogo: alguém mexeu em `now`. No site, é o que o movimento
@@ -318,25 +357,47 @@ impl App {
             tip.shown = tip.shown.saturating_add(TIP_LETTERS_PER_STEP);
         }
         self.glow = self.glow.saturating_sub(1);
+        self.glitch = self.glitch.saturating_sub(1);
+        if self.intro > 0 {
+            // Na abertura, a tela ainda não apareceu: a curiosidade espera
+            // pra começar a ser digitada.
+            self.intro -= 1;
+        } else {
+            self.typing = self.typing.saturating_sub(1);
+        }
         let (columns, rows) = self.fire_area.get();
         self.fire.resize(columns, rows);
-        let strength = if self.flash > 0 {
-            if self.flash.is_multiple_of(FIREWORK_EVERY) {
+        let score = self.score(ledger);
+        // O momento do dia muda o fogo: em dia de jogo ele sobe e deita com
+        // o vento; com tarefa atrasada, baixa e fica parado.
+        let game_day = self.schedule.game.is_some();
+        let late = !Lineup::new(ledger.projection(), self.today).late.is_empty();
+        let strength = if self.intro > 0 {
+            // Na abertura, o fogo sobe com tudo.
+            1.0
+        } else if self.flash > 0 {
+            // No gol de placa, os foguetes estouram duas vezes mais.
+            let every = if closed(score) {
+                FIREWORK_EVERY / 2
+            } else {
+                FIREWORK_EVERY
+            };
+            if self.flash.is_multiple_of(every) {
                 self.fire.burst();
             }
             self.flash -= 1;
             1.0
         } else {
-            let lineup = Lineup::new(ledger.projection(), self.today);
-            let score = today::score(&lineup, &self.schedule, ledger.agenda_checks());
-            if score.planned == 0 {
+            let ratio = if score.planned == 0 {
                 0.0
             } else {
                 // Contagens de tarefa do dia cabem com folga num u32.
                 f64::from(u32::try_from(score.done).unwrap_or(u32::MAX))
                     / f64::from(u32::try_from(score.planned).unwrap_or(u32::MAX))
-            }
+            };
+            fire::embers(ratio, game_day, late)
         };
+        self.fire.set_wind(fire::Wind::of(game_day, late));
         self.fire.step(strength);
     }
 
@@ -361,6 +422,11 @@ impl App {
         // A mensagem e a dica do rodapé valem até a próxima tecla.
         self.message = None;
         self.tip = None;
+        // Qualquer tecla pula a cena do gol. A tecla não se perde: ela segue
+        // adiante e faz o que sempre faz.
+        self.flash = 0;
+        // A cena de abertura também.
+        self.intro = 0;
         // O ctrl+c fecha de qualquer lugar, como em todo programa de terminal.
         if key.modifiers.contains(KeyModifiers::CONTROL) && key.code == KeyCode::Char('c') {
             self.quit = true;
@@ -401,7 +467,11 @@ impl App {
         match key.code {
             KeyCode::Char('q') => self.quit = true,
             KeyCode::Char('?') => self.help = true,
-            KeyCode::Char('r') => self.banter = !self.banter,
+            KeyCode::Char('r') => {
+                self.banter = !self.banter;
+                // A resenha (ou o fato, na volta) entra digitada.
+                self.type_in();
+            }
             KeyCode::Tab => self.go_to(self.tab.next()),
             KeyCode::BackTab => self.go_to(self.tab.previous()),
             KeyCode::Char(digit @ '1'..='4') => {
@@ -435,6 +505,14 @@ impl App {
 
     /// Troca de aba, fechando a Ficha.
     fn go_to(&mut self, tab: Tab) {
+        // A troca de tela dá um glitch curto, e a Hoje chega com a
+        // curiosidade entrando digitada. Só com os efeitos no cheio.
+        if tab != self.tab && self.effects == Effects::Full {
+            self.glitch = glitch::STEPS;
+        }
+        if tab == Tab::Today {
+            self.type_in();
+        }
         self.tab = tab;
         self.card = None;
         // Na primeira visita, a tela chega com a dica dela.
@@ -445,6 +523,13 @@ impl App {
                 until: self.last_input.map(|at| at + TIP_TIME),
                 shown: 0,
             });
+        }
+    }
+
+    /// Recomeça a digitação da curiosidade do dia, com os efeitos no cheio.
+    fn type_in(&mut self) {
+        if self.effects == Effects::Full {
+            self.typing = TYPING_STEPS;
         }
     }
 
@@ -554,7 +639,13 @@ impl App {
         self.message = match feedback {
             None | Some(Feedback::Done) => None,
             Some(Feedback::Goal(id)) => {
-                self.flash = FLASH_STEPS;
+                // A cena inteira com os efeitos no cheio; no leve, um grito
+                // curto; sem efeitos, só a mensagem do rodapé.
+                self.flash = match self.effects {
+                    Effects::Full => FLASH_STEPS,
+                    Effects::Light => FLASH_STEPS / 3,
+                    Effects::Off => 0,
+                };
                 projection.task(id).map(|task| Message {
                     text: self.voice.goal(id, task.title()),
                     style: theme::success(),
@@ -575,6 +666,9 @@ impl App {
     pub(crate) fn render<L: Ledger>(&self, frame: &mut Frame<'_>, ledger: &L) {
         let area = frame.area();
         frame.render_widget(Block::new().style(theme::base()), area);
+        if self.intro > 0 && self.render_intro(frame, area) {
+            return;
+        }
 
         let [header, body, footer] = Layout::vertical([
             Constraint::Length(2),
@@ -586,6 +680,7 @@ impl App {
         self.render_header(frame, header);
         self.render_body(frame, body, ledger);
         glow::settle(body, frame.buffer_mut(), self.glow);
+        glitch::apply(body, frame.buffer_mut(), self.glitch);
         let footer_line = match (&self.prompt, &self.message) {
             (Some(prompt), _) => Line::from(vec![
                 Span::styled(prompt.label(self.voice), theme::selected()),
@@ -613,12 +708,103 @@ impl App {
             .set((area.width, if burns { area.height } else { 0 }));
         let shouting = burns && self.flash > 0 && !(self.flash / BLINK_EVERY).is_multiple_of(2);
         let star = self.star(area).map(|star| star.glowing(shouting));
+        // A constelação entra antes do fogo: uma estrelinha por dia invicto.
+        if let (Some(star), Some(unbeaten)) = (&star, self.schedule.unbeaten) {
+            constellation::render(frame.buffer_mut(), area, star, unbeaten.current);
+        }
         if burns || star.is_some() {
             self.fire.underlay(area, frame.buffer_mut(), star.as_ref());
         }
-        if shouting {
+        // A cena do gol fica por cima do fogo. Com os efeitos no cheio, é a
+        // cena de gala; no leve, o grito curto de antes.
+        if burns && self.flash > 0 && self.effects == Effects::Full {
+            self.render_goal_scene(frame, body, closed(self.score(ledger)), shouting);
+        } else if shouting {
             self.render_shout(frame, body);
         }
+    }
+
+    /// A cena de abertura: o fogo sobe, o nome do app aparece letra por
+    /// letra em letra de bloco e a estrela acende. Devolve `false`, sem
+    /// desenhar, quando a tela é pequena demais pra cena: aí a TUI abre
+    /// direto.
+    fn render_intro(&self, frame: &mut Frame<'_>, area: Rect) -> bool {
+        const NAME: &str = "VAMO_FOGAO";
+        let width = u16::try_from(bigtext::width(NAME)).unwrap_or(u16::MAX);
+        if area.width < width + 4 || area.height < FIRE_MIN_HEIGHT {
+            return false;
+        }
+        // O nome fica inteiro na metade da cena; a outra metade é dele
+        // parado, com a estrela acesa.
+        let done = INTRO_STEPS - self.intro;
+        let letters = Reveal {
+            step: done,
+            of: INTRO_STEPS / 2,
+        }
+        .letters(NAME.chars().count());
+        let shown: String = NAME.chars().take(letters).collect();
+        let lines: Vec<Line<'_>> = bigtext::rows(&shown)
+            .into_iter()
+            .map(|row| Line::styled(row, theme::heading()))
+            .collect();
+        let name = Rect {
+            x: area.x + (area.width - width) / 2,
+            y: area.y + area.height.saturating_sub(bigtext::HEIGHT) / 2,
+            width,
+            height: bigtext::HEIGHT,
+        };
+        frame.render_widget(Paragraph::new(lines), name);
+
+        self.fire_area.set((area.width, area.height));
+        // A estrela acende quando o nome fica inteiro.
+        let star = self
+            .star(area)
+            .map(|star| star.glowing(done >= INTRO_STEPS / 2));
+        self.fire.underlay(area, frame.buffer_mut(), star.as_ref());
+        true
+    }
+
+    /// O placar do dia, com as fixas marcadas.
+    fn score<L: Ledger>(&self, ledger: &L) -> vamo_core::Score {
+        let lineup = Lineup::new(ledger.projection(), self.today);
+        today::score(&lineup, &self.schedule, ledger.agenda_checks())
+    }
+
+    /// A cena do gol: o grito em letra de bloco e a frase do narrador, numa
+    /// caixa no meio da tela. Quando o gol fecha o placar do dia (`closed`),
+    /// é o gol de placa, com o grito mais comprido. As letras piscam entre
+    /// o branco e o ciano no ritmo de `blink`.
+    fn render_goal_scene(&self, frame: &mut Frame<'_>, area: Rect, closed: bool, blink: bool) {
+        let shout = self.voice.goal_big(closed);
+        let line = self.voice.goal_line(closed);
+        let panel = Panel::new().tone(Tone::Focus);
+        let chrome = panel.chrome();
+        let width = bigtext::width(shout).max(Span::raw(line).width()) + chrome.0 + 2;
+        // As três linhas do grito, uma de respiro e a frase.
+        let height = usize::from(bigtext::HEIGHT) + 2 + chrome.1;
+        let popup = centered(area, width, height);
+        if usize::from(popup.width) < width || usize::from(popup.height) < height {
+            // Não cabe: fica o grito curto, que cabe em qualquer tela.
+            if blink {
+                self.render_shout(frame, area);
+            }
+            return;
+        }
+        let style = if blink {
+            theme::heading()
+        } else {
+            theme::selected()
+        };
+        let mut lines: Vec<Line<'_>> = bigtext::rows(shout)
+            .into_iter()
+            .map(|row| Line::styled(row, style))
+            .collect();
+        lines.push(Line::default());
+        lines.push(Line::styled(line, theme::soft()));
+        let inner = panel.inner(popup);
+        frame.render_widget(Clear, popup);
+        frame.render_widget(panel, popup);
+        frame.render_widget(Paragraph::new(lines).centered(), inner);
     }
 
     /// A dica da tela, no lugar das teclas do rodapé. Com os efeitos no
@@ -743,7 +929,13 @@ impl App {
                 &self.schedule,
                 ledger.agenda_checks(),
                 self.banter,
-                density,
+                Look {
+                    density,
+                    reveal: (self.typing > 0).then(|| Reveal {
+                        step: TYPING_STEPS - self.typing,
+                        of: TYPING_STEPS,
+                    }),
+                },
                 self.voice,
             ),
             Tab::Notebook => self.notebook_screen.render(
@@ -851,6 +1043,11 @@ fn render_stripes(frame: &mut Frame<'_>, area: Rect, used: usize) {
         ..area
     };
     frame.render_widget(Paragraph::new(Line::from(spans)), stripes);
+}
+
+/// Se o placar do dia está fechado: tem o que fazer e está tudo feito.
+fn closed(score: vamo_core::Score) -> bool {
+    score.planned > 0 && score.done == score.planned
 }
 
 /// O estado dos cantos da Ficha: amarelo plasma quando a tarefa está
@@ -1196,6 +1393,141 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn switching_screens_glitches_for_a_moment_and_then_rests() {
+        let (mut app, mut ledger, now) = burning();
+        app.on_key(key(KeyCode::Tab), &mut ledger);
+        assert_eq!(app.glitch, glitch::STEPS);
+        // No meio do glitch, a tela não é a tela limpa.
+        let glitched = draw(&app, &ledger, 100, 30);
+        let later = now + IDLE + Duration::from_secs(1);
+        assert!(app.animating(later));
+        for _ in 0..glow::STEPS.max(glitch::STEPS) {
+            app.tick(&ledger, later);
+        }
+        assert_eq!(app.glitch, 0);
+        assert_ne!(draw(&app, &ledger, 100, 30), glitched);
+        // Acabou: a TUI volta a dormir.
+        assert!(!app.animating(later));
+        // Ir pra tela em que já se está não dá glitch.
+        app.on_key(key(KeyCode::Char('2')), &mut ledger);
+        assert_eq!(app.glitch, 0);
+    }
+
+    #[test]
+    fn the_curiosity_types_itself_in_and_ends_whole() {
+        let (mut app, mut ledger, now) = burning();
+        let fact = "Uma goleada inventada pros testes.";
+        // A resenha (e o fato, na volta) entra digitada.
+        app.on_key(key(KeyCode::Char('r')), &mut ledger);
+        app.on_key(key(KeyCode::Char('r')), &mut ledger);
+        assert_eq!(app.typing, TYPING_STEPS);
+        assert!(!draw(&app, &ledger, 100, 30).contains(fact));
+        let later = now + IDLE + Duration::from_secs(1);
+        for _ in 0..TYPING_STEPS / 2 {
+            app.tick(&ledger, later);
+        }
+        // No meio do caminho, o começo do texto já chegou.
+        let half = draw(&app, &ledger, 100, 30);
+        assert!(
+            half.contains("Uma goleada") && !half.contains(fact),
+            "{half}"
+        );
+        for _ in 0..TYPING_STEPS {
+            app.tick(&ledger, later);
+        }
+        assert!(draw(&app, &ledger, 100, 30).contains(fact));
+        assert!(!app.animating(later));
+    }
+
+    #[test]
+    fn without_full_effects_nothing_glitches_or_types() {
+        for effects in [Effects::Light, Effects::Off] {
+            let mut app = new_app(Voice::Game);
+            let mut ledger = crate::today::tests::example_day();
+            app.effects = effects;
+            app.on_key(key(KeyCode::Char('r')), &mut ledger);
+            app.on_key(key(KeyCode::Tab), &mut ledger);
+            app.on_key(key(KeyCode::BackTab), &mut ledger);
+            assert_eq!((app.glitch, app.typing), (0, 0), "{effects}");
+        }
+    }
+
+    /// Um app que acabou de abrir com os efeitos no cheio, como o de
+    /// verdade.
+    fn opening() -> App {
+        let mut app = new_app(Voice::Game);
+        app.effects = Effects::Full;
+        app.intro = INTRO_STEPS;
+        app
+    }
+
+    #[test]
+    fn the_app_opens_with_its_name_in_big_letters() {
+        let mut app = opening();
+        let ledger = ledger();
+        let now = Instant::now();
+        app.wake(now);
+        let [whole, _, _] = bigtext::rows("VAMO_FOGAO");
+        // No primeiro quadro, o nome ainda não chegou e a tela de sempre
+        // ainda não apareceu.
+        let first = draw(&app, &ledger, 100, 30);
+        assert!(
+            !first.contains(&whole) && !first.contains("Caderno"),
+            "{first}"
+        );
+        // Na metade da cena, o nome está inteiro.
+        for _ in 0..INTRO_STEPS / 2 {
+            app.tick(&ledger, now);
+        }
+        assert!(draw(&app, &ledger, 100, 30).contains(&whole));
+        // No fim, entra a tela de sempre, e a TUI pode dormir quando o resto
+        // assentar.
+        let later = now + IDLE + Duration::from_secs(1);
+        assert!(app.animating(later));
+        for _ in 0..INTRO_STEPS {
+            app.tick(&ledger, later);
+        }
+        assert_eq!(app.intro, 0);
+        let screen = draw(&app, &ledger, 100, 30);
+        assert!(
+            screen.contains("Caderno") && !screen.contains(&whole),
+            "{screen}"
+        );
+        assert!(!app.animating(later));
+    }
+
+    #[test]
+    fn any_key_skips_the_opening_and_still_does_its_job() {
+        let mut app = opening();
+        let mut ledger = ledger();
+        app.on_key(key(KeyCode::Tab), &mut ledger);
+        assert_eq!(app.intro, 0);
+        assert_eq!(app.tab, Tab::Notebook);
+    }
+
+    #[test]
+    fn a_small_screen_opens_straight_on_today() {
+        let app = opening();
+        assert!(draw(&app, &ledger(), 40, 30).contains("vamo_fogao"));
+        assert!(draw(&app, &ledger(), 100, 12).contains("Caderno"));
+    }
+
+    #[test]
+    fn only_full_effects_get_the_opening() {
+        let setup = |effects| Setup {
+            voice: Voice::Game,
+            acervo: acervo(),
+            time_zone: TimeZone::UTC,
+            effects,
+            density: Density::default(),
+            schedule: Schedule::default(),
+        };
+        assert_eq!(App::new(setup(Effects::Full), today()).intro, INTRO_STEPS);
+        assert_eq!(App::new(setup(Effects::Light), today()).intro, 0);
+        assert_eq!(App::new(setup(Effects::Off), today()).intro, 0);
+    }
+
+    #[test]
     fn opens_on_today() {
         let app = new_app(Voice::Game);
         assert_eq!(app.tab, Tab::Today);
@@ -1276,15 +1608,68 @@ pub(crate) mod tests {
         // acordado depois dos 3 segundos.
         let later = now + IDLE * 2;
         assert!(app.animating(later));
-        let mut shouted = false;
+        // O gol fechou o placar do dia de exemplo: é o gol de placa, com o
+        // grito comprido em letra de bloco e a frase do narrador.
+        let [shout, _, _] = bigtext::rows("GOOOL!");
+        let scene = draw(&app, &ledger, 60, 18);
+        assert!(scene.contains(&shout), "{scene}");
+        assert!(scene.contains("Placar fechado"), "{scene}");
         for _ in 0..FLASH_STEPS {
             app.tick(&ledger, later);
-            shouted |= draw(&app, &ledger, 60, 18).contains("G O O O L !");
         }
-        assert!(shouted);
         assert_eq!(app.flash, 0);
         assert!(!app.animating(later));
-        assert!(!draw(&app, &ledger, 60, 18).contains("G O O O L !"));
+        assert!(!draw(&app, &ledger, 60, 18).contains(&shout));
+    }
+
+    #[test]
+    fn a_goal_that_leaves_work_to_do_gets_the_short_shout() {
+        let (mut app, mut ledger, _) = burning();
+        // Mais uma tarefa pra hoje: o gol na T-002 não fecha o placar.
+        let extra = ledger.add("Regar as plantas", "casa", Fit::Gap, Status::Ready);
+        let changes = ledger.projection().schedule(extra, today()).unwrap();
+        ledger.record(extra, changes).unwrap();
+        app.on_key(key(KeyCode::Char('j')), &mut ledger);
+        app.on_key(key(KeyCode::Char(' ')), &mut ledger);
+        let scene = draw(&app, &ledger, 60, 18);
+        let [short, _, _] = bigtext::rows("GOL!");
+        let [long, _, _] = bigtext::rows("GOOOL!");
+        assert!(scene.contains(&short) && !scene.contains(&long), "{scene}");
+        assert!(scene.contains("Bola na rede"), "{scene}");
+    }
+
+    #[test]
+    fn any_key_skips_the_goal_scene_and_still_does_its_job() {
+        let (mut app, mut ledger, _) = burning();
+        app.on_key(key(KeyCode::Char('j')), &mut ledger);
+        app.on_key(key(KeyCode::Char(' ')), &mut ledger);
+        assert_eq!(app.flash, FLASH_STEPS);
+        // O tab pula a cena e troca de tela, como sempre.
+        app.on_key(key(KeyCode::Tab), &mut ledger);
+        assert_eq!(app.flash, 0);
+        assert_eq!(app.tab, Tab::Notebook);
+    }
+
+    #[test]
+    fn lighter_effects_shorten_the_goal_scene() {
+        let goal = |effects| {
+            let (mut app, mut ledger, _) = burning();
+            app.effects = effects;
+            app.on_key(key(KeyCode::Char('j')), &mut ledger);
+            app.on_key(key(KeyCode::Char(' ')), &mut ledger);
+            let screen = draw(&app, &ledger, 60, 18);
+            (app.flash, screen)
+        };
+        let [big, _, _] = bigtext::rows("GOOOL!");
+        // No leve, um terço do tempo e sem a letra de bloco.
+        let (flash, screen) = goal(Effects::Light);
+        assert_eq!(flash, FLASH_STEPS / 3);
+        assert!(!screen.contains(&big), "{screen}");
+        // Sem efeitos, só a mensagem do rodapé.
+        let (flash, screen) = goal(Effects::Off);
+        assert_eq!(flash, 0);
+        assert!(!screen.contains(&big), "{screen}");
+        assert!(screen.contains("T-002"), "{screen}");
     }
 
     #[test]
