@@ -33,7 +33,8 @@ use crate::today::{self, Today};
 use crate::visual::{Look, Reveal};
 use crate::when::parse_day;
 use crate::{
-    Density, Effects, Ledger, Setup, Voice, bigtext, card, constellation, glitch, glow, hud, theme,
+    Density, Effects, Ledger, Setup, Voice, bigtext, card, constellation, dayline, glitch, glow,
+    hud, theme,
 };
 
 /// O que aconteceu depois de uma ação de quem usa.
@@ -94,6 +95,10 @@ const TYPING_STEPS: u8 = 25;
 /// Quantos passos dura a cena de abertura: com um passo a cada 40 ms, um
 /// pouco menos de um segundo.
 const INTRO_STEPS: u8 = 22;
+
+/// A partir de quantas linhas de terminal a linha do dia aparece embaixo
+/// das abas. Numa tela mais baixa, a linha dela faz falta pro miolo.
+const DAY_LINE_MIN_HEIGHT: u16 = 22;
 
 /// Quanto tempo a dica fica no rodapé quando ninguém aperta nada.
 const TIP_TIME: Duration = Duration::from_secs(6);
@@ -670,14 +675,27 @@ impl App {
             return;
         }
 
-        let [header, body, footer] = Layout::vertical([
+        // A linha do dia fica colada na faixa do topo, logo abaixo das abas,
+        // em todas as telas. Uma coluna de margem de cada lado, como o miolo.
+        let day_line = (area.height >= DAY_LINE_MIN_HEIGHT)
+            .then(|| {
+                let width = usize::from(area.width.saturating_sub(2));
+                dayline::line(&self.schedule, self.today, width)
+            })
+            .flatten();
+        let [header, day_area, body, footer] = Layout::vertical([
             Constraint::Length(2),
+            Constraint::Length(u16::from(day_line.is_some())),
             Constraint::Fill(1),
             Constraint::Length(1),
         ])
         .areas(area);
 
         self.render_header(frame, header);
+        if let Some(line) = day_line {
+            let inner = day_area.inner(ratatui::layout::Margin::new(1, 0));
+            frame.render_widget(Paragraph::new(line), inner);
+        }
         self.render_body(frame, body, ledger);
         glow::settle(body, frame.buffer_mut(), self.glow);
         glitch::apply(body, frame.buffer_mut(), self.glitch);
@@ -1906,11 +1924,19 @@ pub(crate) mod tests {
         assert!(screen.contains(&big_score("0 x 1")), "{screen}");
         assert_snapshot!(screen);
 
-        // Numa tela alta, a linha do dia entra embaixo do placar: a reunião
-        // e a tarefa agendada em bloco, o almoço protegido e as brechas.
+        // Numa tela alta, a linha do dia entra logo abaixo das abas, numa
+        // linha só: a reunião e a tarefa agendada em traço grosso, o almoço
+        // protegido em tracejado e as brechas em traço fino.
         let tall = draw(&app, &ledger, 100, 34);
-        assert!(tall.contains("L I N H A   D O   D I A"), "{tall}");
+        let third = tall.lines().nth(2).unwrap_or_default();
+        assert!(third.contains("09─") && third.contains('━'), "{third}");
         assert_snapshot!("the_day_line", tall);
+        // Ela acompanha todas as telas, colada na faixa do topo.
+        app.on_key(key(KeyCode::Tab), &mut ledger);
+        assert_eq!(draw(&app, &ledger, 100, 34).lines().nth(2), Some(third));
+        app.on_key(key(KeyCode::BackTab), &mut ledger);
+        // Numa tela baixa, a faixa do topo fica como era.
+        assert!(!draw(&app, &ledger, 100, 21).contains("09─"));
 
         // A reunião recorrente é a fixa da agenda: marcar conta no placar
         // e não cria tarefa.

@@ -4,6 +4,7 @@ expression: screen
 ---
 " vamo_fogao   1 HOJE  2 Caderno  3 Banco  4 Museu   ▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌"
 "─────────────━━━━━━━━───────────────────────────────────────────────────────────"
+" 09──────10━━━━━━━11───────12╌╌━━━━13───────14───────15──────16───────17─────18 "
 "                                                                                "
 " Hoje · quarta, 11/11                                       █▀█     ▄ ▄     ▄█  "
 " ▱▱▱▱▱▱▱▱▱▱▱▱ Placar: 0 de 1                             ★  █ █     ▄▀▄      █  "
@@ -22,7 +23,6 @@ expression: screen
 " 13:00–18:00  5h      T-002 Ligar pro síndico                                   "
 "                                                                                "
 " No banco: 3 prontas. A tecla e escala uma pra hoje.                            "
-"                                                                                "
 "                                                                                "
 "                                                                                "
 "  ␣  gol   e  escala   a  adia   b  banco   ?  ajuda   tab  telas   q  sai      "

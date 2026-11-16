@@ -351,11 +351,6 @@ impl Voice {
         }
     }
 
-    /// O rótulo da linha do dia, a régua das horas no alto da Hoje.
-    pub(crate) fn day_line(self) -> &'static str {
-        "Linha do dia"
-    }
-
     /// Quando o expediente de hoje não tem brecha nenhuma.
     pub(crate) fn no_gaps(self) -> &'static str {
         match self {
@@ -1045,6 +1040,8 @@ impl Voice {
                 rows
             }
         };
+        // A legenda da linha do dia, que fica embaixo das abas.
+        rows.push(("linha do dia", crate::dayline::LEGEND));
         rows.extend([
             ("1 a 4", "vai direto pra tela"),
             ("tab, shift+tab", "próxima tela, tela anterior"),
