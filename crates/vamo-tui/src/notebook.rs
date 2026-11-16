@@ -180,6 +180,7 @@ impl Notebook {
             .collect();
         if lines.is_empty() {
             lines.push(Line::styled(voice.notebook_empty(), theme::muted()));
+            lines.extend(crate::today::narrator_lines(voice, today));
         }
         frame.render_widget(Paragraph::new(lines), rest);
     }

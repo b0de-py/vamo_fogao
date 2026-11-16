@@ -314,6 +314,37 @@ impl Voice {
         }
     }
 
+    /// A frase do narrador de `day`: uma por dia, sempre a mesma no mesmo
+    /// dia. Aparece no rodapé da Hoje e nas telas vazias. São frases
+    /// escritas pro app, sem letra de música nem marca do clube. No modo
+    /// neutro não tem narrador.
+    pub(crate) fn narrator(self, day: jiff::civil::Date) -> Option<&'static str> {
+        const LINES: [&str; 12] = [
+            "Bola no chão e cabeça erguida.",
+            "Jogo se ganha uma jogada de cada vez.",
+            "Quem escala cedo joga tranquilo.",
+            "O primeiro tempo é agora.",
+            "Tarefa parada é bola fora.",
+            "Toca curto, resolve uma e parte pra próxima.",
+            "Placar não se muda sozinho.",
+            "Banco cheio é elenco, não é culpa.",
+            "Segura a bola, olha o campo, escolhe o passe.",
+            "Fogo baixo também cozinha.",
+            "Quem marca o gol é quem chuta.",
+            "Dia sem tarefa é dia de bola rolando.",
+        ];
+        match self {
+            Self::Game => {
+                // Os dias contados desde o ano zero: dias vizinhos caem em
+                // frases vizinhas, e a roda dá a volta a cada doze dias.
+                let count = i64::from(day.year()) * 366 + i64::from(day.day_of_year());
+                let index = usize::try_from(count.rem_euclid(12)).unwrap_or(0);
+                Some(LINES[index])
+            }
+            Self::Neutral => None,
+        }
+    }
+
     /// Quando não tem nada no dia.
     pub(crate) fn empty_lineup(self) -> &'static str {
         match self {
@@ -1100,6 +1131,26 @@ mod tests {
             screens.push(format!("── {name}\n{}", draw(&app, &ledger, 100, 14)));
         }
         screens.join("\n")
+    }
+
+    #[test]
+    fn the_narrator_says_one_line_a_day_and_keeps_quiet_in_neutral() {
+        let day = jiff::civil::date(2026, 11, 11);
+        let line = Voice::Game.narrator(day);
+        assert!(line.is_some());
+        // O mesmo dia, a mesma frase; o dia seguinte, outra.
+        assert_eq!(Voice::Game.narrator(day), line);
+        assert_ne!(Voice::Game.narrator(day.tomorrow().unwrap()), line);
+        // Em doze dias seguidos, as doze frases aparecem.
+        let mut seen: Vec<&str> = day
+            .series(jiff::ToSpan::day(1))
+            .take(12)
+            .filter_map(|day| Voice::Game.narrator(day))
+            .collect();
+        seen.sort_unstable();
+        seen.dedup();
+        assert_eq!(seen.len(), 12);
+        assert_eq!(Voice::Neutral.narrator(day), None);
     }
 
     #[test]

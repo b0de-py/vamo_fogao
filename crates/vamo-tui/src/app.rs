@@ -841,16 +841,18 @@ impl App {
 
     /// O rodapé em repouso: as teclas da tela aberta e o placar do dia.
     fn hud<L: Ledger>(&self, ledger: &L, width: usize) -> Line<'static> {
-        // Na Hoje, o placar já está no alto da tela.
-        let score = (self.tab != Tab::Today).then(|| {
-            let lineup = Lineup::new(ledger.projection(), self.today);
-            let score = today::score(&lineup, &self.schedule, ledger.agenda_checks());
-            self.voice.score(score.done, score.planned)
-        });
+        // Na Hoje, o placar já está no alto da tela: o canto do rodapé fica
+        // com a frase do narrador do dia. Nas outras telas, com o placar.
+        let corner = if self.tab == Tab::Today {
+            self.voice.narrator(self.today).map(str::to_owned)
+        } else {
+            let score = self.score(ledger);
+            Some(self.voice.score(score.done, score.planned))
+        };
         hud::line(
             &self.voice.keys(self.tab, self.card.is_some()),
             &self.voice.always_keys(),
-            score.as_deref(),
+            corner.as_deref(),
             width,
         )
     }
@@ -1852,12 +1854,12 @@ pub(crate) mod tests {
     fn today_shows_the_curiosity_and_r_swaps_in_the_banter() {
         let mut app = new_app(Voice::Game);
         let mut ledger = ledger();
-        let screen = draw(&app, &ledger, 60, 14);
+        let screen = draw(&app, &ledger, 60, 16);
         assert!(screen.contains("Neste dia, em 1950"), "{screen}");
         assert_snapshot!("curiosity", screen);
 
         app.on_key(key(KeyCode::Char('r')), &mut ledger);
-        let screen = draw(&app, &ledger, 60, 14);
+        let screen = draw(&app, &ledger, 60, 16);
         assert!(screen.contains("é zoeira, não é fato"), "{screen}");
         assert_snapshot!("banter", screen);
     }

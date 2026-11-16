@@ -233,7 +233,10 @@ impl Today {
     ) -> Vec<Line<'static>> {
         let rows = rows(lineup, schedule);
         if rows.is_empty() {
-            return vec![Line::styled(voice.empty_lineup(), theme::muted())];
+            // O dia vazio ganha a frase do narrador embaixo do aviso.
+            let mut lines = vec![Line::styled(voice.empty_lineup(), theme::muted())];
+            lines.extend(narrator_lines(voice, lineup.today()));
+            return lines;
         }
         let cursor = self.cursor.min(rows.len() - 1);
         let mut lines = Vec::new();
@@ -371,6 +374,18 @@ fn task_line(group: Group, task: &Task, cursor: bool, voice: Voice) -> Line<'sta
 /// sem tirar o lugar da escalação. Abaixo disso, o placar é uma linha de
 /// texto.
 const BIG_SCORE_MIN: (u16, u16) = (70, 16);
+
+/// A frase do narrador do dia, com uma linha de respiro antes, pras telas
+/// vazias. No modo neutro, nada.
+pub(crate) fn narrator_lines(voice: Voice, today: Date) -> Vec<Line<'static>> {
+    match voice.narrator(today) {
+        Some(line) => vec![
+            Line::default(),
+            Line::styled(format!("“{line}”"), theme::soft()),
+        ],
+        None => Vec::new(),
+    }
+}
 
 /// A largura das barras de progresso do alto da tela, em blocos.
 const METER_WIDTH: usize = 12;
