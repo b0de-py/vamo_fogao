@@ -17,7 +17,7 @@ use ratatui::widgets::{Block, Clear, Paragraph};
 use jiff::civil::Date;
 
 use jiff::tz::TimeZone;
-use ratatui::style::Style;
+use ratatui::style::{Color, Style};
 use vamo_core::{Change, Fit, Lineup, NotebookTitle, Projection, Status, TaskId};
 
 use crate::bench::Bench;
@@ -33,7 +33,8 @@ use crate::today::{self, Today};
 use crate::visual::{Look, Reveal};
 use crate::when::parse_day;
 use crate::{
-    Density, Effects, Ledger, Setup, Voice, bigtext, card, constellation, glitch, glow, hud, theme,
+    Density, Effects, Ledger, Setup, Voice, bigtext, card, constellation, dayline, glitch, glow,
+    hud, theme,
 };
 
 /// O que aconteceu depois de uma ação de quem usa.
@@ -94,6 +95,10 @@ const TYPING_STEPS: u8 = 25;
 /// Quantos passos dura a cena de abertura: com um passo a cada 40 ms, um
 /// pouco menos de um segundo.
 const INTRO_STEPS: u8 = 22;
+
+/// A partir de quantas linhas de terminal a linha do dia aparece embaixo
+/// das abas. Numa tela mais baixa, a linha dela faz falta pro miolo.
+const DAY_LINE_MIN_HEIGHT: u16 = 22;
 
 /// Quanto tempo a dica fica no rodapé quando ninguém aperta nada.
 const TIP_TIME: Duration = Duration::from_secs(6);
@@ -670,14 +675,27 @@ impl App {
             return;
         }
 
-        let [header, body, footer] = Layout::vertical([
+        // A linha do dia fica colada na faixa do topo, logo abaixo das abas,
+        // em todas as telas. Uma coluna de margem de cada lado, como o miolo.
+        let day_line = (area.height >= DAY_LINE_MIN_HEIGHT)
+            .then(|| {
+                let width = usize::from(area.width.saturating_sub(2));
+                dayline::line(&self.schedule, self.today, width)
+            })
+            .flatten();
+        let [header, day_area, body, footer] = Layout::vertical([
             Constraint::Length(2),
+            Constraint::Length(u16::from(day_line.is_some())),
             Constraint::Fill(1),
             Constraint::Length(1),
         ])
         .areas(area);
 
         self.render_header(frame, header);
+        if let Some(line) = day_line {
+            let inner = day_area.inner(ratatui::layout::Margin::new(1, 0));
+            frame.render_widget(Paragraph::new(line), inner);
+        }
         self.render_body(frame, body, ledger);
         glow::settle(body, frame.buffer_mut(), self.glow);
         glitch::apply(body, frame.buffer_mut(), self.glitch);
@@ -823,16 +841,18 @@ impl App {
 
     /// O rodapé em repouso: as teclas da tela aberta e o placar do dia.
     fn hud<L: Ledger>(&self, ledger: &L, width: usize) -> Line<'static> {
-        // Na Hoje, o placar já está no alto da tela.
-        let score = (self.tab != Tab::Today).then(|| {
-            let lineup = Lineup::new(ledger.projection(), self.today);
-            let score = today::score(&lineup, &self.schedule, ledger.agenda_checks());
-            self.voice.score(score.done, score.planned)
-        });
+        // Na Hoje, o placar já está no alto da tela: o canto do rodapé fica
+        // com a frase do narrador do dia. Nas outras telas, com o placar.
+        let corner = if self.tab == Tab::Today {
+            self.voice.narrator(self.today).map(str::to_owned)
+        } else {
+            let score = self.score(ledger);
+            Some(self.voice.score(score.done, score.planned))
+        };
         hud::line(
             &self.voice.keys(self.tab, self.card.is_some()),
             &self.voice.always_keys(),
-            score.as_deref(),
+            corner.as_deref(),
             width,
         )
     }
@@ -862,16 +882,23 @@ impl App {
 
     /// O nome do app e as abas, com uma linha embaixo.
     ///
+    /// Em dia de jogo, a faixa veste o uniforme de jogo: a Estrela
+    /// Solitária entra do lado do nome, o jogo aparece depois das abas com
+    /// a bola e a hora, e as listras já nascem claras.
+    ///
     /// A aba da tela atual se destaca de três jeitos, pra não depender só
     /// de cor: fica em caixa-alta, com o fundo aceso, e o trecho da linha
     /// embaixo dela engrossa.
     fn render_header(&self, frame: &mut Frame<'_>, area: Rect) {
         let [tabs_area, rule_area] =
             Layout::vertical([Constraint::Length(1), Constraint::Length(1)]).areas(area);
-        let mut spans = vec![
-            Span::styled(" vamo_fogao ", theme::heading()),
-            Span::raw(" "),
-        ];
+        let game_day = self.schedule.game.as_ref();
+        let name = if game_day.is_some() {
+            " ★ vamo_fogao "
+        } else {
+            " vamo_fogao "
+        };
+        let mut spans = vec![Span::styled(name, theme::heading()), Span::raw(" ")];
         // Onde a aba atual começa e quanto mede, pra linha de baixo.
         let mut current = (0, 0);
         for (number, tab) in (1..).zip(Tab::ALL) {
@@ -886,10 +913,32 @@ impl App {
             };
             spans.push(span);
         }
+        // O jogo do dia, depois das abas, quando sobra lugar pra ele e pras
+        // listras.
+        if let Some(game_day) = game_day {
+            let chip = format!(
+                " ⚽ {} · {} ",
+                crate::matchday::matchup(game_day, &self.schedule.team),
+                game_day.game.kickoff.strftime("%H:%M")
+            );
+            let used: usize = spans.iter().map(Span::width).sum();
+            let needed = used + 2 + Span::raw(chip.as_str()).width() + usize::from(STRIPES_MIN) + 2;
+            if needed <= usize::from(tabs_area.width) {
+                spans.push(Span::raw("  "));
+                spans.push(Span::styled(chip, theme::shout()));
+            }
+        }
         let used: usize = spans.iter().map(Span::width).sum();
         frame.render_widget(Paragraph::new(Line::from(spans)), tabs_area);
         if self.voice == Voice::Game {
-            render_stripes(frame, tabs_area, used);
+            // No dia comum, as listras nascem apagadas; em dia de jogo, já
+            // começam claras.
+            let from = if game_day.is_some() {
+                theme::SOFT
+            } else {
+                theme::LINE
+            };
+            render_stripes(frame, tabs_area, used, from);
         }
 
         let width = usize::from(rule_area.width);
@@ -1018,9 +1067,10 @@ const STRIPES_MIN: u16 = 8;
 /// Cada célula é um meio-bloco `▌`: a metade da esquerda acesa e a da
 /// direita apagada, o que dá listras de pé com meia letra de largura, como
 /// as da camisa. Elas nascem apagadas perto das abas e clareiam até o
-/// branco na borda, pra não disputar com o texto. É só o desenho das
+/// branco na borda, pra não disputar com o texto. `from` é a cor em que
+/// elas nascem: mais clara em dia de jogo. É só o desenho das
 /// listras: nada de escudo nem de marca do clube.
-fn render_stripes(frame: &mut Frame<'_>, area: Rect, used: usize) {
+fn render_stripes(frame: &mut Frame<'_>, area: Rect, used: usize, from: Color) {
     // Duas colunas de respiro depois da última aba.
     let skip = u16::try_from(used).unwrap_or(u16::MAX).saturating_add(2);
     let width = area.width.saturating_sub(skip);
@@ -1033,7 +1083,7 @@ fn render_stripes(frame: &mut Frame<'_>, area: Rect, used: usize) {
             // três: o passo vira um número de 0 a 255.
             let amount =
                 u8::try_from(u32::from(step) * 255 / u32::from(width - 1)).unwrap_or(u8::MAX);
-            let color = theme::blend(theme::LINE, theme::WHITE, amount, u8::MAX);
+            let color = theme::blend(from, theme::WHITE, amount, u8::MAX);
             Span::styled("▌", Style::new().fg(color))
         })
         .collect();
@@ -1834,12 +1884,12 @@ pub(crate) mod tests {
     fn today_shows_the_curiosity_and_r_swaps_in_the_banter() {
         let mut app = new_app(Voice::Game);
         let mut ledger = ledger();
-        let screen = draw(&app, &ledger, 60, 14);
+        let screen = draw(&app, &ledger, 60, 16);
         assert!(screen.contains("Neste dia, em 1950"), "{screen}");
         assert_snapshot!("curiosity", screen);
 
         app.on_key(key(KeyCode::Char('r')), &mut ledger);
-        let screen = draw(&app, &ledger, 60, 14);
+        let screen = draw(&app, &ledger, 60, 16);
         assert!(screen.contains("é zoeira, não é fato"), "{screen}");
         assert_snapshot!("banter", screen);
     }
@@ -1906,11 +1956,19 @@ pub(crate) mod tests {
         assert!(screen.contains(&big_score("0 x 1")), "{screen}");
         assert_snapshot!(screen);
 
-        // Numa tela alta, a linha do dia entra embaixo do placar: a reunião
-        // e a tarefa agendada em bloco, o almoço protegido e as brechas.
+        // Numa tela alta, a linha do dia entra logo abaixo das abas, numa
+        // linha só: a reunião e a tarefa agendada em traço grosso, o almoço
+        // protegido em tracejado e as brechas em traço fino.
         let tall = draw(&app, &ledger, 100, 34);
-        assert!(tall.contains("L I N H A   D O   D I A"), "{tall}");
+        let third = tall.lines().nth(2).unwrap_or_default();
+        assert!(third.contains("09─") && third.contains('━'), "{third}");
         assert_snapshot!("the_day_line", tall);
+        // Ela acompanha todas as telas, colada na faixa do topo.
+        app.on_key(key(KeyCode::Tab), &mut ledger);
+        assert_eq!(draw(&app, &ledger, 100, 34).lines().nth(2), Some(third));
+        app.on_key(key(KeyCode::BackTab), &mut ledger);
+        // Numa tela baixa, a faixa do topo fica como era.
+        assert!(!draw(&app, &ledger, 100, 21).contains("09─"));
 
         // A reunião recorrente é a fixa da agenda: marcar conta no placar
         // e não cria tarefa.
@@ -1966,6 +2024,19 @@ pub(crate) mod tests {
             ..Schedule::default()
         };
         let screen = draw(&app, &ledger, 120, 24);
+        // A faixa do topo veste o uniforme de jogo: a estrela do lado do
+        // nome e o jogo depois das abas, em todas as telas.
+        let top = screen.lines().next().unwrap_or_default();
+        assert!(top.contains("★ vamo_fogao"), "{top}");
+        assert!(top.contains("Time de Teste x Botafogo · 21:30"), "{top}");
+        assert!(top.contains('▌'), "{top}");
+        // Numa tela estreita, o jogo sai da faixa e o resto fica.
+        let narrow = draw(&app, &ledger, 80, 24);
+        let top = narrow.lines().next().unwrap_or_default();
+        assert!(
+            top.contains("★ vamo_fogao") && !top.contains("21:30"),
+            "{top}"
+        );
         assert!(screen.contains("⚽ Dia de jogo"), "{screen}");
         assert!(
             screen.contains("Time de Teste x Botafogo · 21:30 · Amistoso"),

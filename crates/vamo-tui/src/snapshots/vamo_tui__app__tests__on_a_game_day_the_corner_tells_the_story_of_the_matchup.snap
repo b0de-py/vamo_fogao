@@ -2,8 +2,8 @@
 source: crates/vamo-tui/src/app.rs
 expression: screen
 ---
-" vamo_fogao   1 HOJE  2 Caderno  3 Banco  4 Museu   ▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌"
-"─────────────━━━━━━━━───────────────────────────────────────────────────────────────────────────────────────────────────"
+" ★ vamo_fogao   1 HOJE  2 Caderno  3 Banco  4 Museu    ⚽ Time de Teste x Botafogo · 21:30   ▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌" Hidden by multi-width symbols: [(56, " ")]
+"───────────────━━━━━━━━─────────────────────────────────────────────────────────────────────────────────────────────────"
 "                                                                                                                        "
 " Hoje · quarta, 11/11                                                                                    Placar: 0 de 0 "
 "                                                                                                                        "
@@ -13,8 +13,8 @@ expression: screen
 "                                                                               Fontes: Jornal · Revista                 "
 " Ninguém escalado hoje. No Banco, o e escala uma tarefa pro dia.               r: a resenha do dia                      "
 "                                                                                                                        "
-"                                                                                                                        "
+" “O primeiro tempo é agora.”                                                                                            "
 "                                                                             ┃                                        ┃ "
 "                                                                             ┗━                                      ━┛ "
 "                                                                                                                        "
-"  ␣  gol   e  escala   a  adia   b  banco   r  resenha   ?  ajuda   tab  telas   q  sai                                 "
+"  ␣  gol   e  escala   a  adia   b  banco   r  resenha   ?  ajuda   tab  telas   q  sai       O primeiro tempo é agora. "

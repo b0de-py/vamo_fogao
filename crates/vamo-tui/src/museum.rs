@@ -29,6 +29,14 @@ pub(crate) enum Shelf {
 pub(crate) struct Museum {
     shelf: Shelf,
     cursor: usize,
+    /// A década escolhida na linha do tempo (1950 é a de 1950 a 1959).
+    /// `None` mostra todas.
+    decade: Option<u16>,
+}
+
+/// A década de um ano: 1957 é da década de 1950.
+fn decade_of(year: u16) -> u16 {
+    year - year % 10
 }
 
 /// Uma linha da lista: um título de grupo ou um item.
@@ -51,6 +59,28 @@ impl Museum {
                 self.cursor = (self.cursor + 1).min(items.saturating_sub(1));
             }
             KeyCode::Up | KeyCode::Char('k') => self.cursor = self.cursor.saturating_sub(1),
+            // A linha do tempo: as setas dos lados andam pelas décadas que
+            // têm fato, pulando as vazias. Antes da primeira fica "todas".
+            KeyCode::Left | KeyCode::Char('h') if self.shelf == Shelf::ByDate => {
+                let decades = decades(acervo);
+                self.decade = match self.decade {
+                    None => None,
+                    Some(current) => decades.into_iter().rev().find(|&d| d < current),
+                };
+                self.cursor = 0;
+            }
+            KeyCode::Right | KeyCode::Char('l') if self.shelf == Shelf::ByDate => {
+                let decades = decades(acervo);
+                let next = match self.decade {
+                    None => decades.first().copied(),
+                    Some(current) => decades.into_iter().find(|&d| d > current),
+                };
+                // Na última década, a seta não sai do lugar.
+                if next.is_some() {
+                    self.decade = next;
+                    self.cursor = 0;
+                }
+            }
             KeyCode::Char('o') => {
                 self.shelf = match self.shelf {
                     Shelf::ByDate => Shelf::ByTheme,
@@ -83,7 +113,18 @@ impl Museum {
             (a.date().is_none(), a.date(), a.id()).cmp(&(b.date().is_none(), b.date(), b.id()))
         });
         match self.shelf {
-            Shelf::ByDate => facts.into_iter().map(Entry::Fact).collect(),
+            // Com uma década escolhida na linha do tempo, só os fatos dela.
+            // Fato sem data só aparece em "todas".
+            Shelf::ByDate => facts
+                .into_iter()
+                .filter(|fact| match self.decade {
+                    None => true,
+                    Some(decade) => fact
+                        .date()
+                        .is_some_and(|date| decade_of(date.year()) == decade),
+                })
+                .map(Entry::Fact)
+                .collect(),
             Shelf::ByTheme => {
                 let mut tags: Vec<&Tag> = facts.iter().flat_map(|fact| fact.tags()).collect();
                 tags.sort();
@@ -114,6 +155,23 @@ impl Museum {
         }
     }
 
+    /// O alto da tela: o título com a prateleira e, na prateleira por data,
+    /// a linha do tempo embaixo.
+    fn header(&self, acervo: &Acervo, width: usize, voice: Voice) -> Vec<Line<'static>> {
+        let arrangement = voice.shelf(self.shelf);
+        let mut header = vec![Line::from(vec![
+            Span::styled(voice.museum_title(), theme::heading()),
+            Span::styled(format!(" · {arrangement}"), theme::soft()),
+        ])];
+        if self.shelf == Shelf::ByDate {
+            let decades = decades(acervo);
+            if !decades.is_empty() {
+                header.push(timeline(&decades, self.decade, width, voice));
+            }
+        }
+        header
+    }
+
     /// Desenha a tela.
     pub(crate) fn render(
         &self,
@@ -124,16 +182,12 @@ impl Museum {
         density: Density,
         voice: Voice,
     ) {
+        let header = self.header(acervo, usize::from(area.width), voice);
+        // O título, a linha do tempo quando tem, e uma linha de respiro.
+        let height = u16::try_from(header.len() + 1).unwrap_or(u16::MAX);
         let [top, rest] =
-            Layout::vertical([Constraint::Length(2), Constraint::Fill(1)]).areas(area);
-        let arrangement = voice.shelf(self.shelf);
-        frame.render_widget(
-            Paragraph::new(Line::from(vec![
-                Span::styled(voice.museum_title(), theme::heading()),
-                Span::styled(format!(" · {arrangement}"), theme::soft()),
-            ])),
-            top,
-        );
+            Layout::vertical([Constraint::Length(height), Constraint::Fill(1)]).areas(area);
+        frame.render_widget(Paragraph::new(header), top);
 
         let entries = self.entries(acervo, voice);
         let items = entries
@@ -231,6 +285,61 @@ impl Museum {
     }
 }
 
+/// As décadas que têm pelo menos um fato verificado com data, em ordem.
+fn decades(acervo: &Acervo) -> Vec<u16> {
+    let mut decades: Vec<u16> = acervo
+        .facts
+        .iter()
+        .filter(|fact| fact.is_verified())
+        .filter_map(Fact::date)
+        .map(|date| decade_of(date.year()))
+        .collect();
+    decades.sort_unstable();
+    decades.dedup();
+    decades
+}
+
+/// A linha do tempo: "todas" e uma década atrás da outra, da primeira à
+/// última que têm fato. A escolhida fica acesa, as que têm fato ficam à
+/// vista, e as vazias do meio aparecem apagadas (as setas pulam por cima).
+///
+/// Quando a régua inteira não cabe em `width`, vira a forma curta: só a
+/// década escolhida, entre setas.
+fn timeline(decades: &[u16], chosen: Option<u16>, width: usize, voice: Voice) -> Line<'static> {
+    let (Some(&first), Some(&last)) = (decades.first(), decades.last()) else {
+        return Line::default();
+    };
+    let label = |text: String, lit: bool, on: bool| {
+        let style = match (on, lit) {
+            (true, _) => theme::chip(),
+            (false, true) => theme::soft(),
+            (false, false) => theme::line(),
+        };
+        Span::styled(format!(" {text} "), style)
+    };
+    let mut spans = vec![label(
+        voice.all_decades().to_owned(),
+        true,
+        chosen.is_none(),
+    )];
+    for decade in (first..=last).step_by(10) {
+        spans.push(label(
+            decade.to_string(),
+            decades.contains(&decade),
+            chosen == Some(decade),
+        ));
+    }
+    if spans.iter().map(Span::width).sum::<usize>() <= width {
+        return Line::from(spans);
+    }
+    let current = chosen.map_or_else(|| voice.all_decades().to_owned(), |d| d.to_string());
+    Line::from(vec![
+        Span::styled("‹", theme::muted()),
+        label(current, true, true),
+        Span::styled("›", theme::muted()),
+    ])
+}
+
 /// O detalhe de um fato: o texto, a data, as fontes com o link e os temas.
 fn fact_detail(fact: &Fact, this_day: bool, voice: Voice) -> Vec<Line<'static>> {
     let mut lines = Vec::new();
@@ -298,6 +407,109 @@ mod tests {
         let mut app = new_app(Voice::Game);
         app.on_key(key(KeyCode::Char('4')), &mut ledger);
         (app, ledger)
+    }
+
+    /// Um acervo inventado com fatos em três décadas, uma vazia no meio
+    /// (a de 1960 só tem fato a conferir) e um fato sem data.
+    fn three_decades() -> Acervo {
+        let fact = |slug: &str, date: Option<&str>, status: &str| {
+            let date = date
+                .map(|d| format!("data = \"{d}\"\n"))
+                .unwrap_or_default();
+            let sources = "[[fontes]]\nnome = \"Jornal\"\nurl = \"https://jornal.example.com.br/\"\n\
+                           [[fontes]]\nnome = \"Revista\"\nurl = \"https://revista.example.org/\"\n";
+            vamo_acervo::Fact::from_toml(
+                slug,
+                &format!(
+                    "texto = \"Fato de teste {slug}.\"\n{date}status = \"{status}\"\n{sources}"
+                ),
+            )
+            .expect("o fato de teste é válido")
+        };
+        Acervo {
+            facts: vec![
+                fact("um-de-cinquenta", Some("1950-11-11"), "verificado"),
+                fact("outro-de-cinquenta", Some("1957"), "verificado"),
+                fact("a-conferir-de-sessenta", Some("1960"), "a-conferir"),
+                fact("um-de-setenta", Some("1972-05-01"), "verificado"),
+                fact("um-de-noventa", Some("1995"), "verificado"),
+                fact("sem-data", None, "verificado"),
+            ],
+            banter: Vec::new(),
+        }
+    }
+
+    fn shown(museum: &Museum, acervo: &Acervo) -> usize {
+        museum.entries(acervo, Voice::Game).len()
+    }
+
+    fn text(line: &Line<'_>) -> String {
+        line.spans
+            .iter()
+            .map(|span| span.content.as_ref())
+            .collect()
+    }
+
+    #[test]
+    fn only_decades_with_a_verified_dated_fact_count() {
+        assert_eq!(decades(&three_decades()), [1950, 1970, 1990]);
+    }
+
+    #[test]
+    fn the_arrows_walk_the_decades_and_skip_the_empty_ones() {
+        let acervo = three_decades();
+        let mut museum = Museum::default();
+        let press = |museum: &mut Museum, code| museum.on_key(key(code), &acervo, Voice::Game);
+        // Começa em "todas": os cinco verificados, o sem data inclusive.
+        assert_eq!((museum.decade, shown(&museum, &acervo)), (None, 5));
+        press(&mut museum, KeyCode::Right);
+        assert_eq!((museum.decade, shown(&museum, &acervo)), (Some(1950), 2));
+        // A de 1960 não tem fato verificado: a seta pula pra de 1970.
+        press(&mut museum, KeyCode::Right);
+        assert_eq!((museum.decade, shown(&museum, &acervo)), (Some(1970), 1));
+        press(&mut museum, KeyCode::Char('l'));
+        assert_eq!(museum.decade, Some(1990));
+        // Na última, a seta não sai do lugar.
+        press(&mut museum, KeyCode::Right);
+        assert_eq!(museum.decade, Some(1990));
+        // De volta até "todas", e de lá não passa.
+        for _ in 0..4 {
+            press(&mut museum, KeyCode::Left);
+        }
+        assert_eq!(museum.decade, None);
+    }
+
+    #[test]
+    fn the_timeline_only_works_on_the_shelf_by_date() {
+        let acervo = three_decades();
+        let mut museum = Museum::default();
+        museum.on_key(key(KeyCode::Char('o')), &acervo, Voice::Game);
+        museum.on_key(key(KeyCode::Right), &acervo, Voice::Game);
+        assert_eq!(museum.decade, None);
+    }
+
+    #[test]
+    fn the_timeline_shows_every_decade_and_dims_the_empty_ones() {
+        let line = timeline(&[1950, 1970, 1990], Some(1970), 80, Voice::Game);
+        assert_eq!(text(&line), " todas  1950  1960  1970  1980  1990 ");
+        let style_of = |label: &str| {
+            line.spans
+                .iter()
+                .find(|span| span.content.trim() == label)
+                .map(|span| span.style)
+        };
+        assert_eq!(style_of("1970"), Some(theme::chip()));
+        assert_eq!(style_of("1950"), Some(theme::soft()));
+        assert_eq!(style_of("1960"), Some(theme::line()));
+        // Sem lugar pra régua inteira, fica só a escolhida entre setas.
+        assert_eq!(
+            text(&timeline(&[1950, 1970, 1990], Some(1970), 20, Voice::Game)),
+            "‹ 1970 ›"
+        );
+        assert_eq!(
+            text(&timeline(&[1950, 1970, 1990], None, 20, Voice::Game)),
+            "‹ todas ›"
+        );
     }
 
     #[test]

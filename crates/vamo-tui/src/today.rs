@@ -16,7 +16,7 @@ use crate::curiosity::{self, Acervo};
 use crate::prompt::{Prompt, Purpose};
 use crate::schedule::{self, Schedule};
 use crate::visual::Look;
-use crate::{Density, Ledger, Voice, bigtext, dayline, meter, theme};
+use crate::{Density, Ledger, Voice, bigtext, meter, theme};
 
 /// Onde está o cursor na escalação.
 #[derive(Debug, Default)]
@@ -169,7 +169,6 @@ impl Today {
                 .areas(area);
         let score = score(&lineup, schedule, checks);
         render_scoreboard(frame, top, &lineup, score, schedule.unbeaten, voice);
-        let rest = render_dayline(frame, rest, schedule, today, voice);
 
         // Com espaço, a curiosidade vai do lado; sem, embaixo, no que sobrar
         // da escalação. Se sobrar pouco, a escalação fica com a tela toda:
@@ -234,7 +233,10 @@ impl Today {
     ) -> Vec<Line<'static>> {
         let rows = rows(lineup, schedule);
         if rows.is_empty() {
-            return vec![Line::styled(voice.empty_lineup(), theme::muted())];
+            // O dia vazio ganha a frase do narrador embaixo do aviso.
+            let mut lines = vec![Line::styled(voice.empty_lineup(), theme::muted())];
+            lines.extend(narrator_lines(voice, lineup.today()));
+            return lines;
         }
         let cursor = self.cursor.min(rows.len() - 1);
         let mut lines = Vec::new();
@@ -373,37 +375,16 @@ fn task_line(group: Group, task: &Task, cursor: bool, voice: Voice) -> Line<'sta
 /// texto.
 const BIG_SCORE_MIN: (u16, u16) = (70, 16);
 
-/// A partir de quantas linhas a tela Hoje mostra a linha do dia. Numa tela
-/// mais baixa, as quatro linhas dela fariam falta pra escalação.
-const DAYLINE_MIN_HEIGHT: u16 = 22;
-
-/// Desenha a linha do dia no alto de `area` e devolve o que sobrou pra
-/// escalação. Sem expediente hoje, ou numa tela pequena, não desenha nada e
-/// devolve a área inteira.
-fn render_dayline(
-    frame: &mut Frame<'_>,
-    area: Rect,
-    schedule: &Schedule,
-    today: Date,
-    voice: Voice,
-) -> Rect {
-    if area.height < DAYLINE_MIN_HEIGHT {
-        return area;
+/// A frase do narrador do dia, com uma linha de respiro antes, pras telas
+/// vazias. No modo neutro, nada.
+pub(crate) fn narrator_lines(voice: Voice, today: Date) -> Vec<Line<'static>> {
+    match voice.narrator(today) {
+        Some(line) => vec![
+            Line::default(),
+            Line::styled(format!("“{line}”"), theme::soft()),
+        ],
+        None => Vec::new(),
     }
-    let ruler = dayline::lines(schedule, today, usize::from(area.width));
-    if ruler.is_empty() {
-        return area;
-    }
-    // O rótulo com a legenda, as horas, a faixa e uma linha de respiro.
-    let mut label = theme::section_line(voice.day_line());
-    label.spans.extend(dayline::legend());
-    let mut lines = vec![label];
-    lines.extend(ruler);
-    let height = u16::try_from(lines.len() + 1).unwrap_or(u16::MAX);
-    let [band, rest] =
-        Layout::vertical([Constraint::Length(height), Constraint::Fill(1)]).areas(area);
-    frame.render_widget(Paragraph::new(lines), band);
-    rest
 }
 
 /// A largura das barras de progresso do alto da tela, em blocos.

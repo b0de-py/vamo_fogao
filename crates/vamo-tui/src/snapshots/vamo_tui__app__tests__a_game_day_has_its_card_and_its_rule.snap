@@ -2,8 +2,8 @@
 source: crates/vamo-tui/src/app.rs
 expression: screen
 ---
-" vamo_fogao   1 HOJE  2 Caderno  3 Banco  4 Museu   ▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌"
-"─────────────━━━━━━━━───────────────────────────────────────────────────────────────────────────────────────────────────"
+" ★ vamo_fogao   1 HOJE  2 Caderno  3 Banco  4 Museu    ⚽ Time de Teste x Botafogo · 21:30   ▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌▌" Hidden by multi-width symbols: [(56, " ")]
+"───────────────━━━━━━━━─────────────────────────────────────────────────────────────────────────────────────────────────"
 "                                                                                                                        "
 " Hoje · quarta, 11/11                                                                               █▀█     ▄ ▄     █▀█ "
 " ▱▱▱▱▱▱▱▱▱▱▱▱ Placar: 0 de 0                                                                     ★  █ █     ▄▀▄     █ █ "
@@ -16,13 +16,13 @@ expression: screen
 "                                                                               r: a resenha do dia                      "
 " Ninguém escalado hoje. No Banco, o e escala uma tarefa pro dia.                                                        "
 "                                                                                                                        "
-" Agenda                                                                                                                 "
-" 20:00–21:00  Bloco do relatório                                             ┃                                        ┃ "
-"              ⚠ T-002: pesada perto do jogo (19:30–23:30)                    ┗━                                      ━┛ "
-"                                                                                                         ▀▀▀▀▀▀▀▀       "
-" No banco: 2 prontas. A tecla e escala uma pra hoje.                                                    ▀▀▀▀  ▀▀▀▀      "
+" “O primeiro tempo é agora.”                                                                                            "
+"                                                                             ┃                                        ┃ "
+" Agenda                                                                      ┗━                                      ━┛ "
+" 20:00–21:00  Bloco do relatório                                                                         ▀▀▀▀▀▀▀▀       "
+"              ⚠ T-002: pesada perto do jogo (19:30–23:30)                                               ▀▀▀▀  ▀▀▀▀      "
 "                                                                                                        ▀        ▀      "
+" No banco: 2 prontas. A tecla e escala uma pra hoje.                                                                    "
 "                                                                                                                        "
 "                                                                                                                        "
-"                                                                                                                        "
-"  ␣  gol   e  escala   a  adia   b  banco   r  resenha   ?  ajuda   tab  telas   q  sai                                 "
+"  ␣  gol   e  escala   a  adia   b  banco   r  resenha   ?  ajuda   tab  telas   q  sai       O primeiro tempo é agora. "
