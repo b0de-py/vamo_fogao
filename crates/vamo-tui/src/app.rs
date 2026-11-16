@@ -17,7 +17,7 @@ use ratatui::widgets::{Block, Clear, Paragraph};
 use jiff::civil::Date;
 
 use jiff::tz::TimeZone;
-use ratatui::style::Style;
+use ratatui::style::{Color, Style};
 use vamo_core::{Change, Fit, Lineup, NotebookTitle, Projection, Status, TaskId};
 
 use crate::bench::Bench;
@@ -882,16 +882,23 @@ impl App {
 
     /// O nome do app e as abas, com uma linha embaixo.
     ///
+    /// Em dia de jogo, a faixa veste o uniforme de jogo: a Estrela
+    /// Solitária entra do lado do nome, o jogo aparece depois das abas com
+    /// a bola e a hora, e as listras já nascem claras.
+    ///
     /// A aba da tela atual se destaca de três jeitos, pra não depender só
     /// de cor: fica em caixa-alta, com o fundo aceso, e o trecho da linha
     /// embaixo dela engrossa.
     fn render_header(&self, frame: &mut Frame<'_>, area: Rect) {
         let [tabs_area, rule_area] =
             Layout::vertical([Constraint::Length(1), Constraint::Length(1)]).areas(area);
-        let mut spans = vec![
-            Span::styled(" vamo_fogao ", theme::heading()),
-            Span::raw(" "),
-        ];
+        let game_day = self.schedule.game.as_ref();
+        let name = if game_day.is_some() {
+            " ★ vamo_fogao "
+        } else {
+            " vamo_fogao "
+        };
+        let mut spans = vec![Span::styled(name, theme::heading()), Span::raw(" ")];
         // Onde a aba atual começa e quanto mede, pra linha de baixo.
         let mut current = (0, 0);
         for (number, tab) in (1..).zip(Tab::ALL) {
@@ -906,10 +913,32 @@ impl App {
             };
             spans.push(span);
         }
+        // O jogo do dia, depois das abas, quando sobra lugar pra ele e pras
+        // listras.
+        if let Some(game_day) = game_day {
+            let chip = format!(
+                " ⚽ {} · {} ",
+                crate::matchday::matchup(game_day, &self.schedule.team),
+                game_day.game.kickoff.strftime("%H:%M")
+            );
+            let used: usize = spans.iter().map(Span::width).sum();
+            let needed = used + 2 + Span::raw(chip.as_str()).width() + usize::from(STRIPES_MIN) + 2;
+            if needed <= usize::from(tabs_area.width) {
+                spans.push(Span::raw("  "));
+                spans.push(Span::styled(chip, theme::shout()));
+            }
+        }
         let used: usize = spans.iter().map(Span::width).sum();
         frame.render_widget(Paragraph::new(Line::from(spans)), tabs_area);
         if self.voice == Voice::Game {
-            render_stripes(frame, tabs_area, used);
+            // No dia comum, as listras nascem apagadas; em dia de jogo, já
+            // começam claras.
+            let from = if game_day.is_some() {
+                theme::SOFT
+            } else {
+                theme::LINE
+            };
+            render_stripes(frame, tabs_area, used, from);
         }
 
         let width = usize::from(rule_area.width);
@@ -1038,9 +1067,10 @@ const STRIPES_MIN: u16 = 8;
 /// Cada célula é um meio-bloco `▌`: a metade da esquerda acesa e a da
 /// direita apagada, o que dá listras de pé com meia letra de largura, como
 /// as da camisa. Elas nascem apagadas perto das abas e clareiam até o
-/// branco na borda, pra não disputar com o texto. É só o desenho das
+/// branco na borda, pra não disputar com o texto. `from` é a cor em que
+/// elas nascem: mais clara em dia de jogo. É só o desenho das
 /// listras: nada de escudo nem de marca do clube.
-fn render_stripes(frame: &mut Frame<'_>, area: Rect, used: usize) {
+fn render_stripes(frame: &mut Frame<'_>, area: Rect, used: usize, from: Color) {
     // Duas colunas de respiro depois da última aba.
     let skip = u16::try_from(used).unwrap_or(u16::MAX).saturating_add(2);
     let width = area.width.saturating_sub(skip);
@@ -1053,7 +1083,7 @@ fn render_stripes(frame: &mut Frame<'_>, area: Rect, used: usize) {
             // três: o passo vira um número de 0 a 255.
             let amount =
                 u8::try_from(u32::from(step) * 255 / u32::from(width - 1)).unwrap_or(u8::MAX);
-            let color = theme::blend(theme::LINE, theme::WHITE, amount, u8::MAX);
+            let color = theme::blend(from, theme::WHITE, amount, u8::MAX);
             Span::styled("▌", Style::new().fg(color))
         })
         .collect();
@@ -1994,6 +2024,19 @@ pub(crate) mod tests {
             ..Schedule::default()
         };
         let screen = draw(&app, &ledger, 120, 24);
+        // A faixa do topo veste o uniforme de jogo: a estrela do lado do
+        // nome e o jogo depois das abas, em todas as telas.
+        let top = screen.lines().next().unwrap_or_default();
+        assert!(top.contains("★ vamo_fogao"), "{top}");
+        assert!(top.contains("Time de Teste x Botafogo · 21:30"), "{top}");
+        assert!(top.contains('▌'), "{top}");
+        // Numa tela estreita, o jogo sai da faixa e o resto fica.
+        let narrow = draw(&app, &ledger, 80, 24);
+        let top = narrow.lines().next().unwrap_or_default();
+        assert!(
+            top.contains("★ vamo_fogao") && !top.contains("21:30"),
+            "{top}"
+        );
         assert!(screen.contains("⚽ Dia de jogo"), "{screen}");
         assert!(
             screen.contains("Time de Teste x Botafogo · 21:30 · Amistoso"),
