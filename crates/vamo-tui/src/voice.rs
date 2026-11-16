@@ -174,7 +174,11 @@ impl Voice {
                 back,
                 ("x", "descarta"),
             ],
-            (Tab::Museum, _) => vec![("o", "ordena"), ("z", self.pick("resenha", "piadas"))],
+            (Tab::Museum, _) => vec![
+                ("←→", "década"),
+                ("o", "ordena"),
+                ("z", self.pick("resenha", "piadas")),
+            ],
         }
     }
 
@@ -900,6 +904,11 @@ impl Voice {
     }
 
     /// Como o Museu está arrumado, com as teclas pra trocar.
+    /// O começo da linha do tempo do Museu: os fatos de todas as décadas.
+    pub(crate) fn all_decades(self) -> &'static str {
+        "todas"
+    }
+
     pub(crate) fn shelf(self, arrangement: Shelf) -> &'static str {
         match (self, arrangement) {
             (Self::Game, Shelf::ByDate) => "por data (o: por tema · z: resenha)",
@@ -1039,6 +1048,7 @@ impl Voice {
             ],
             (Tab::Museum, _) => vec![
                 ("j, k, setas", "sobe e desce na lista"),
+                ("h, l, ← →", "anda pelas décadas da linha do tempo"),
                 ("o", "ordena por data ou por tema"),
                 (
                     "z",

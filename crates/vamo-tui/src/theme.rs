@@ -138,6 +138,16 @@ pub(crate) fn shout() -> Style {
         .add_modifier(Modifier::BOLD)
 }
 
+/// O item escolhido numa régua de opções (a década da linha do tempo do
+/// Museu): o destaque invertido. Não usa o fundo de destaque do
+/// [`cursor`], que é a marca da linha escolhida de uma lista e ganha a
+/// barra e o brilho.
+pub(crate) fn chip() -> Style {
+    Style::new()
+        .fg(ACCENT)
+        .add_modifier(Modifier::BOLD | Modifier::REVERSED)
+}
+
 /// Uma tecla no rodapé: branco em negrito num fundo um tom acima do vidro,
 /// pra parecer a tampa de uma tecla.
 pub(crate) fn keycap() -> Style {
