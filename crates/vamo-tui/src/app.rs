@@ -14,6 +14,7 @@ use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Clear, Paragraph};
 
+use jiff::Timestamp;
 use jiff::civil::Date;
 
 use jiff::tz::TimeZone;
@@ -508,7 +509,10 @@ impl App {
                         Some(task) => card::on_key(key, &task, ledger, self.today),
                         None => Some(Action::Close),
                     },
-                    (Tab::Bench, None) => self.bench.on_key(key, ledger, self.today),
+                    (Tab::Bench, None) => {
+                        self.bench
+                            .on_key(key, ledger, self.today, self.dropped_since())
+                    }
                     (Tab::Today, _) => {
                         self.today_screen
                             .on_key(key, ledger, self.today, &self.schedule)
@@ -620,6 +624,7 @@ impl App {
                 }
                 Err(message) => Feedback::Refused(message),
             },
+            Purpose::Restore => self.restore(text, ledger),
             Purpose::Item(id) => match text.parse::<usize>().ok().and_then(|n| n.checked_sub(1)) {
                 Some(index) => {
                     let change = projection.toggle_item(id, index).map(|change| vec![change]);
@@ -691,6 +696,45 @@ impl App {
                 self.voice.new_area(area)
             )),
             Feedback::Done => Feedback::Note(self.voice.added(id, title)),
+            other => other,
+        }
+    }
+
+    /// Desde quando uma descartada aparece na faixa do Banco: o começo de
+    /// ontem, na hora local. Dá entre um e dois dias de janela, e a faixa
+    /// muda só na virada do dia, não no meio de uma olhada.
+    fn dropped_since(&self) -> Timestamp {
+        let yesterday = self.today.yesterday().unwrap_or(self.today);
+        yesterday
+            .to_zoned(self.zone.clone())
+            .map_or(Timestamp::MIN, |start| start.timestamp())
+    }
+
+    /// Traz de volta pro banco a descartada do ID digitado, com o status
+    /// que ela tinha. Vale pra qualquer descartada, não só as da faixa.
+    fn restore<L: Ledger>(&self, text: &str, ledger: &mut L) -> Feedback {
+        let wanted = text
+            .trim()
+            .to_lowercase()
+            .trim_start_matches("t-")
+            .parse::<u32>()
+            .ok()
+            .and_then(TaskId::new);
+        let projection = ledger.projection();
+        let found = projection
+            .dropped_since(ledger.events(), Timestamp::MIN)
+            .into_iter()
+            .find(|discarded| Some(discarded.task.id()) == wanted);
+        let Some(discarded) = found else {
+            return Feedback::Refused(self.voice.not_dropped(text.trim()));
+        };
+        let id = discarded.task.id();
+        let changes = projection.restore(id, discarded.before);
+        match record(ledger, id, changes) {
+            Feedback::Done => match ledger.projection().task(id) {
+                Some(task) => Feedback::Note(self.voice.restored(id, task.status())),
+                None => Feedback::Done,
+            },
             other => other,
         }
     }
@@ -1071,9 +1115,14 @@ impl App {
                         self.voice,
                     );
                 }
-                None => self
-                    .bench
-                    .render(frame, area, projection, self.today, self.voice),
+                None => self.bench.render(
+                    frame,
+                    area,
+                    projection,
+                    self.today,
+                    &projection.dropped_since(ledger.events(), self.dropped_since()),
+                    self.voice,
+                ),
             },
             Tab::Museum => {
                 self.museum

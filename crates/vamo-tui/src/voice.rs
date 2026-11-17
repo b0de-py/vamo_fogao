@@ -449,6 +449,35 @@ impl Voice {
         "Aguardando"
     }
 
+    /// O título da faixa das descartadas há pouco, que ainda dá pra trazer
+    /// de volta com o `u`.
+    pub(crate) fn bench_dropped(self) -> &'static str {
+        "Descartadas há pouco"
+    }
+
+    /// A dica da faixa das descartadas.
+    pub(crate) fn bench_dropped_hint(self) -> &'static str {
+        self.pick("u traz de volta pro banco", "u traz de volta pra lista")
+    }
+
+    /// A linha de digitar da descartada que volta.
+    pub(crate) fn prompt_restore(self) -> &'static str {
+        "trazer de volta (ID): "
+    }
+
+    /// Depois de trazer uma descartada de volta.
+    pub(crate) fn restored(self, id: TaskId, status: vamo_core::Status) -> String {
+        match self {
+            Self::Game => format!("{id} voltou pro banco, {status}"),
+            Self::Neutral => format!("{id} voltou pra lista, {status}"),
+        }
+    }
+
+    /// Quando o ID digitado não é de uma descartada.
+    pub(crate) fn not_dropped(self, text: &str) -> String {
+        format!("`{text}` não é de uma tarefa descartada")
+    }
+
     /// O título da faixa das tarefas que dormem até voltar pro banco.
     pub(crate) fn bench_coming_back(self) -> &'static str {
         "Voltam em breve"
@@ -1066,6 +1095,7 @@ impl Voice {
                     (KeyCode::Char('n'), "tarefa nova"),
                     (KeyCode::Char('/'), "filtra a lista"),
                     (KeyCode::Esc, "limpa o filtro"),
+                    (KeyCode::Char('u'), "traz de volta uma descartada"),
                 ];
                 rows.extend(task);
                 rows
@@ -1191,6 +1221,7 @@ impl Voice {
                     ("n", "tarefa nova"),
                     ("/", "filtra: casa, foco, pronta, todas..."),
                     ("esc", "limpa o filtro"),
+                    ("u", "traz de volta uma descartada"),
                 ];
                 rows.extend(task_keys);
                 rows

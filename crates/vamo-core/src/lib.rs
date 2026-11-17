@@ -91,6 +91,7 @@
 
 mod appointment;
 mod area;
+mod dropped;
 mod error;
 mod event;
 mod fit;
@@ -117,6 +118,7 @@ mod week;
 
 pub use appointment::{Agenda, Appointment, When};
 pub use area::Area;
+pub use dropped::Discarded;
 pub use error::Error;
 pub use event::{Change, Event, EventId};
 pub use fit::Fit;
