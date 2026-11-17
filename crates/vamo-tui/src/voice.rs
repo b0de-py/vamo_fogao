@@ -236,8 +236,8 @@ impl Voice {
     /// O título da lista do que falta no dia, na dica da barra.
     pub fn still_open(self) -> &'static str {
         match self {
-            Self::Game => "Em campo:",
-            Self::Neutral => "Falta:",
+            Self::Game => "Em campo",
+            Self::Neutral => "Falta",
         }
     }
 

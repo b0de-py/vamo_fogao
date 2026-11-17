@@ -1,0 +1,17 @@
+---
+source: crates/vamo_fogao/tests/cli.rs
+assertion_line: 1566
+expression: "colored(&with_tasks(), &[\"show\", \"2\"])"
+---
+␛[1;38;2;0;217;255mT-002␛[0m ␛[1;38;2;255;255;255mFechar o mês␛[0m
+
+␛[38;2;102;102;102márea    ␛[0m geral
+␛[38;2;102;102;102mencaixe ␛[0m brecha
+␛[38;2;102;102;102mstatus  ␛[0m pronta
+
+␛[1;38;2;0;217;255m[>] Pedir as datas␛[0m
+[ ] Montar o rascunho␛[38;2;102;102;102m  (48h depois do anterior)␛[0m
+
+␛[1;38;2;0;217;255mS Ú M U L A␛[0m
+␛[38;2;102;102;102m[data e hora]␛[0m  ␛[38;2;102;102;102mnotebook␛[0m  entrou no banco: Fechar o mês (geral, brecha, pronta)
+␛[38;2;102;102;102m[data e hora]␛[0m  ␛[38;2;102;102;102mnotebook␛[0m  jogada de 2 passos

@@ -22,10 +22,12 @@ use crate::config::Config;
 use crate::import::{self, Plan};
 use crate::paths;
 use crate::{acervo, agenda, bar, games, remind, summary};
-use vamo_tui::Voice;
+use vamo_tui::{Ink, Voice};
 
 /// Roda um comando e devolve o que mostrar na saída.
-pub(crate) fn run(command: Command, voice: Voice, config: &Config) -> Result<String> {
+pub(crate) fn run(command: Command, voice: Voice, ink: Ink, config: &Config) -> Result<String> {
+    // Os comandos de tarefa abrem o banco com a linguagem e o pincel.
+    let open = || Session::open(voice, ink);
     match command {
         Command::Add {
             title,
@@ -35,7 +37,7 @@ pub(crate) fn run(command: Command, voice: Voice, config: &Config) -> Result<Str
             notes,
             repeat,
             steps,
-        } => Session::open(voice)?.add(NewTask {
+        } => open()?.add(NewTask {
             title: title.join(" "),
             area,
             fit,
@@ -44,44 +46,42 @@ pub(crate) fn run(command: Command, voice: Voice, config: &Config) -> Result<Str
             repeat,
             steps,
         }),
-        Command::List { all, area, status } => {
-            Ok(Session::open(voice)?.list(all, area.as_ref(), status))
-        }
-        Command::Done { id, date } => Session::open(voice)?.done(id, date),
-        Command::Jogada { id, steps } => Session::open(voice)?.make_play(id, steps),
-        Command::Item { id, item } => Session::open(voice)?.item(id, item),
-        Command::Espera { id } => Session::open(voice)?.wait(id),
-        Command::Volta { id, repeat } => Session::open(voice)?.set_repeat(id, repeat.0),
-        Command::Show { id } => Session::open(voice)?.show(id),
-        Command::Import { file, dry_run } => Session::open(voice)?.import(&file, dry_run),
+        Command::List { all, area, status } => Ok(open()?.list(all, area.as_ref(), status)),
+        Command::Done { id, date } => open()?.done(id, date),
+        Command::Jogada { id, steps } => open()?.make_play(id, steps),
+        Command::Item { id, item } => open()?.item(id, item),
+        Command::Espera { id } => open()?.wait(id),
+        Command::Volta { id, repeat } => open()?.set_repeat(id, repeat.0),
+        Command::Show { id } => open()?.show(id),
+        Command::Import { file, dry_run } => open()?.import(&file, dry_run),
         Command::Curiosidade { date, banter } => {
             let date = date.unwrap_or_else(|| jiff::Zoned::now().date());
             acervo::curiosity(date, banter, voice)
         }
         Command::Agenda { date } => {
             let day = date.unwrap_or_else(|| jiff::Zoned::now().date());
-            Session::open(voice)?.agenda(config, day)
+            open()?.agenda(config, day)
         }
-        Command::Sync => Session::open(voice)?.sync(config),
+        Command::Sync => open()?.sync(config),
         Command::Summary {
             date,
             week: false,
             json,
-        } => Session::open(voice)?.summary(config, date, json),
+        } => open()?.summary(config, date, json),
         Command::Summary {
             date,
             week: true,
             json,
-        } => Session::open(voice)?.week(config, date, json),
+        } => open()?.week(config, date, json),
         Command::Games { date } => {
             games_list(config, date.unwrap_or_else(|| jiff::Zoned::now().date()))
         }
-        Command::Inbox => Ok(Session::open(voice)?.inbox()),
-        Command::Bar { json } => Ok(Session::open(voice)?.bar(config, json)),
-        Command::Remind { test } => Session::open(voice)?.remind(config, test),
+        Command::Inbox => Ok(open()?.inbox()),
+        Command::Bar { json } => Ok(open()?.bar(config, json)),
+        Command::Remind { test } => open()?.remind(config, test),
         Command::ConnectGoogle => agenda::google::connect(&config.agenda),
         Command::Tui => {
-            let mut session = Session::open(voice)?;
+            let mut session = open()?;
             let acervo::Bundled { facts, banter } = acervo::bundled();
             let now = jiff::Zoned::now();
             let mut schedule = agenda::schedule(config, &now);
@@ -150,13 +150,15 @@ struct Session {
     events: Vec<Event>,
     projection: Projection,
     voice: Voice,
+    /// Se a saída ganha as cores do tema.
+    ink: Ink,
     /// As atividades fixas da agenda marcadas: a tabela inteira cabe na
     /// memória, e a TUI lê a cada quadro.
     agenda_checks: BTreeSet<(Date, String)>,
 }
 
 impl Session {
-    fn open(voice: Voice) -> Result<Self> {
+    fn open(voice: Voice, ink: Ink) -> Result<Self> {
         let path = paths::database()?;
         tracing::debug!(path = %path.display(), "abrindo o banco");
         let store = Store::open(&path)
@@ -169,6 +171,7 @@ impl Session {
             events,
             projection,
             voice,
+            ink,
             agenda_checks,
         };
         session.resurface()?;
@@ -260,7 +263,7 @@ impl Session {
         if tasks.is_empty() {
             self.voice.nothing_to_list().to_owned()
         } else {
-            table(&tasks)
+            table(&tasks, self.ink)
         }
     }
 
@@ -276,11 +279,11 @@ impl Session {
         match task.current_step() {
             Some(step) if task.status() != Status::Done => Ok(format!(
                 "{} {}: passo fechado. Agora: {}",
-                task.id(),
+                self.ink.accent(&task.id().to_string()),
                 task.title(),
-                step.title()
+                self.ink.accent(step.title())
             )),
-            _ => Ok(self.voice.goal(task.id(), task.title())),
+            _ => Ok(self.ink.shout(&self.voice.goal(task.id(), task.title()))),
         }
     }
 
@@ -348,12 +351,15 @@ impl Session {
             lines.push(String::new());
             lines.push(format!(
                 "{}  {} · {} · {}{estimate}",
-                task.id(),
+                self.ink.accent(&task.id().to_string()),
                 task.title(),
                 task.area(),
                 task.fit()
             ));
-            lines.push(format!("       {}", Footer::of(task)));
+            lines.push(format!(
+                "       {}",
+                self.ink.muted(&Footer::of(task).to_string())
+            ));
         }
         lines.join("\n")
     }
@@ -800,29 +806,36 @@ impl Session {
     /// `vamo show`: a ficha da tarefa e o histórico dela.
     fn show(&self, id: TaskId) -> Result<String> {
         let task = self.task(id)?;
+        let ink = self.ink;
+        // O rótulo de cada campo vai apagado, e o valor em destaque normal.
+        let field = |label: &str, value: &str| format!("{} {value}", ink.muted(label));
         let mut lines = vec![
-            format!("{} {}", task.id(), task.title()),
+            format!(
+                "{} {}",
+                ink.accent(&task.id().to_string()),
+                ink.heading(&task.title().to_string())
+            ),
             String::new(),
-            format!("área     {}", task.area()),
-            format!("encaixe  {}", task.fit()),
-            format!("status   {}", task.status()),
+            field("área    ", task.area().as_str()),
+            field("encaixe ", &task.fit().to_string()),
+            field("status  ", &task.status().to_string()),
         ];
         if let Some(interval) = task.repeat() {
-            lines.push(format!("volta    {}", Voice::interval(interval)));
+            lines.push(field("volta   ", &Voice::interval(interval)));
         }
         if let Some(plan) = task.plan() {
             lines.push(String::new());
-            lines.extend(plan_lines(&task, plan));
+            lines.extend(plan_lines(&task, plan, ink));
         }
         // Nota de várias linhas fica alinhada embaixo da primeira.
         let mut notes = task.notes().lines();
         if let Some(first) = notes.next() {
-            lines.push(format!("notas    {first}"));
+            lines.push(field("notas   ", first));
             lines.extend(notes.map(|line| format!("         {line}")));
         }
 
         lines.push(String::new());
-        lines.push(self.voice.history().to_owned());
+        lines.push(ink.section(self.voice.history()));
         // O log está na ordem de gravação; o histórico vai na ordem do
         // tempo, que é a mesma regra da projeção.
         let mut history: Vec<&Event> = self.events.iter().filter(|e| e.task == id).collect();
@@ -831,8 +844,9 @@ impl Session {
         for event in history {
             let when = event.at.to_zoned(zone.clone()).strftime("%d/%m/%Y %H:%M");
             lines.push(format!(
-                "{when}  {}  {}",
-                event.machine,
+                "{}  {}  {}",
+                ink.muted(&when.to_string()),
+                ink.muted(&event.machine.to_string()),
                 self.voice.change(&event.change)
             ));
         }
@@ -970,7 +984,7 @@ fn title_with_step(task: &Task) -> String {
 
 /// Os passos de uma jogada, um por linha: os fechados marcados, o da vez com
 /// seta e os itens dele com o que já foi marcado.
-fn plan_lines(task: &Task, plan: &StepPlan) -> Vec<String> {
+fn plan_lines(task: &Task, plan: &StepPlan, ink: Ink) -> Vec<String> {
     let progress = task.progress();
     let done = task.status() == Status::Done;
     let mut lines = Vec::new();
@@ -988,7 +1002,16 @@ fn plan_lines(task: &Task, plan: &StepPlan) -> Vec<String> {
             vamo_core::Due::After(hours) => format!("  ({hours}h depois do anterior)"),
             vamo_core::Due::Ask => "  (a data é pedida)".to_owned(),
         };
-        lines.push(format!("{mark} {}{due}", step.title()));
+        let line = format!("{mark} {}", step.title());
+        // O passo da vez em destaque, os fechados apagados.
+        let line = if current {
+            ink.accent(&line)
+        } else if index < usize::from(progress.step) || done {
+            ink.muted(&line)
+        } else {
+            line
+        };
+        lines.push(format!("{line}{}", ink.muted(&due)));
         if current {
             for (item_index, item) in step.items().iter().enumerate() {
                 let item_mark = if progress.is_item_checked(item_index) {
@@ -1006,7 +1029,7 @@ fn plan_lines(task: &Task, plan: &StepPlan) -> Vec<String> {
     lines
 }
 
-fn table(tasks: &[Task]) -> String {
+fn table(tasks: &[Task], ink: Ink) -> String {
     let rows: Vec<[String; 5]> = tasks
         .iter()
         .map(|task| {
@@ -1029,12 +1052,17 @@ fn table(tasks: &[Task]) -> String {
         }
     }
 
+    // A cor entra depois do alinhamento: os códigos ANSI ocupam bytes mas
+    // não ocupam coluna, e contariam na largura.
     let [id_width, status_width, fit_width, area_width] = widths;
     rows.iter()
         .map(|[id, status, fit, area, title]| {
             format!(
-                "{id:<id_width$}  {status:<status_width$}  {fit:<fit_width$}  \
-                 {area:<area_width$}  {title}"
+                "{}  {}  {}  {}  {title}",
+                ink.accent(&format!("{id:<id_width$}")),
+                ink.soft(&format!("{status:<status_width$}")),
+                ink.muted(&format!("{fit:<fit_width$}")),
+                ink.muted(&format!("{area:<area_width$}")),
             )
         })
         .collect::<Vec<_>>()

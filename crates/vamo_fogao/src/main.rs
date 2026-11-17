@@ -76,7 +76,7 @@ fn main() -> ExitCode {
     };
     let voice = cli.voice.or(config.voice).unwrap_or_default();
 
-    match commands::run(command, voice, &config) {
+    match commands::run(command, voice, ink(), &config) {
         Ok(output) => {
             // A TUI não deixa nada pra imprimir depois que fecha.
             if !output.is_empty() {
@@ -88,6 +88,24 @@ fn main() -> ExitCode {
             eprintln!("{} {report:?}", voice.error());
             ExitCode::FAILURE
         }
+    }
+}
+
+/// O pincel da saída: com as cores do tema só quando a saída é um terminal
+/// de verdade. O `NO_COLOR` (com qualquer valor) apaga a cor, e o
+/// `CLICOLOR_FORCE` (com valor diferente de `0`) liga mesmo num pipe, pra
+/// quem quer ver a cor num `less -R`. As duas seguem as convenções de
+/// no-color.org e bixense.com/clicolors.
+fn ink() -> vamo_tui::Ink {
+    let set = |name: &str| std::env::var_os(name).is_some_and(|value| !value.is_empty());
+    let forced =
+        std::env::var_os("CLICOLOR_FORCE").is_some_and(|value| !value.is_empty() && value != "0");
+    if set("NO_COLOR") {
+        vamo_tui::Ink::PLAIN
+    } else if forced || std::io::stdout().is_terminal() {
+        vamo_tui::Ink::COLORED
+    } else {
+        vamo_tui::Ink::PLAIN
     }
 }
 

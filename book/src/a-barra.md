@@ -20,7 +20,7 @@ O `--json` é um contrato entre o binário e o módulo, e os dois podem estar em
   "versao": 1,
   "dia": "2026-11-12",
   "text": "⭐ 1 x 2",
-  "tooltip": "Hoje · quinta, 12/11\nPlacar: 1 de 3\n1 atrasada\n...",
+  "tooltip": "⭐ Hoje · quinta, 12/11\n▰▰▰▱▱▱▱▱▱▱  Placar: 1 de 3\n1 atrasada\n...",
   "class": ["andando", "atraso"],
   "placar": { "feitas": 1, "previstas": 3 },
   "atrasadas": 1,
@@ -38,6 +38,8 @@ O `--json` é um contrato entre o binário e o módulo, e os dois podem estar em
 | `atrasadas` | Quantas tarefas escaladas pra um dia que passou ainda não saíram. |
 | `proximo` | O próximo compromisso com horário de hoje (`inicio` e `titulo`), ou `null`. |
 | `jogo` | O jogo do dia, ou `null`. Os campos estão em [O dia de jogo](#o-dia-de-jogo). |
+
+A dica é texto puro, porque o botão da barra do Omarchy não lê cor nem marcação. Por isso a cara da TUI chega nela pelos enfeites que viram texto: a estrela no alto (só na linguagem de jogo), a barra de blocos `▰▱` do placar e o rótulo `E M   C A M P O` em caixa-alta espaçada. Quem monta esses pedaços é o `vamo_tui::meter_text` e o `vamo_tui::spaced_caps`, os mesmos da TUI.
 
 O módulo confere a `versao`. Se o binário falar uma versão que ele não conhece, a barra mostra `vamo ?` e a dica pede pra atualizar o módulo, em vez de mostrar coisa errada.
 
@@ -80,7 +82,7 @@ Se a barra mostrar `vamo !`, o comando deu erro: a dica traz a mensagem. O mais 
 
 ## Os lembretes
 
-O segundo passo é o aviso na hora certa, nas notificações do desktop, com a TUI aberta ou não. Dez minutos antes de cada compromisso com horário da agenda, chega uma notificação com o título e a hora: `A bola rola às 15:00` (no modo neutro, `Começa às 15:00`). Se o evento está ligado a uma tarefa pelo rodapé `vamo:`, o título é o da tarefa, com o ID; tarefa concluída ou descartada não tem aviso. A decisão está na [ADR 0011](https://github.com/b0de-py/vamo_fogao/blob/main/docs/adr/0011-lembretes-por-timer-e-notify-send.md).
+O segundo passo é o aviso na hora certa, nas notificações do desktop, com a TUI aberta ou não. Dez minutos antes de cada compromisso com horário da agenda, chega uma notificação com o título e a hora: `⭐ Dentista`, `A bola rola às 15:00` (no modo neutro, sem a estrela e com `Começa às 15:00`). Se o evento está ligado a uma tarefa pelo rodapé `vamo:`, o título é o da tarefa, com o ID; tarefa concluída ou descartada não tem aviso. A decisão está na [ADR 0011](https://github.com/b0de-py/vamo_fogao/blob/main/docs/adr/0011-lembretes-por-timer-e-notify-send.md).
 
 ```sh
 vamo lembrar          # uma rodada: avisa o que venceu desde a última

@@ -64,7 +64,14 @@ pub(crate) fn round<N: Notifier>(
         } else {
             voice.reminder_ahead(&time)
         };
-        if let Err(error) = notifier.notify(&reminder.title, &body) {
+        // A estrela do app na frente, como no placar da barra. A
+        // notificação é texto puro: cor e moldura dependem do serviço de
+        // notificações de quem usa.
+        let summary = match voice {
+            Voice::Game => format!("⭐ {}", reminder.title),
+            Voice::Neutral => reminder.title.clone(),
+        };
+        if let Err(error) = notifier.notify(&summary, &body) {
             tracing::warn!(%error, title = reminder.title, "o aviso não saiu");
             first_error.get_or_insert(error);
         }
@@ -156,7 +163,7 @@ mod tests {
         assert_eq!(sent, 1);
         assert_eq!(
             fake.sent,
-            [("Dentista".to_owned(), "A bola rola às 15:00".to_owned())]
+            [("⭐ Dentista".to_owned(), "A bola rola às 15:00".to_owned())]
         );
     }
 
@@ -172,6 +179,8 @@ mod tests {
             Voice::Neutral,
         )
         .unwrap();
+        // A estrela é só da linguagem de jogo.
+        assert_eq!(fake.sent[0].0, "Dentista");
         assert_eq!(fake.sent[0].1, "Começa às 15:00");
     }
 
