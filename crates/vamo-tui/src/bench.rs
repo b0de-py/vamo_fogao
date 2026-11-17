@@ -451,10 +451,63 @@ pub(crate) mod tests {
         let mut app = open_bench(&mut ledger);
         app.on_key(key(KeyCode::Char('n')), &mut ledger);
         type_text(&mut app, &mut ledger, "Comprar pilha pro controle");
+        // Ainda não gravou: falta a área e as notas.
+        assert_eq!(ledger.projection().tasks().count(), 5);
+        let screen = draw(&app, &ledger, 120, 12);
+        assert!(screen.contains("tab completa"), "{screen}");
+        // Enter na área e nas notas deixa os padrões.
+        type_text(&mut app, &mut ledger, "");
+        type_text(&mut app, &mut ledger, "");
         let task = ledger.projection().tasks().last().unwrap();
         assert_eq!(task.title().as_str(), "Comprar pilha pro controle");
         assert_eq!(task.area().as_str(), "geral");
+        assert_eq!(task.notes(), "autodescritivo");
         assert_eq!(task.status(), Status::Ready);
+    }
+
+    #[test]
+    fn the_new_task_asks_the_area_with_tab_and_the_notes() {
+        let mut ledger = bench();
+        let mut app = open_bench(&mut ledger);
+        app.on_key(key(KeyCode::Char('n')), &mut ledger);
+        type_text(&mut app, &mut ledger, "Lavar a cortina");
+        for c in "ca".chars() {
+            app.on_key(key(KeyCode::Char(c)), &mut ledger);
+        }
+        // O que o tab completaria aparece apagado depois do cursor.
+        let screen = draw(&app, &ledger, 120, 12);
+        assert!(screen.contains("ca▏sa"), "{screen}");
+        app.on_key(key(KeyCode::Tab), &mut ledger);
+        type_text(&mut app, &mut ledger, "");
+        type_text(&mut app, &mut ledger, "Com sabão neutro");
+        let task = ledger.projection().tasks().last().unwrap();
+        assert_eq!(task.area().as_str(), "casa");
+        assert_eq!(task.notes(), "Com sabão neutro");
+    }
+
+    #[test]
+    fn a_new_area_is_told_and_typed_the_easy_way() {
+        let mut ledger = bench();
+        let mut app = open_bench(&mut ledger);
+        app.on_key(key(KeyCode::Char('n')), &mut ledger);
+        type_text(&mut app, &mut ledger, "Montar o portfólio");
+        // Maiúscula e espaço viram o jeito de escrever área.
+        type_text(&mut app, &mut ledger, "Projetos Paralelos");
+        type_text(&mut app, &mut ledger, "");
+        let task = ledger.projection().tasks().last().unwrap();
+        assert_eq!(task.area().as_str(), "projetos-paralelos");
+        let screen = draw(&app, &ledger, 120, 12);
+        assert!(screen.contains("área nova: projetos-paralelos"), "{screen}");
+    }
+
+    #[test]
+    fn esc_in_the_middle_gives_up_the_new_task() {
+        let mut ledger = bench();
+        let mut app = open_bench(&mut ledger);
+        app.on_key(key(KeyCode::Char('n')), &mut ledger);
+        type_text(&mut app, &mut ledger, "Lavar a cortina");
+        app.on_key(key(KeyCode::Esc), &mut ledger);
+        assert_eq!(ledger.projection().tasks().count(), 5);
     }
 
     #[test]

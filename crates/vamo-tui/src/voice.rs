@@ -493,6 +493,22 @@ impl Voice {
         }
     }
 
+    /// A linha de digitar da área de uma tarefa nova.
+    pub(crate) fn prompt_new_area(self) -> &'static str {
+        "área (tab completa, enter deixa geral): "
+    }
+
+    /// A linha de digitar das notas de uma tarefa nova.
+    pub(crate) fn prompt_new_notes(self) -> &'static str {
+        "notas (enter deixa autodescritivo): "
+    }
+
+    /// O aviso de que a tarefa nova abriu uma área que ainda não existia,
+    /// pra um nome digitado errado não passar calado.
+    pub(crate) fn new_area(self, area: &vamo_core::Area) -> String {
+        format!("área nova: {area}")
+    }
+
     /// Depois de criar uma tarefa, no `vamo add` e na TUI.
     pub fn added(self, id: TaskId, title: &NotebookTitle) -> String {
         match self {

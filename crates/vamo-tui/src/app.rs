@@ -18,7 +18,7 @@ use jiff::civil::Date;
 
 use jiff::tz::TimeZone;
 use ratatui::style::{Color, Style};
-use vamo_core::{Change, Fit, Lineup, NotebookTitle, Projection, Status, TaskId};
+use vamo_core::{Area, Change, Fit, Lineup, NotebookTitle, Projection, Status, TaskId};
 
 use crate::bench::Bench;
 use crate::curiosity::Acervo;
@@ -578,29 +578,25 @@ impl App {
                 self.bench.set_filter(text);
                 Feedback::Done
             }
-            Purpose::NewTask => {
-                let created = text.parse::<NotebookTitle>().and_then(|title| {
-                    let id = projection
-                        .next_id()
-                        .ok_or(vamo_core::Error::UnknownTask { id: TaskId::FIRST })?;
-                    Ok((id, title))
-                });
-                match created {
-                    Ok((id, title)) => {
-                        let change = Change::Created {
-                            title: title.clone(),
-                            area: "geral".parse().expect("`geral` é uma área válida"),
-                            fit: Fit::Gap,
-                            status: Status::Ready,
-                        };
-                        match record(ledger, id, Ok(vec![change])) {
-                            Feedback::Done => Feedback::Note(self.voice.added(id, &title)),
-                            other => other,
-                        }
-                    }
-                    Err(error) => Feedback::Refused(error.to_string()),
+            // A tarefa nova pede três coisas em sequência: o título, a área
+            // e as notas. Cada passo abre a linha do seguinte, e só o último
+            // grava. Esc em qualquer passo desiste da tarefa inteira.
+            Purpose::NewTask => match text.parse::<NotebookTitle>() {
+                Ok(title) => {
+                    let known = known_areas(projection);
+                    self.prompt = Some(Prompt::new(Purpose::NewArea { title, known }, ""));
+                    Feedback::Done
                 }
-            }
+                Err(error) => Feedback::Refused(error.to_string()),
+            },
+            Purpose::NewArea { title, .. } => match area_from(text) {
+                Ok(area) => {
+                    self.prompt = Some(Prompt::new(Purpose::NewNotes { title, area }, ""));
+                    Feedback::Done
+                }
+                Err(error) => Feedback::Refused(error.to_string()),
+            },
+            Purpose::NewNotes { title, area } => self.create(&title, &area, text, ledger),
             Purpose::Title(id) => {
                 let change = text.parse().map(|title| vec![Change::Title(title)]);
                 record(ledger, id, change)
@@ -655,6 +651,47 @@ impl App {
                     None => Feedback::Refused(self.voice.bad_option(text)),
                 }
             }
+        }
+    }
+
+    /// Grava a tarefa nova, no fim dos três passos: o título, a área e as
+    /// notas (vazias, viram `autodescritivo`).
+    fn create<L: Ledger>(
+        &self,
+        title: &NotebookTitle,
+        area: &Area,
+        text: &str,
+        ledger: &mut L,
+    ) -> Feedback {
+        let projection = ledger.projection();
+        let Some(id) = projection.next_id() else {
+            return Feedback::Refused(
+                vamo_core::Error::UnknownTask { id: TaskId::FIRST }.to_string(),
+            );
+        };
+        let fresh = !projection.tasks().any(|task| task.area() == area);
+        let notes = if text.is_empty() {
+            AUTODESCRIPTIVE.to_owned()
+        } else {
+            text.to_owned()
+        };
+        let changes = vec![
+            Change::Created {
+                title: title.clone(),
+                area: area.clone(),
+                fit: Fit::Gap,
+                status: Status::Ready,
+            },
+            Change::Notes(notes),
+        ];
+        match record(ledger, id, Ok(changes)) {
+            Feedback::Done if fresh => Feedback::Note(format!(
+                "{} · {}",
+                self.voice.added(id, title),
+                self.voice.new_area(area)
+            )),
+            Feedback::Done => Feedback::Note(self.voice.added(id, title)),
+            other => other,
         }
     }
 
@@ -723,6 +760,8 @@ impl App {
                 Span::styled(prompt.label(self.voice), theme::selected()),
                 Span::styled(prompt.text.clone(), theme::text()),
                 Span::styled("▏", theme::selected()),
+                // O que o tab completaria, apagado depois do cursor.
+                Span::styled(prompt.completion().unwrap_or_default(), theme::muted()),
             ]),
             (None, Some(message)) => Line::styled(message.text.clone(), message.style),
             (None, None) => match self.tip {
@@ -1187,6 +1226,38 @@ fn card_tone(projection: &Projection, id: TaskId, today: Date) -> Tone {
         .iter()
         .any(|task| task.id() == id);
     if late { Tone::Alert } else { Tone::Focus }
+}
+
+/// As notas de uma tarefa nova quando ninguém escreve nada: o título já
+/// diz tudo.
+const AUTODESCRIPTIVE: &str = "autodescritivo";
+
+/// As áreas que já têm tarefa, da mais usada pra menos (e em ordem
+/// alfabética no empate), pro tab da área de uma tarefa nova completar.
+fn known_areas(projection: &Projection) -> Vec<Area> {
+    let mut count: std::collections::BTreeMap<Area, usize> = std::collections::BTreeMap::new();
+    for task in projection.tasks() {
+        *count.entry(task.area().clone()).or_default() += 1;
+    }
+    let mut areas: Vec<(Area, usize)> = count.into_iter().collect();
+    // O BTreeMap já vem em ordem alfabética, e a ordenação estável mantém
+    // essa ordem entre as que empatam.
+    areas.sort_by_key(|(_, uses)| std::cmp::Reverse(*uses));
+    areas.into_iter().map(|(area, _)| area).collect()
+}
+
+/// A área digitada pra uma tarefa nova. Vazia vira `geral`. Maiúscula vira
+/// minúscula e espaço vira hífen, porque é o jeito que a área se escreve e
+/// ninguém precisa decorar.
+fn area_from(text: &str) -> Result<Area, vamo_core::Error> {
+    let text = text.trim().to_lowercase();
+    if text.is_empty() {
+        return "geral".parse();
+    }
+    text.split_whitespace()
+        .collect::<Vec<_>>()
+        .join("-")
+        .parse()
 }
 
 /// Um retângulo do tamanho pedido no meio de `area`, sem passar dela.
