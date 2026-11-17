@@ -31,6 +31,11 @@ impl Vamo {
     /// máquina se chama `notebook` (ou a de [`Vamo::on`]) e o fuso é o de
     /// Brasília.
     fn run(&self, args: &[&str]) -> Output {
+        self.run_with(args, &[])
+    }
+
+    /// Como o [`Vamo::run`], com variáveis de ambiente a mais.
+    fn run_with(&self, args: &[&str], vars: &[(&str, &str)]) -> Output {
         Command::new(env!("CARGO_BIN_EXE_vamo"))
             .args(args)
             .current_dir(self.home.path())
@@ -48,6 +53,10 @@ impl Vamo {
             .env_remove("VAMO_LOG")
             .env_remove("RUST_BACKTRACE")
             .env_remove("RUST_LIB_BACKTRACE")
+            // A cor é decidida pelos testes que pedem.
+            .env_remove("NO_COLOR")
+            .env_remove("CLICOLOR_FORCE")
+            .envs(vars.iter().copied())
             .output()
             .expect("o executável `vamo` deveria rodar")
     }
@@ -1502,5 +1511,63 @@ mod play {
         vamo.fails(&["jogada", "1"], 2);
         let error = vamo.fails(&["jogada", "9", "--passo", "Fazer"], 1);
         assert!(error.contains("não tem nenhuma tarefa T-009"), "{error}");
+    }
+}
+
+mod color {
+    use super::*;
+
+    /// Uma tarefa simples e uma jogada, pra lista e a ficha terem de tudo.
+    fn with_tasks() -> Vamo {
+        let vamo = Vamo::new();
+        vamo.ok(&["add", "Trocar o filtro da água", "-a", "casa"]);
+        vamo.ok(&[
+            "add",
+            "Fechar o mês",
+            "--passo",
+            "Pedir as datas",
+            "--passo",
+            "Montar o rascunho @48h",
+        ]);
+        vamo
+    }
+
+    /// Roda com a cor forçada e troca o caractere de escape por `␛`, pra o
+    /// snapshot dar pra ler.
+    fn colored(vamo: &Vamo, args: &[&str]) -> String {
+        let out = vamo.run_with(args, &[("CLICOLOR_FORCE", "1")]);
+        assert!(out.status.success(), "{}", text(&out.stderr));
+        text(&out.stdout).replace('\x1b', "␛")
+    }
+
+    #[test]
+    fn a_pipe_gets_no_color() {
+        // Os testes rodam num pipe: nenhum código ANSI sai.
+        let vamo = with_tasks();
+        for args in [&["list"][..], &["show", "2"], &["done", "1"]] {
+            assert!(!vamo.ok(args).contains('\x1b'), "vamo {args:?}");
+        }
+    }
+
+    #[test]
+    fn no_color_wins_over_the_force() {
+        let vamo = with_tasks();
+        let out = vamo.run_with(&["list"], &[("CLICOLOR_FORCE", "1"), ("NO_COLOR", "1")]);
+        assert!(!text(&out.stdout).contains('\x1b'));
+    }
+
+    #[test]
+    fn the_list_in_color() {
+        insta::assert_snapshot!(colored(&with_tasks(), &["list"]));
+    }
+
+    #[test]
+    fn the_card_in_color() {
+        assert_snapshot_without_time!(colored(&with_tasks(), &["show", "2"]));
+    }
+
+    #[test]
+    fn the_goal_in_color() {
+        insta::assert_snapshot!(colored(&with_tasks(), &["done", "1"]));
     }
 }

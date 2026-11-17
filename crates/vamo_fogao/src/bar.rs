@@ -24,6 +24,9 @@ pub(crate) const FORMAT_VERSION: u32 = 1;
 /// Quantas tarefas em aberto a dica lista antes do "e mais".
 const OPEN_IN_TOOLTIP: usize = 5;
 
+/// Quantos blocos tem a barra do placar na dica.
+const METER_WIDTH: usize = 10;
+
 /// O que a barra precisa saber do dia. Quem monta é o comando, com o banco
 /// e a cópia local da agenda.
 pub(crate) struct Day<'a> {
@@ -155,13 +158,22 @@ impl Bar {
     /// A dica que aparece com o mouse em cima: o dia, o placar, o atraso, o
     /// próximo compromisso e o que falta.
     pub(crate) fn tooltip(&self, voice: Voice) -> String {
+        // A dica é texto puro (o módulo da barra não lê cor nem marcação),
+        // então a cara da TUI vem dos enfeites que viram texto: a estrela no
+        // alto, a barra de blocos do placar e o rótulo em caixa-alta
+        // espaçada.
+        let star = if voice == Voice::Game { "⭐ " } else { "" };
         let mut lines = vec![
             format!(
-                "Hoje · {}, {}",
+                "{star}Hoje · {}, {}",
                 voice.weekday(self.day.weekday()),
                 self.day.strftime("%d/%m")
             ),
-            voice.score(self.done, self.planned),
+            format!(
+                "{}  {}",
+                vamo_tui::meter_text(self.done, self.planned, METER_WIDTH),
+                voice.score(self.done, self.planned)
+            ),
         ];
         if let Some(game) = &self.game {
             let competition = game
@@ -185,7 +197,7 @@ impl Bar {
         }
         if !self.open.is_empty() {
             lines.push(String::new());
-            lines.push(voice.still_open().to_owned());
+            lines.push(vamo_tui::spaced_caps(voice.still_open()));
             lines.extend(self.open.iter().take(OPEN_IN_TOOLTIP).cloned());
             let more = self.open.len().saturating_sub(OPEN_IN_TOOLTIP);
             if more > 0 {

@@ -25,6 +25,7 @@ use crate::curiosity::Acervo;
 use crate::fire::{self, Fire};
 use crate::museum::Museum;
 use crate::notebook::Notebook;
+use crate::palette::{self, Outcome, Palette};
 use crate::panel::{Panel, Tone};
 use crate::prompt::{Prompt, Purpose, Step};
 use crate::schedule::Schedule;
@@ -121,7 +122,7 @@ pub(crate) enum Tab {
 
 impl Tab {
     /// Todas as abas, na ordem do topo.
-    const ALL: [Self; 4] = [Self::Today, Self::Notebook, Self::Bench, Self::Museum];
+    pub(crate) const ALL: [Self; 4] = [Self::Today, Self::Notebook, Self::Bench, Self::Museum];
 
     /// A posição da aba no topo, a partir de zero.
     fn index(self) -> usize {
@@ -183,6 +184,8 @@ pub(crate) struct App {
     /// sumir.
     last_input: Option<Instant>,
     help: bool,
+    /// A paleta de comandos, quando está aberta.
+    palette: Option<Palette>,
     quit: bool,
     effects: Effects,
     /// A densidade pedida na config. A que vale em cada quadro depende do
@@ -267,6 +270,7 @@ impl App {
             tipped: vec![Tab::Today],
             last_input: None,
             help: false,
+            palette: None,
             quit: false,
             effects: setup.effects,
             density: setup.density,
@@ -451,6 +455,20 @@ impl App {
             }
             return;
         }
+        // Com a paleta aberta, as teclas são a busca. Escolher um comando é
+        // apertar a tecla dele, pelo mesmo caminho de sempre.
+        if let Some(palette) = &mut self.palette {
+            let commands = palette::commands(self.voice, self.tab, self.card.is_some());
+            match palette.on_key(key, &commands) {
+                Outcome::Open => {}
+                Outcome::Close => self.palette = None,
+                Outcome::Run(code) => {
+                    self.palette = None;
+                    self.on_key(KeyEvent::from(code), ledger);
+                }
+            }
+            return;
+        }
         // Com a ajuda aberta, qualquer tecla só fecha a ajuda.
         if self.help {
             self.help = false;
@@ -472,6 +490,7 @@ impl App {
         match key.code {
             KeyCode::Char('q') => self.quit = true,
             KeyCode::Char('?') => self.help = true,
+            KeyCode::Char(':') => self.palette = Some(Palette::default()),
             KeyCode::Char('r') => {
                 self.banter = !self.banter;
                 // A resenha (ou o fato, na volta) entra digitada.
@@ -717,6 +736,9 @@ impl App {
 
         if self.help {
             self.render_help(frame, body);
+        }
+        if let Some(palette) = &self.palette {
+            self.render_palette(frame, body, palette);
         }
 
         // O fogo e a estrela entram por último, por baixo de tudo o que já
@@ -1057,6 +1079,62 @@ impl App {
         frame.render_widget(Paragraph::new(lines), inner);
     }
 }
+
+impl App {
+    /// A paleta de comandos, numa caixa por cima da tela, um pouco acima do
+    /// meio: a busca no alto e os comandos que casam embaixo, o escolhido
+    /// em destaque.
+    fn render_palette(&self, frame: &mut Frame<'_>, area: Rect, palette: &Palette) {
+        let panel = Panel::new()
+            .title(Line::styled(self.voice.palette_title(), theme::heading()))
+            .tone(Tone::Focus)
+            .density(self.density(frame.area()));
+        let (chrome_x, chrome_y) = panel.chrome();
+        let commands = palette::commands(self.voice, self.tab, self.card.is_some());
+        let found = palette::search(&palette.query, &commands);
+        let shown = found.len().clamp(1, PALETTE_ROWS);
+        // A lista rola junto com o escolhido, pra ele nunca sumir.
+        let skip = palette.selected.saturating_sub(PALETTE_ROWS - 1);
+        let width = PALETTE_WIDTH + chrome_x;
+        // A busca, uma linha de respiro e a lista.
+        let popup = centered(area, width, shown + 2 + chrome_y);
+        let inner = panel.inner(popup);
+        let row_width = usize::from(inner.width);
+
+        let mut lines = vec![
+            Line::from(vec![
+                Span::styled("› ", theme::selected()),
+                Span::styled(palette.query.clone(), theme::text()),
+                Span::styled("▏", theme::selected()),
+            ]),
+            Line::default(),
+        ];
+        if found.is_empty() {
+            lines.push(Line::styled(self.voice.palette_empty(), theme::muted()));
+        }
+        for (index, command) in found.iter().enumerate().skip(skip).take(PALETTE_ROWS) {
+            let text = format!("{:<6} {}", command.key_label(), command.what);
+            let text = format!("{text:<row_width$}");
+            lines.push(if index == palette.selected {
+                Line::styled(text, theme::cursor())
+            } else {
+                Line::from(vec![
+                    Span::styled(format!("{:<6} ", command.key_label()), theme::selected()),
+                    Span::styled(command.what.clone(), theme::soft()),
+                ])
+            });
+        }
+        frame.render_widget(Clear, popup);
+        frame.render_widget(panel, popup);
+        frame.render_widget(Paragraph::new(lines), inner);
+    }
+}
+
+/// Quantos comandos a paleta mostra de uma vez. O resto aparece rolando.
+const PALETTE_ROWS: usize = 10;
+
+/// A largura do miolo da paleta, em colunas: cabe o comando mais comprido.
+const PALETTE_WIDTH: usize = 46;
 
 /// Quantas colunas livres a faixa do topo precisa ter pras listras
 /// entrarem. Com menos, elas só fariam barulho.
@@ -1855,6 +1933,95 @@ pub(crate) mod tests {
         app.on_key(key(KeyCode::Char('q')), &mut ledger);
         assert!(!app.help);
         assert!(!app.should_quit());
+    }
+
+    #[test]
+    fn the_palette_lists_the_screen_and_searches() {
+        let mut app = new_app(Voice::Game);
+        let mut ledger = ledger();
+        app.on_key(key(KeyCode::Char('3')), &mut ledger);
+        app.on_key(key(KeyCode::Char(':')), &mut ledger);
+        assert_snapshot!("paleta_aberta", draw(&app, &ledger, 70, 20));
+        for c in "nova".chars() {
+            app.on_key(key(KeyCode::Char(c)), &mut ledger);
+        }
+        assert_snapshot!("paleta_buscando", draw(&app, &ledger, 70, 20));
+        // Na paleta, as letras são busca: o `q` não fecha o app.
+        assert!(!app.should_quit());
+        // O enter aperta a tecla do escolhido: a tarefa nova abre a linha
+        // de digitar.
+        app.on_key(key(KeyCode::Enter), &mut ledger);
+        assert_eq!(app.palette, None);
+        assert_eq!(
+            app.prompt.as_ref().map(|prompt| &prompt.purpose),
+            Some(&Purpose::NewTask)
+        );
+    }
+
+    #[test]
+    fn the_palette_goes_to_other_screens_and_esc_closes_it() {
+        let mut app = new_app(Voice::Game);
+        let mut ledger = ledger();
+        app.on_key(key(KeyCode::Char(':')), &mut ledger);
+        for c in "museu".chars() {
+            app.on_key(key(KeyCode::Char(c)), &mut ledger);
+        }
+        app.on_key(key(KeyCode::Enter), &mut ledger);
+        assert_eq!(app.tab, Tab::Museum);
+
+        app.on_key(key(KeyCode::Char(':')), &mut ledger);
+        app.on_key(key(KeyCode::Esc), &mut ledger);
+        assert_eq!(app.palette, None);
+        assert_eq!(app.tab, Tab::Museum);
+    }
+
+    #[test]
+    fn every_key_of_the_help_is_in_the_palette() {
+        // As teclas de andar pela lista e de trocar de tela pelo tab não
+        // são comandos: na paleta, a busca já é o jeito de andar.
+        let moving = [
+            "j",
+            "k",
+            "setas",
+            "h",
+            "l",
+            "← →",
+            "tab",
+            "shift+tab",
+            "ctrl+c",
+            "1 a 4",
+        ];
+        for voice in [Voice::Game, Voice::Neutral] {
+            for (tab, card) in Tab::ALL
+                .into_iter()
+                .map(|tab| (tab, false))
+                .chain([(Tab::Bench, true)])
+            {
+                let palette: Vec<String> = palette::commands(voice, tab, card)
+                    .iter()
+                    .map(palette::Command::key_label)
+                    .collect();
+                for (keys, _) in voice.help(tab, card, Effects::Full) {
+                    for key in keys.split(", ") {
+                        // O enter da Hoje e do Caderno é outro nome do espaço.
+                        let alias = key == "enter" && keys.contains("espaço");
+                        if alias
+                            || moving.contains(&key)
+                            || key == "?"
+                            || key == ":"
+                            || key == "clique"
+                            || key == "linha do dia"
+                        {
+                            continue;
+                        }
+                        assert!(
+                            palette.iter().any(|label| label == key),
+                            "{tab:?} (ficha: {card}): a tecla {key} não está na paleta"
+                        );
+                    }
+                }
+            }
+        }
     }
 
     #[test]

@@ -26,11 +26,13 @@ mod fire;
 mod glitch;
 mod glow;
 mod hud;
+mod ink;
 mod ledger;
 mod matchday;
 mod meter;
 mod museum;
 mod notebook;
+mod palette;
 mod panel;
 mod prompt;
 mod schedule;
@@ -52,6 +54,7 @@ use ratatui::crossterm::event::{
 use ratatui::crossterm::execute;
 
 pub use curiosity::Acervo;
+pub use ink::{Ink, meter_text, spaced_caps};
 pub use ledger::Ledger;
 pub use schedule::Schedule;
 pub use visual::{Density, Effects, UnknownDensity, UnknownEffects};

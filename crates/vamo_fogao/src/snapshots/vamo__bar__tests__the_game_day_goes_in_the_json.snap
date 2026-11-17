@@ -1,5 +1,6 @@
 ---
 source: crates/vamo_fogao/src/bar.rs
+assertion_line: 386
 expression: json
 ---
 {
@@ -27,6 +28,6 @@ expression: json
   },
   "proximo": null,
   "text": "⭐ 1 x 1 · jogo às 21:30",
-  "tooltip": "Hoje · quinta, 12/11\nPlacar: 1 de 2\n⚽ Dia de jogo: Bangu x Botafogo, 21:30 · Amistoso\nDe 19:30 a 23:30, só tarefa leve.\n1 atrasada\n\nEm campo:\nT-001 Revisar o orçamento",
+  "tooltip": "⭐ Hoje · quinta, 12/11\n▰▰▰▰▰▱▱▱▱▱  Placar: 1 de 2\n⚽ Dia de jogo: Bangu x Botafogo, 21:30 · Amistoso\nDe 19:30 a 23:30, só tarefa leve.\n1 atrasada\n\nE M   C A M P O\nT-001 Revisar o orçamento",
   "versao": 1
 }

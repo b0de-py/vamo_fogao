@@ -84,6 +84,20 @@ Todo efeito pergunta pelo `efeitos` antes de animar (`Effects` em `visual.rs`), 
 
 `vamo --linguagem` e a variável `VAMO_LINGUAGEM` ganham da config. Um campo que o `vamo` não conhece é erro, pra erro de digitação não passar em silêncio.
 
+## A paleta de comandos
+
+O `:` abre a paleta: uma caixa com as ações da tela aberta e as outras telas, cada uma com a tecla do lado. Digitar filtra a lista por busca difusa. As letras precisam aparecer na ordem, mas não juntas, e maiúscula e acento não contam: `tnv` acha "tarefa nova". As setas escolhem, o enter faz e o esc fecha.
+
+A paleta não tem regra própria. Escolher um comando é apertar a tecla dele, pelo mesmo caminho de sempre (`palette.rs`). A lista vem da `Voice::commands`, e um teste confere que toda tecla da ajuda está nela, pra uma ação nova não ficar de fora.
+
+## A cara fora da TUI
+
+A CLI usa as mesmas cores. No `vamo list`, o ID vem em ciano e o status, o encaixe e a área vêm apagados. Na ficha do `vamo show`, o título vem em branco, o passo da vez da jogada em ciano e a súmula ganha o rótulo `S Ú M U L A`. O gol do `vamo done` sai alvinegro, preto no branco.
+
+A cor só sai quando a saída é um terminal. Num pipe, num script ou com `NO_COLOR` ligado, o texto sai sem nenhum código, igual ao de antes. Pra forçar a cor num pipe (como no `less -R`), use `CLICOLOR_FORCE=1`.
+
+Quem pinta é o `vamo_tui::Ink`, que traduz a paleta do tema pra códigos ANSI. O binário decide se o pincel tem tinta, e as telas da CLI só pedem "destaque" ou "apagado".
+
 ## No Hyprland: a janela que aparece e some
 
 A ideia é ter o vamo à mão o tempo todo: um atalho mostra a TUI, o mesmo atalho esconde, e o processo segue vivo no meio, com a tela do jeito que ficou. O Hyprland faz isso com um workspace especial, que aparece por cima dos outros e some sem fechar nada.

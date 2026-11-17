@@ -8,6 +8,7 @@ use std::fmt;
 use std::str::FromStr;
 
 use jiff::civil::Weekday;
+use ratatui::crossterm::event::KeyCode;
 use vamo_acervo::{Banter, Curiosity, Tag};
 use vamo_core::{Change, Interval, NotebookTitle, TaskId};
 
@@ -236,8 +237,8 @@ impl Voice {
     /// O título da lista do que falta no dia, na dica da barra.
     pub fn still_open(self) -> &'static str {
         match self {
-            Self::Game => "Em campo:",
-            Self::Neutral => "Falta:",
+            Self::Game => "Em campo",
+            Self::Neutral => "Falta",
         }
     }
 
@@ -991,6 +992,115 @@ impl Voice {
         }
     }
 
+    /// Os comandos da paleta na tela aberta: cada tecla da tela, com o que
+    /// ela faz por extenso. É a mesma lista da ajuda ([`Voice::help`]), só
+    /// que uma tecla por linha e sem as de andar pela lista, que na paleta
+    /// não fazem sentido.
+    pub(crate) fn commands(self, tab: Tab, card: bool) -> Vec<(KeyCode, &'static str)> {
+        let goal = (
+            KeyCode::Char(' '),
+            self.pick("marca o gol (ou o VAR anula)", "conclui (ou desfaz)"),
+        );
+        let back = (
+            KeyCode::Char('b'),
+            self.pick(
+                "tira do dia e devolve pro banco",
+                "tira do dia e devolve pra lista",
+            ),
+        );
+        let task = [
+            goal,
+            (
+                KeyCode::Char('e'),
+                self.pick("escala pra hoje", "marca pra hoje"),
+            ),
+            back,
+            (KeyCode::Char('x'), "descarta a tarefa"),
+        ];
+        match (tab, card) {
+            (Tab::Today, _) => vec![
+                goal,
+                (
+                    KeyCode::Char('e'),
+                    self.pick("escala uma pronta do banco", "marca uma pronta"),
+                ),
+                (KeyCode::Char('a'), "adia a tarefa pra amanhã"),
+                back,
+                (
+                    KeyCode::Char('r'),
+                    self.pick(
+                        "troca a curiosidade pela resenha",
+                        "troca a curiosidade pela piada",
+                    ),
+                ),
+            ],
+            (Tab::Notebook, _) => vec![goal],
+            (Tab::Museum, _) => vec![
+                (KeyCode::Char('h'), "volta uma década na linha do tempo"),
+                (KeyCode::Char('l'), "avança uma década na linha do tempo"),
+                (KeyCode::Char('o'), "ordena por data ou por tema"),
+                (
+                    KeyCode::Char('z'),
+                    self.pick("mostra a resenha", "mostra as piadas"),
+                ),
+            ],
+            (Tab::Bench, false) => {
+                let mut rows = vec![
+                    (KeyCode::Enter, "abre a ficha"),
+                    (KeyCode::Char('n'), "tarefa nova"),
+                    (KeyCode::Char('/'), "filtra a lista"),
+                    (KeyCode::Esc, "limpa o filtro"),
+                ];
+                rows.extend(task);
+                rows
+            }
+            (Tab::Bench, true) => {
+                let mut rows = vec![
+                    (KeyCode::Char('t'), "edita o título"),
+                    (KeyCode::Char('a'), "edita a área"),
+                    (KeyCode::Char('n'), "edita as notas"),
+                    (KeyCode::Char('f'), "troca o encaixe"),
+                    (KeyCode::Char('s'), "muda o status"),
+                    (KeyCode::Char('d'), "agenda pra um dia"),
+                ];
+                rows.extend(task);
+                rows.push((
+                    KeyCode::Esc,
+                    self.pick("fecha a ficha e volta pro banco", "fecha a ficha"),
+                ));
+                rows
+            }
+        }
+    }
+
+    /// O comando da paleta que leva pra outra tela.
+    pub(crate) fn go_to_tab(self, tab: Tab) -> String {
+        format!("vai pra tela {}", self.tab(tab))
+    }
+
+    /// O comando da paleta que abre a ajuda.
+    pub(crate) fn open_help(self) -> &'static str {
+        "abre a ajuda com todas as teclas"
+    }
+
+    /// O comando da paleta que fecha a TUI.
+    pub(crate) fn quit(self) -> &'static str {
+        self.pick("encerra a partida", "sai")
+    }
+
+    /// O título da paleta de comandos.
+    pub(crate) fn palette_title(self) -> &'static str {
+        "Paleta"
+    }
+
+    /// O que a paleta mostra quando a busca não acha nada.
+    pub(crate) fn palette_empty(self) -> &'static str {
+        self.pick(
+            "nenhuma jogada com esse nome",
+            "nenhum comando com esse nome",
+        )
+    }
+
     /// As linhas da ajuda: as teclas da tela aberta e as de sempre. Com a
     /// animação ligada, entra também o clique que atiça o fogo.
     pub(crate) fn help(
@@ -1087,6 +1197,7 @@ impl Voice {
             ("1 a 4", "vai direto pra tela"),
             ("tab, shift+tab", "próxima tela, tela anterior"),
             ("?", "abre e fecha esta ajuda"),
+            (":", "abre a paleta de comandos, com busca"),
             ("q, ctrl+c", self.pick("encerra a partida", "sai")),
         ]);
         if effects.animated() {

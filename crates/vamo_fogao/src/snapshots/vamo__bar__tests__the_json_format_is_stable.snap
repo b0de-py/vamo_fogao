@@ -1,5 +1,6 @@
 ---
 source: crates/vamo_fogao/src/bar.rs
+assertion_line: 367
 expression: json
 ---
 {
@@ -19,6 +20,6 @@ expression: json
     "titulo": "Almoço de família"
   },
   "text": "⭐ 1 x 1",
-  "tooltip": "Hoje · quinta, 12/11\nPlacar: 1 de 2\n1 atrasada\nPróximo: 12:00 Almoço de família\n\nEm campo:\nT-001 Revisar o orçamento",
+  "tooltip": "⭐ Hoje · quinta, 12/11\n▰▰▰▰▰▱▱▱▱▱  Placar: 1 de 2\n1 atrasada\nPróximo: 12:00 Almoço de família\n\nE M   C A M P O\nT-001 Revisar o orçamento",
   "versao": 1
 }

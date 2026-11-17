@@ -1,0 +1,6 @@
+---
+source: crates/vamo_fogao/tests/cli.rs
+assertion_line: 1571
+expression: "colored(&with_tasks(), &[\"done\", \"1\"])"
+---
+␛[1;38;2;10;10;10;48;2;255;255;255m GOOOL! T-001 Trocar o filtro da água ␛[0m

@@ -1,0 +1,7 @@
+---
+source: crates/vamo_fogao/tests/cli.rs
+assertion_line: 1561
+expression: "colored(&with_tasks(), &[\"list\"])"
+---
+␛[1;38;2;0;217;255mT-001␛[0m  ␛[38;2;176;176;176mpronta␛[0m  ␛[38;2;102;102;102mbrecha␛[0m  ␛[38;2;102;102;102mcasa ␛[0m  Trocar o filtro da água
+␛[1;38;2;0;217;255mT-002␛[0m  ␛[38;2;176;176;176mpronta␛[0m  ␛[38;2;102;102;102mbrecha␛[0m  ␛[38;2;102;102;102mgeral␛[0m  Fechar o mês · Pedir as datas

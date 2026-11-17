@@ -126,6 +126,6 @@ expression: screens
 "                  1 a 4           vai direto pra tela                                               "
 "                  tab, shift+tab  próxima tela, tela anterior                                       "
 "                  ?               abre e fecha esta ajuda                                         ┃ "
-"                ┃ q, ctrl+c       sai                                              ┃             ━┛ "
+"                ┃ :               abre a paleta de comandos, com busca             ┃             ━┛ "
 "                ┗━                                                                ━┛                "
 "  ←→  década   o  ordena   z  piadas   ?  ajuda   tab  telas   q  sai                Feitas: 1 de 2 "
