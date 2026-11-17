@@ -1,12 +1,13 @@
 //! A tela Banco: todas as tarefas, com filtro.
 
+use jiff::Timestamp;
 use jiff::civil::Date;
 use ratatui::Frame;
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
 use ratatui::layout::{Constraint, Layout, Rect};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Cell, Paragraph, Row, Table};
-use vamo_core::{Fit, Projection, Status, Task};
+use vamo_core::{Discarded, Fit, Projection, Status, Task};
 
 use crate::app::{Action, Feedback, record};
 use crate::prompt::{Prompt, Purpose};
@@ -44,6 +45,7 @@ impl Bench {
         key: KeyEvent,
         ledger: &mut L,
         today: Date,
+        since: Timestamp,
     ) -> Option<Action> {
         let tasks = self.visible(ledger.projection());
         let last = tasks.len().saturating_sub(1);
@@ -60,6 +62,17 @@ impl Bench {
             }
             KeyCode::Char('n') => Some(Action::Ask(Prompt::new(Purpose::NewTask, ""))),
             KeyCode::Char('/') => Some(Action::Ask(Prompt::new(Purpose::Filter, &self.filter))),
+            // A linha de trazer de volta já chega com a descartada mais
+            // recente: o caso comum (descartei sem querer) é `u` e enter.
+            KeyCode::Char('u') => {
+                let latest = ledger
+                    .projection()
+                    .dropped_since(ledger.events(), since)
+                    .first()
+                    .map(|discarded| discarded.task.id().to_string())
+                    .unwrap_or_default();
+                Some(Action::Ask(Prompt::new(Purpose::Restore, &latest)))
+            }
             KeyCode::Esc if !self.filter.is_empty() => {
                 self.set_filter("");
                 None
@@ -76,6 +89,7 @@ impl Bench {
         area: Rect,
         projection: &Projection,
         today: Date,
+        dropped: &[Discarded],
         voice: Voice,
     ) {
         let tasks = self.visible(projection);
@@ -102,30 +116,7 @@ impl Bench {
             .collect();
         // As jogadas que esperam algo de fora, com o que falta.
         let waiting: Vec<&Task> = tasks.iter().filter(|task| task.is_waiting()).collect();
-        let mut strip_lines: Vec<Line<'static>> = Vec::new();
-        if !waiting.is_empty() {
-            strip_lines.push(theme::section_line(voice.bench_waiting()));
-            for task in waiting.iter().take(MAX_SLEEPING) {
-                strip_lines.push(Line::styled(
-                    format!("  {}  {}", task.id(), waiting_text(task)),
-                    theme::muted(),
-                ));
-            }
-        }
-        if !sleeping.is_empty() {
-            strip_lines.push(theme::section_line(voice.bench_coming_back()));
-            for (task, day) in sleeping.iter().take(MAX_SLEEPING) {
-                strip_lines.push(Line::styled(
-                    format!(
-                        "  {}  {}  {}",
-                        task.id(),
-                        day.strftime("%d/%m"),
-                        task.title()
-                    ),
-                    theme::muted(),
-                ));
-            }
-        }
+        let strip_lines = strip_lines(&waiting, &sleeping, dropped, voice);
         let (rest, strip) = if strip_lines.is_empty() {
             (rest, None)
         } else {
@@ -180,6 +171,56 @@ impl Bench {
             rest,
         );
     }
+}
+
+/// As faixas de baixo do Banco: as jogadas que esperam algo de fora, as
+/// descartadas há pouco e as que dormem até voltar. Cada faixa só entra
+/// quando tem alguém.
+fn strip_lines(
+    waiting: &[&Task],
+    sleeping: &[(Task, Date)],
+    dropped: &[Discarded],
+    voice: Voice,
+) -> Vec<Line<'static>> {
+    let mut strip_lines: Vec<Line<'static>> = Vec::new();
+    if !waiting.is_empty() {
+        strip_lines.push(theme::section_line(voice.bench_waiting()));
+        for task in waiting.iter().take(MAX_SLEEPING) {
+            strip_lines.push(Line::styled(
+                format!("  {}  {}", task.id(), waiting_text(task)),
+                theme::muted(),
+            ));
+        }
+    }
+    // As descartadas há pouco, pra um descarte sem querer não passar
+    // batido. Elas saem da faixa sozinhas quando a janela passa.
+    if !dropped.is_empty() {
+        strip_lines.push(Line::from(vec![
+            Span::styled(theme::spaced_caps(voice.bench_dropped()), theme::section()),
+            Span::styled(format!("   {}", voice.bench_dropped_hint()), theme::muted()),
+        ]));
+        for discarded in dropped.iter().take(MAX_SLEEPING) {
+            strip_lines.push(Line::styled(
+                format!("  {}  {}", discarded.task.id(), discarded.task.title()),
+                theme::muted(),
+            ));
+        }
+    }
+    if !sleeping.is_empty() {
+        strip_lines.push(theme::section_line(voice.bench_coming_back()));
+        for (task, day) in sleeping.iter().take(MAX_SLEEPING) {
+            strip_lines.push(Line::styled(
+                format!(
+                    "  {}  {}  {}",
+                    task.id(),
+                    day.strftime("%d/%m"),
+                    task.title()
+                ),
+                theme::muted(),
+            ));
+        }
+    }
+    strip_lines
 }
 
 /// O que a jogada em espera aguarda: o título e os itens do passo que
@@ -451,10 +492,63 @@ pub(crate) mod tests {
         let mut app = open_bench(&mut ledger);
         app.on_key(key(KeyCode::Char('n')), &mut ledger);
         type_text(&mut app, &mut ledger, "Comprar pilha pro controle");
+        // Ainda não gravou: falta a área e as notas.
+        assert_eq!(ledger.projection().tasks().count(), 5);
+        let screen = draw(&app, &ledger, 120, 12);
+        assert!(screen.contains("tab completa"), "{screen}");
+        // Enter na área e nas notas deixa os padrões.
+        type_text(&mut app, &mut ledger, "");
+        type_text(&mut app, &mut ledger, "");
         let task = ledger.projection().tasks().last().unwrap();
         assert_eq!(task.title().as_str(), "Comprar pilha pro controle");
         assert_eq!(task.area().as_str(), "geral");
+        assert_eq!(task.notes(), "autodescritivo");
         assert_eq!(task.status(), Status::Ready);
+    }
+
+    #[test]
+    fn the_new_task_asks_the_area_with_tab_and_the_notes() {
+        let mut ledger = bench();
+        let mut app = open_bench(&mut ledger);
+        app.on_key(key(KeyCode::Char('n')), &mut ledger);
+        type_text(&mut app, &mut ledger, "Lavar a cortina");
+        for c in "ca".chars() {
+            app.on_key(key(KeyCode::Char(c)), &mut ledger);
+        }
+        // O que o tab completaria aparece apagado depois do cursor.
+        let screen = draw(&app, &ledger, 120, 12);
+        assert!(screen.contains("ca▏sa"), "{screen}");
+        app.on_key(key(KeyCode::Tab), &mut ledger);
+        type_text(&mut app, &mut ledger, "");
+        type_text(&mut app, &mut ledger, "Com sabão neutro");
+        let task = ledger.projection().tasks().last().unwrap();
+        assert_eq!(task.area().as_str(), "casa");
+        assert_eq!(task.notes(), "Com sabão neutro");
+    }
+
+    #[test]
+    fn a_new_area_is_told_and_typed_the_easy_way() {
+        let mut ledger = bench();
+        let mut app = open_bench(&mut ledger);
+        app.on_key(key(KeyCode::Char('n')), &mut ledger);
+        type_text(&mut app, &mut ledger, "Montar o portfólio");
+        // Maiúscula e espaço viram o jeito de escrever área.
+        type_text(&mut app, &mut ledger, "Projetos Paralelos");
+        type_text(&mut app, &mut ledger, "");
+        let task = ledger.projection().tasks().last().unwrap();
+        assert_eq!(task.area().as_str(), "projetos-paralelos");
+        let screen = draw(&app, &ledger, 120, 12);
+        assert!(screen.contains("área nova: projetos-paralelos"), "{screen}");
+    }
+
+    #[test]
+    fn esc_in_the_middle_gives_up_the_new_task() {
+        let mut ledger = bench();
+        let mut app = open_bench(&mut ledger);
+        app.on_key(key(KeyCode::Char('n')), &mut ledger);
+        type_text(&mut app, &mut ledger, "Lavar a cortina");
+        app.on_key(key(KeyCode::Esc), &mut ledger);
+        assert_eq!(ledger.projection().tasks().count(), 5);
     }
 
     #[test]
@@ -466,6 +560,45 @@ pub(crate) mod tests {
         let screen = draw(&app, &ledger, 120, 12);
         assert!(screen.contains("verbo"), "{screen}");
         assert_eq!(ledger.projection().tasks().count(), 5);
+    }
+
+    #[test]
+    fn a_dropped_task_shows_up_and_comes_back_with_its_status() {
+        let mut ledger = bench();
+        let mut app = open_bench(&mut ledger);
+        let first = ledger.projection().tasks().next().unwrap();
+        let before = first.status();
+        app.on_key(key(KeyCode::Char('x')), &mut ledger);
+        assert_eq!(
+            ledger.projection().task(first.id()).unwrap().status(),
+            Status::Dropped
+        );
+        let screen = draw(&app, &ledger, 120, 16);
+        assert!(screen.contains("D E S C A R T A D A S"), "{screen}");
+        assert!(screen.contains("u traz de volta"), "{screen}");
+        // O `u` chega com a descartada mais recente: é só dar enter.
+        app.on_key(key(KeyCode::Char('u')), &mut ledger);
+        type_text(&mut app, &mut ledger, "");
+        assert_eq!(
+            ledger.projection().task(first.id()).unwrap().status(),
+            before
+        );
+        let screen = draw(&app, &ledger, 120, 16);
+        assert!(!screen.contains("D E S C A R T A D A S"), "{screen}");
+        assert!(screen.contains("voltou pro banco"), "{screen}");
+    }
+
+    #[test]
+    fn only_a_dropped_task_can_come_back() {
+        let mut ledger = bench();
+        let mut app = open_bench(&mut ledger);
+        app.on_key(key(KeyCode::Char('u')), &mut ledger);
+        type_text(&mut app, &mut ledger, "T-001");
+        let screen = draw(&app, &ledger, 120, 12);
+        assert!(
+            screen.contains("não é de uma tarefa descartada"),
+            "{screen}"
+        );
     }
 
     #[test]

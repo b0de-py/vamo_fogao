@@ -2,7 +2,7 @@
 //! filtro.
 
 use ratatui::crossterm::event::{KeyCode, KeyEvent};
-use vamo_core::{Status, TaskId};
+use vamo_core::{Area, NotebookTitle, Status, TaskId};
 
 use crate::Voice;
 use crate::voice::Field;
@@ -12,6 +12,15 @@ use crate::voice::Field;
 pub(crate) enum Purpose {
     /// O título de uma tarefa nova.
     NewTask,
+    /// A área de uma tarefa nova, com o título já aceito. `known` são as
+    /// áreas que já existem, da mais usada pra menos, pro tab completar.
+    NewArea {
+        title: NotebookTitle,
+        known: Vec<Area>,
+    },
+    /// As notas de uma tarefa nova, com o título e a área já aceitos. É o
+    /// último passo: o enter cria a tarefa.
+    NewNotes { title: NotebookTitle, area: Area },
     /// O filtro do Banco.
     Filter,
     /// O título novo de uma tarefa.
@@ -30,6 +39,8 @@ pub(crate) enum Purpose {
     Pull,
     /// O número do item do passo da vez pra marcar ou desmarcar.
     Item(TaskId),
+    /// A descartada que volta pro banco, pelo ID.
+    Restore,
     /// O status novo, escolhido pelo número entre os que a regra deixa.
     Status(TaskId, Vec<Status>),
 }
@@ -66,6 +77,12 @@ impl Prompt {
     pub(crate) fn on_key(&mut self, key: KeyEvent) -> Step {
         match key.code {
             KeyCode::Enter => Step::Submit,
+            KeyCode::Tab => {
+                if let Some(rest) = self.completion() {
+                    self.text.push_str(&rest);
+                }
+                Step::Typing
+            }
             KeyCode::Esc => Step::Cancel,
             KeyCode::Backspace => {
                 self.text.pop();
@@ -79,16 +96,38 @@ impl Prompt {
         }
     }
 
+    /// O pedaço que falta pro texto virar uma área que já existe, quando a
+    /// linha pede a área de uma tarefa nova: com `ca` digitado e a área
+    /// `casa` no banco, falta `sa`. Vale a mais usada entre as que começam
+    /// assim.
+    pub(crate) fn completion(&self) -> Option<String> {
+        let Purpose::NewArea { known, .. } = &self.purpose else {
+            return None;
+        };
+        let typed = self.text.trim();
+        if typed.is_empty() {
+            return None;
+        }
+        known
+            .iter()
+            .map(Area::as_str)
+            .find(|area| area.starts_with(typed) && *area != typed)
+            .map(|area| area[typed.len()..].to_owned())
+    }
+
     /// O que aparece antes do texto.
     pub(crate) fn label(&self, voice: Voice) -> String {
         match &self.purpose {
             Purpose::NewTask => voice.prompt_new_task().to_owned(),
+            Purpose::NewArea { .. } => voice.prompt_new_area().to_owned(),
+            Purpose::NewNotes { .. } => voice.prompt_new_notes().to_owned(),
             Purpose::Filter => voice.prompt_filter().to_owned(),
             Purpose::Title(_) => format!("{}: ", voice.field(Field::Title)),
             Purpose::Area(_) => format!("{}: ", voice.field(Field::Area)),
             Purpose::Notes(_) => format!("{}: ", voice.field(Field::Notes)),
             Purpose::Pull => voice.prompt_pull().to_owned(),
             Purpose::Item(_) => "item (número): ".to_owned(),
+            Purpose::Restore => voice.prompt_restore().to_owned(),
             Purpose::Day(_) | Purpose::StepDate(_) => voice.prompt_day().to_owned(),
             Purpose::Status(_, options) => {
                 let options: Vec<String> = (1..)
@@ -116,6 +155,31 @@ mod tests {
         assert_eq!(prompt.text, "Pôr a mes");
         assert_eq!(prompt.on_key(key(KeyCode::Enter)), Step::Submit);
         assert_eq!(prompt.on_key(key(KeyCode::Esc)), Step::Cancel);
+    }
+
+    #[test]
+    fn tab_completes_the_most_used_area() {
+        let areas = |names: &[&str]| names.iter().map(|name| name.parse().unwrap()).collect();
+        let mut prompt = Prompt::new(
+            Purpose::NewArea {
+                title: "Lavar o carro".parse().unwrap(),
+                known: areas(&["casa", "carreira", "saúde"]),
+            },
+            "ca",
+        );
+        assert_eq!(prompt.completion().as_deref(), Some("sa"));
+        prompt.on_key(key(KeyCode::Tab));
+        assert_eq!(prompt.text, "casa");
+        // Completa, nada sobra.
+        assert_eq!(prompt.completion(), None);
+        // Sem nada digitado, não chuta.
+        prompt.text.clear();
+        assert_eq!(prompt.completion(), None);
+        prompt.on_key(key(KeyCode::Tab));
+        assert_eq!(prompt.text, "");
+        // Com acento também.
+        prompt.text = "sa".to_owned();
+        assert_eq!(prompt.completion().as_deref(), Some("úde"));
     }
 
     #[test]
