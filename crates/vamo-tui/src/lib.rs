@@ -32,6 +32,7 @@ mod matchday;
 mod meter;
 mod museum;
 mod notebook;
+mod palette;
 mod panel;
 mod prompt;
 mod schedule;
